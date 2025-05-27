@@ -9,6 +9,9 @@
 /var/
 /vendor/
 
+###< nginx/nginx.conf ###
+docker/nginx/conf.d/default.conf
+
 ###< symfony/framework-bundle ###
 
 ###> phpunit/phpunit ###
