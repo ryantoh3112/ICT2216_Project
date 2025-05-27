@@ -15,8 +15,13 @@ services:
         DATABASE_URL: mysql://${MYSQL_USER:-app}:${MYSQL_PASSWORD:-!ChangeMe!}@database:3306/${MYSQL_DATABASE:-app}?serverVersion=8.0&charset=utf8mb4
 
   nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/nginx.Dockerfile
     image: nginx:alpine
     container_name: symfony_nginx
+    environment:
+      - APP_URL=${APP_URL}
     ports:
       - "8080:80"
     volumes:
