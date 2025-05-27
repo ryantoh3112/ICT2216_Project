@@ -21,7 +21,7 @@ services:
     image: nginx:alpine
     container_name: symfony_nginx
     environment:
-      - APP_URL=${SERVER_NAME}
+      - SERVER_NAME=${SERVER_NAME}
     ports:
       - "80:80"
     volumes:
