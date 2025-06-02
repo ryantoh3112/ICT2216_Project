@@ -1,60 +1,24 @@
-
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: symfony_app
-    working_dir: /var/www/html
-    volumes:
-      - .:/var/www/html
-    depends_on:
-      - database
-    environment:
-      DATABASE_URL: mysql://${MYSQL_USER:-app}:${MYSQL_PASSWORD:-!ChangeMe!}@database:3306/${MYSQL_DATABASE:-app}?serverVersion=8.0&charset=utf8mb4
-
-  nginx:
-    image: nginx:alpine
-    container_name: symfony_nginx
-    ports:
-      - "8080:80"
-    volumes:
-      - .:/var/www/html
-      - ./docker/nginx/conf.d:/etc/nginx/conf.d
-    depends_on:
-      - app
-
 ###> doctrine/doctrine-bundle ###
   database:
     image: mysql:8.0
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-app}
-      MYSQL_USER: ${MYSQL_USER:-app}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-!ChangeMe!}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-    ports:
-      - "3306:3306"
-    volumes:
-      - database_data:/var/lib/mysql
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      # You should definitely change the password in production
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
-
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    ports:
-      - "8081:80"
-    environment:
-      PMA_HOST: database
-      MYSQL_ROOT_PASSWORD: rootpass
-    depends_on:
-      - database
-
+      start_period: 60s
+    volumes:
+      - database_data:/var/lib/postgresql/data:rw
+      # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
+      # - ./docker/db/data:/var/lib/postgresql/data:rw
 ###< doctrine/doctrine-bundle ###
 
 volumes:
-###> doctrine/doctrine-bundle ###
   database_data:
-###< doctrine/doctrine-bundle ###
+

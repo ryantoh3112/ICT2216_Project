@@ -1,0 +1,19 @@
+# .dockerignore
+
+# Common VCS ignores
+.git
+.gitignore
+
+# PHP/composer
+vendor
+
+
+# Logs
+*.log
+
+# IDEs and editors
+.vscode
+
+# Docker files (usually not needed in image)
+docker-compose.yml
+Dockerfile
