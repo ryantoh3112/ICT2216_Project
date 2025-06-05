@@ -2,7 +2,7 @@
 GoTix is a web application designed as a platform for the public to purchase tickets for events in Singapore. The platform aims to bring exciting events to users, allowing them to conveniently buy tickets for a variety of occasions.
 
 ## GoTix Architecture
-GoTix is a project we built for our module **ICT2216 Secure Software Development**. It utilizes the LAMP architecture, together with the Symfony framework and Docker for containerization.
+GoTix is a project we built for our module **ICT2216 Secure Software Development**. It utilizes the LEMP architecture, together with the Symfony framework and Docker for containerization.
 
 ## Set up Guide
 * After cloning from the branch, ensure you have PHP (8.2 and above) and Composer (Different from Docker Compose) installed
