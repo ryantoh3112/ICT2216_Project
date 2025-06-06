@@ -1,0 +1,91 @@
+{# templates/venue/index.html.twig #}
+
+{% include 'navbar.html.twig' %}
+
+<body>
+    <!-- venues section -->
+    <section class="venue_section layout_padding-bottom">
+        <div class="container">
+            <br>
+            <div class="heading_container heading_center">
+                <h2>
+                    Venues
+                </h2>
+            </div>
+
+            {# Category filters - you can customize these based on venue types #}
+            <ul class="filters_menu">
+                <li class="active" data-filter="*">All</li>
+                <li data-filter=".theater">Theater</li>
+                <li data-filter=".conference">Conference</li>
+                <li data-filter=".outdoor">Outdoor</li>
+                <li data-filter=".hall">Hall</li>
+            </ul>
+
+            <div class="filters-content">
+                <div class="row grid">
+                    {% if venues is empty %}
+                        <div class="col-12 text-center">
+                            <p>No venues available at the moment.</p>
+                        </div>
+                    {% else %}
+                        {% for venue in venues %}
+                            <div class="col-sm-6 col-lg-4 all 
+                                {# Add venue type classes based on your categorization logic #}
+                                {% if venue.capacity > 1000 %}conference{% endif %}
+                                {% if venue.capacity < 500 %}theater{% endif %}
+                            ">
+                                <div class="box">
+                                    <div>
+                                        <div class="img-box">
+                                            {% if venue.venueImage %}
+                                                <img src="{{ asset(venue.venueImage) }}" alt="{{ venue.name }}">
+                                            {% else %}
+                                                <img src="{{ asset('images/venue-placeholder.png') }}" alt="{{ venue.name }}">
+                                            {% endif %}
+                                        </div>
+                                        <div class="detail-box">
+                                            <h5>
+                                                {{ venue.name }}
+                                            </h5>
+                                            <p>
+                                                {{ venue.address }}
+                                                {# {% if venue.description %}
+                                                    {{ venue.description|slice(0, 100) }}{% if venue.description|length > 100 %}...{% endif %}
+                                                {% else %}
+                                                    {{ venue.address ? venue.address : 'Premium venue location perfect for your events' }}
+                                                {% endif %} #}
+                                            </p>
+                                            <div class="options">
+                                                <h6>
+                                                    {% if venue.capacity %}
+                                                        {{ venue.capacity|number_format }} capacity
+                                                    {% else %}
+                                                        Contact for details
+                                                    {% endif %}
+                                                </h6>
+                                                {# <a href="{{ path('app_venue_show', {'id': venue.id}) }}" class="btn btn-primary btn-sm">
+                                                    View Details
+                                                </a> #}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+            
+            {# <div class="btn-box">
+                <a href="{{ path('app_venue_index') }}">
+                    View More
+                </a>
+            </div> #}
+        </div>
+    </section>
+</body>
+
+<footer>
+    {% include 'footer.html.twig' %}
+</footer>

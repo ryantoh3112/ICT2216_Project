@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\VenueRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: VenueRepository::class)]
@@ -29,6 +30,12 @@ class Venue
      */
     #[ORM\OneToMany(targetEntity: Event::class, mappedBy: 'venue')]
     private Collection $event;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $venueImage = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $venueDescription = null;
 
     public function __construct()
     {
@@ -102,6 +109,30 @@ class Venue
                 $event->setVenue(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getVenueImage(): ?string
+    {
+        return $this->venueImage;
+    }
+
+    public function setVenueImage(?string $venueImage): static
+    {
+        $this->venueImage = $venueImage;
+
+        return $this;
+    }
+
+    public function getVenueDescription(): ?string
+    {
+        return $this->venueDescription;
+    }
+
+    public function setVenueDescription(?string $venueDescription): static
+    {
+        $this->venueDescription = $venueDescription;
 
         return $this;
     }

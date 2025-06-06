@@ -47,6 +47,9 @@ class Event
     #[ORM\Column(length: 255)]
     private ?string $eventOrganiser = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $eventImage = null;
+
     public function __construct()
     {
         $this->ticket = new ArrayCollection();
@@ -179,6 +182,18 @@ class Event
     public function setEventOrganiser(string $eventOrganiser): static
     {
         $this->eventOrganiser = $eventOrganiser;
+
+        return $this;
+    }
+
+    public function getEventImage(): ?string
+    {
+        return $this->eventImage;
+    }
+
+    public function setEventImage(?string $eventImage): static
+    {
+        $this->eventImage = $eventImage;
 
         return $this;
     }
