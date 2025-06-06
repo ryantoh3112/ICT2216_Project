@@ -7,7 +7,7 @@ GoTix is a project we built for our module **ICT2216 Secure Software Development
 ## Set up Guide
 * After cloning from the branch, ensure you have PHP (8.2 and above) and Composer (Different from Docker Compose) installed
 * Use an IDE (eg. Microsoft VS Code) to open the file and make use of the inbuilt terminal to run symfony commands (navigate to the project directory)
-* run ```symfony check:requirements``` to check if there are any missing packages, install them accordingly
+* run ```symfony check:requirements``` to check if there are any missing packages, install them accordingly using ```composer install```. run ```symfony check:requirements``` to check again if there are any missing packages.
 * once all packages installed, run ```symfony server:start``` to start the application
 
 
