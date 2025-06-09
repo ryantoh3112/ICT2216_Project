@@ -38,8 +38,8 @@
                                 <div class="box">
                                     <div>
                                         <div class="img-box">
-                                            {% if venue.venueImage %}
-                                                <img src="{{ asset(venue.venueImage) }}" alt="{{ venue.name }}">
+                                            {% if venue.image %}
+                                                <img src="{{ asset(venue.image) }}" alt="{{ venue.name }}">
                                             {% else %}
                                                 <img src="{{ asset('images/venue-placeholder.png') }}" alt="{{ venue.name }}">
                                             {% endif %}
