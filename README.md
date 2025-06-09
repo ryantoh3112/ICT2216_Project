@@ -61,4 +61,11 @@ GoTix is a project we built for our module **ICT2216 Secure Software Development
    ```sh
    php bin/console doctrine:migrations:migrate
    ```
+6. To insert/load test data into the database, run:
+   ```sh
+   php bin/console doctrine:fixtures:load
+   ```
+   * You will see a message like this:<br/>
+   ```Careful, database "_______" will be purged. Do you want to continue? (yes/no):```<br/>
+   Just input 'yes', it will delete any existing data in the database and insert test data based on the fixture files.
    
