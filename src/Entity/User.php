@@ -16,7 +16,7 @@ class User
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $userName = null;
+    private ?string $name = null;
 
     #[ORM\OneToOne(mappedBy: 'user', cascade: ['persist', 'remove'])]
     private ?Auth $auth = null;
@@ -28,22 +28,43 @@ class User
     private Collection $payment;
 
     /**
-     * @var Collection<int, Ticket>
-     */
-    #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'user')]
-    private Collection $ticket;
-
-    /**
      * @var Collection<int, History>
      */
     #[ORM\OneToMany(targetEntity: History::class, mappedBy: 'user')]
     private Collection $history;
 
+    /**
+     * @var Collection<int, JWTBlacklist>
+     */
+    #[ORM\OneToMany(targetEntity: JWTBlacklist::class, mappedBy: 'user')]
+    private Collection $jwtBlacklist;
+
+    #[ORM\Column(length: 255)]
+    private ?string $role = null;
+
+    #[ORM\Column]
+    private ?\DateTime $createdAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTime $lastLoginAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTime $updatedAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $failedLoginCount = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $accountStatus = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTime $lockedAt = null;
+
     public function __construct()
     {
         $this->payment = new ArrayCollection();
-        $this->ticket = new ArrayCollection();
         $this->history = new ArrayCollection();
+        $this->jwtBlacklist = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -51,14 +72,14 @@ class User
         return $this->id;
     }
 
-    public function getUserName(): ?string
+    public function getName(): ?string
     {
-        return $this->userName;
+        return $this->name;
     }
 
-    public function setUserName(string $userName): static
+    public function setName(string $name): static
     {
-        $this->userName = $userName;
+        $this->name = $name;
 
         return $this;
     }
@@ -111,36 +132,6 @@ class User
     }
 
     /**
-     * @return Collection<int, Ticket>
-     */
-    public function getTicket(): Collection
-    {
-        return $this->ticket;
-    }
-
-    public function addTicket(Ticket $ticket): static
-    {
-        if (!$this->ticket->contains($ticket)) {
-            $this->ticket->add($ticket);
-            $ticket->setUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeTicket(Ticket $ticket): static
-    {
-        if ($this->ticket->removeElement($ticket)) {
-            // set the owning side to null (unless already changed)
-            if ($ticket->getUser() === $this) {
-                $ticket->setUser(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
      * @return Collection<int, History>
      */
     public function getHistory(): Collection
@@ -166,6 +157,120 @@ class User
                 $history->setUser(null);
             }
         }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, JWTBlacklist>
+     */
+    public function getJwtBlacklist(): Collection
+    {
+        return $this->jwtBlacklist;
+    }
+
+    public function addJwtBlacklist(JWTBlacklist $jwtBlacklist): static
+    {
+        if (!$this->jwtBlacklist->contains($jwtBlacklist)) {
+            $this->jwtBlacklist->add($jwtBlacklist);
+            $jwtBlacklist->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeJwtBlacklist(JWTBlacklist $jwtBlacklist): static
+    {
+        if ($this->jwtBlacklist->removeElement($jwtBlacklist)) {
+            // set the owning side to null (unless already changed)
+            if ($jwtBlacklist->getUser() === $this) {
+                $jwtBlacklist->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function getRole(): ?string
+    {
+        return $this->role;
+    }
+
+    public function setRole(string $role): static
+    {
+        $this->role = $role;
+
+        return $this;
+    }
+
+    public function getCreatedAt(): ?\DateTime
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(\DateTime $createdAt): static
+    {
+        $this->createdAt = $createdAt;
+
+        return $this;
+    }
+
+    public function getLastLoginAt(): ?\DateTime
+    {
+        return $this->lastLoginAt;
+    }
+
+    public function setLastLoginAt(?\DateTime $lastLoginAt): static
+    {
+        $this->lastLoginAt = $lastLoginAt;
+
+        return $this;
+    }
+
+    public function getUpdatedAt(): ?\DateTime
+    {
+        return $this->updatedAt;
+    }
+
+    public function setUpdatedAt(?\DateTime $updatedAt): static
+    {
+        $this->updatedAt = $updatedAt;
+
+        return $this;
+    }
+
+    public function getFailedLoginCount(): ?int
+    {
+        return $this->failedLoginCount;
+    }
+
+    public function setFailedLoginCount(?int $failedLoginCount): static
+    {
+        $this->failedLoginCount = $failedLoginCount;
+
+        return $this;
+    }
+
+    public function getAccountStatus(): ?string
+    {
+        return $this->accountStatus;
+    }
+
+    public function setAccountStatus(?string $accountStatus): static
+    {
+        $this->accountStatus = $accountStatus;
+
+        return $this;
+    }
+
+    public function getLockedAt(): ?\DateTime
+    {
+        return $this->lockedAt;
+    }
+
+    public function setLockedAt(?\DateTime $lockedAt): static
+    {
+        $this->lockedAt = $lockedAt;
 
         return $this;
     }

@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\TicketRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: TicketRepository::class)]
@@ -13,18 +15,8 @@ class Ticket
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column]
-    private ?float $ticketPrice = null;
-
-    #[ORM\Column(length: 100)]
-    private ?string $ticketType = null;
-
     #[ORM\Column(length: 50)]
     private ?string $seatNumber = null;
-
-    #[ORM\ManyToOne(inversedBy: 'ticket')]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?User $user = null;
 
     #[ORM\ManyToOne(inversedBy: 'ticket')]
     #[ORM\JoinColumn(nullable: false)]
@@ -34,37 +26,24 @@ class Ticket
     #[ORM\JoinColumn(nullable: false)]
     private ?Payment $payment = null;
 
+    /**
+     * @var Collection<int, History>
+     */
+    #[ORM\OneToMany(targetEntity: History::class, mappedBy: 'ticket')]
+    private Collection $history;
+
     #[ORM\ManyToOne(inversedBy: 'ticket')]
     #[ORM\JoinColumn(nullable: false)]
-    private ?History $history = null;
+    private ?TicketType $ticketType = null;
+
+    public function __construct()
+    {
+        $this->history = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getTicketPrice(): ?float
-    {
-        return $this->ticketPrice;
-    }
-
-    public function setTicketPrice(float $ticketPrice): static
-    {
-        $this->ticketPrice = $ticketPrice;
-
-        return $this;
-    }
-
-    public function getTicketType(): ?string
-    {
-        return $this->ticketType;
-    }
-
-    public function setTicketType(string $ticketType): static
-    {
-        $this->ticketType = $ticketType;
-
-        return $this;
     }
 
     public function getSeatNumber(): ?string
@@ -75,18 +54,6 @@ class Ticket
     public function setSeatNumber(string $seatNumber): static
     {
         $this->seatNumber = $seatNumber;
-
-        return $this;
-    }
-
-    public function getUser(): ?User
-    {
-        return $this->user;
-    }
-
-    public function setUser(?User $user): static
-    {
-        $this->user = $user;
 
         return $this;
     }
@@ -115,14 +82,44 @@ class Ticket
         return $this;
     }
 
-    public function getHistory(): ?History
+    /**
+     * @return Collection<int, History>
+     */
+    public function getHistory(): Collection
     {
         return $this->history;
     }
 
-    public function setHistory(?History $history): static
+    public function addHistory(History $history): static
     {
-        $this->history = $history;
+        if (!$this->history->contains($history)) {
+            $this->history->add($history);
+            $history->setTicket($this);
+        }
+
+        return $this;
+    }
+
+    public function removeHistory(History $history): static
+    {
+        if ($this->history->removeElement($history)) {
+            // set the owning side to null (unless already changed)
+            if ($history->getTicket() === $this) {
+                $history->setTicket(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function getTicketType(): ?TicketType
+    {
+        return $this->ticketType;
+    }
+
+    public function setTicketType(?TicketType $ticketType): static
+    {
+        $this->ticketType = $ticketType;
 
         return $this;
     }

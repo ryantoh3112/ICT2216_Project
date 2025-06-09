@@ -17,19 +17,19 @@ class Event
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $eventName = null;
+    private ?string $name = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $eventDescription = null;
+    private ?string $description = null;
 
     #[ORM\Column]
-    private ?int $eventCapacity = null;
+    private ?int $capacity = null;
 
     #[ORM\Column]
-    private ?\DateTime $eventPurchaseStartDate = null;
+    private ?\DateTime $purchaseStartDate = null;
 
     #[ORM\Column]
-    private ?\DateTime $eventPurchaseEndDate = null;
+    private ?\DateTime $purchaseEndDate = null;
 
     /**
      * @var Collection<int, Ticket>
@@ -42,13 +42,14 @@ class Event
     private ?Venue $venue = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $eventCategory = null;
-
-    #[ORM\Column(length: 255)]
-    private ?string $eventOrganiser = null;
+    private ?string $organiser = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $eventImage = null;
+    private ?string $image = null;
+
+    #[ORM\ManyToOne(inversedBy: 'event')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?EventCategory $category = null;
 
     public function __construct()
     {
@@ -60,62 +61,62 @@ class Event
         return $this->id;
     }
 
-    public function getEventName(): ?string
+    public function getName(): ?string
     {
-        return $this->eventName;
+        return $this->name;
     }
 
-    public function setEventName(string $eventName): static
+    public function setName(string $name): static
     {
-        $this->eventName = $eventName;
+        $this->name = $name;
 
         return $this;
     }
 
-    public function getEventDescription(): ?string
+    public function getDescription(): ?string
     {
-        return $this->eventDescription;
+        return $this->description;
     }
 
-    public function setEventDescription(?string $eventDescription): static
+    public function setDescription(?string $description): static
     {
-        $this->eventDescription = $eventDescription;
+        $this->description = $description;
 
         return $this;
     }
 
-    public function getEventCapacity(): ?int
+    public function getCapacity(): ?int
     {
-        return $this->eventCapacity;
+        return $this->capacity;
     }
 
-    public function setEventCapacity(int $eventCapacity): static
+    public function setCapacity(int $capacity): static
     {
-        $this->eventCapacity = $eventCapacity;
+        $this->capacity = $capacity;
 
         return $this;
     }
 
-    public function getEventPurchaseStartDate(): ?\DateTime
+    public function getPurchaseStartDate(): ?\DateTime
     {
-        return $this->eventPurchaseStartDate;
+        return $this->purchaseStartDate;
     }
 
-    public function setEventPurchaseStartDate(\DateTime $eventPurchaseStartDate): static
+    public function setPurchaseStartDate(\DateTime $purchaseStartDate): static
     {
-        $this->eventPurchaseStartDate = $eventPurchaseStartDate;
+        $this->purchaseStartDate = $purchaseStartDate;
 
         return $this;
     }
 
-    public function getEventPurchaseEndDate(): ?\DateTime
+    public function getPurchaseEndDate(): ?\DateTime
     {
-        return $this->eventPurchaseEndDate;
+        return $this->purchaseEndDate;
     }
 
-    public function setEventPurchaseEndDate(\DateTime $eventPurchaseEndDate): static
+    public function setPurchaseEndDate(\DateTime $purchaseEndDate): static
     {
-        $this->eventPurchaseEndDate = $eventPurchaseEndDate;
+        $this->purchaseEndDate = $purchaseEndDate;
 
         return $this;
     }
@@ -162,38 +163,38 @@ class Event
         return $this;
     }
 
-    public function getEventCategory(): ?string
+    public function getOrganiser(): ?string
     {
-        return $this->eventCategory;
+        return $this->organiser;
     }
 
-    public function setEventCategory(string $eventCategory): static
+    public function setOrganiser(string $organiser): static
     {
-        $this->eventCategory = $eventCategory;
+        $this->organiser = $organiser;
 
         return $this;
     }
 
-    public function getEventOrganiser(): ?string
+    public function getImage(): ?string
     {
-        return $this->eventOrganiser;
+        return $this->image;
     }
 
-    public function setEventOrganiser(string $eventOrganiser): static
+    public function setImage(?string $image): static
     {
-        $this->eventOrganiser = $eventOrganiser;
+        $this->image = $image;
 
         return $this;
     }
 
-    public function getEventImage(): ?string
+    public function getCategory(): ?EventCategory
     {
-        return $this->eventImage;
+        return $this->category;
     }
 
-    public function setEventImage(?string $eventImage): static
+    public function setCategory(?EventCategory $category): static
     {
-        $this->eventImage = $eventImage;
+        $this->category = $category;
 
         return $this;
     }

@@ -2,14 +2,14 @@
 
 namespace App\Entity;
 
-use App\Repository\VenueRepository;
+use App\Repository\EventCategoryRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: VenueRepository::class)]
-class Venue
+#[ORM\Entity(repositoryClass: EventCategoryRepository::class)]
+class EventCategory
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -19,23 +19,17 @@ class Venue
     #[ORM\Column(length: 255)]
     private ?string $name = null;
 
-    #[ORM\Column(length: 255)]
-    private ?string $address = null;
-
-    #[ORM\Column]
-    private ?int $capacity = null;
-
-    /**
-     * @var Collection<int, Event>
-     */
-    #[ORM\OneToMany(targetEntity: Event::class, mappedBy: 'venue')]
-    private Collection $event;
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $description = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $image = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $description = null;
+    /**
+     * @var Collection<int, Event>
+     */
+    #[ORM\OneToMany(targetEntity: Event::class, mappedBy: 'category')]
+    private Collection $event;
 
     public function __construct()
     {
@@ -59,56 +53,14 @@ class Venue
         return $this;
     }
 
-    public function getAddress(): ?string
+    public function getDescription(): ?string
     {
-        return $this->address;
+        return $this->description;
     }
 
-    public function setAddress(string $address): static
+    public function setDescription(?string $description): static
     {
-        $this->address = $address;
-
-        return $this;
-    }
-
-    public function getCapacity(): ?int
-    {
-        return $this->capacity;
-    }
-
-    public function setCapacity(int $capacity): static
-    {
-        $this->capacity = $capacity;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Event>
-     */
-    public function getEvent(): Collection
-    {
-        return $this->event;
-    }
-
-    public function addEvent(Event $event): static
-    {
-        if (!$this->event->contains($event)) {
-            $this->event->add($event);
-            $event->setVenue($this);
-        }
-
-        return $this;
-    }
-
-    public function removeEvent(Event $event): static
-    {
-        if ($this->event->removeElement($event)) {
-            // set the owning side to null (unless already changed)
-            if ($event->getVenue() === $this) {
-                $event->setVenue(null);
-            }
-        }
+        $this->description = $description;
 
         return $this;
     }
@@ -125,14 +77,32 @@ class Venue
         return $this;
     }
 
-    public function getDescription(): ?string
+    /**
+     * @return Collection<int, Event>
+     */
+    public function getEvent(): Collection
     {
-        return $this->description;
+        return $this->event;
     }
 
-    public function setDescription(?string $description): static
+    public function addEvent(Event $event): static
     {
-        $this->description = $description;
+        if (!$this->event->contains($event)) {
+            $this->event->add($event);
+            $event->setCategory($this);
+        }
+
+        return $this;
+    }
+
+    public function removeEvent(Event $event): static
+    {
+        if ($this->event->removeElement($event)) {
+            // set the owning side to null (unless already changed)
+            if ($event->getCategory() === $this) {
+                $event->setCategory(null);
+            }
+        }
 
         return $this;
     }
