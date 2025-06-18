@@ -39,4 +39,12 @@ final class MainController extends AbstractController
             'controller_name' => 'IndexController',
         ]);
     }
+
+    #[Route('/forget_pwd', name: 'forget_pwd_page')]
+    public function forget_pwd(): Response
+    {
+        return $this->render('authentication/forget_pwd.html.twig', [
+            'controller_name' => 'IndexController',
+        ]);
+    }
 }
