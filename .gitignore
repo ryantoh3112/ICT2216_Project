@@ -28,3 +28,5 @@ docker/nginx/conf.d/default.conf
 /public/assets/
 /assets/vendor/
 ###< symfony/asset-mapper ###
+/public/build/
+node_modules
