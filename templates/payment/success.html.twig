@@ -1,0 +1,22 @@
+{% include 'navbar.html.twig' %}
+
+<div class="container mt-5 mb-5 text-center" style="min-height: 70vh;">
+    <div class="p-5 bg-light border rounded shadow-sm">
+        <h1 class="text-success mb-3">
+            ✅ Payment Successful!
+        </h1>
+        <p class="lead">Thank you for your purchase. Your ticket(s) have been confirmed.</p>
+
+        <div class="mt-4">
+            <h4>Order Summary</h4>
+            <p><strong>Product:</strong> GoTix Concert Ticket</p>
+            <p><strong>Quantity:</strong> {{ quantity }}</p>
+            <p><strong>Total Paid:</strong> ${{ total }}</p>
+        </div>
+
+        <a href="{{ path('app_home') }}" class="btn btn-primary mt-4">Return to Home</a>
+    </div>
+</div>
+
+{% include 'footer.html.twig' %}
+{% include 'chatbot/chatbot.html.twig' %}

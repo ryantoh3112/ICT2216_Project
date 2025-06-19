@@ -1,0 +1,110 @@
+{% include 'navbar.html.twig' %}
+
+<div class="container mt-5 mb-5" style="min-height: 70vh;">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div style="border: 1px solid #ddd; border-radius: 10px; padding: 30px; background-color: #f9f9f9; box-shadow: 0 0 15px rgba(0,0,0,0.05);">
+                <h2 class="text-center mb-3" style="font-family: 'Playfair Display', serif;">🎟️ Book Your Ticket</h2>
+                <p class="text-center text-muted">Secure your seat at the hottest event in town.</p>
+
+                <hr>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span><strong>Event:</strong></span>
+                    <span>GoTix Live Concert 2026</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span><strong>Date:</strong></span>
+                    <span>20 May 2026</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3 align-items-center">
+                    <span><strong>Quantity:</strong></span>
+                    <div>
+                        <button type="button" id="decrease" class="btn btn-outline-secondary btn-sm">-</button>
+                        <span id="ticket-count" class="mx-2">1</span>
+                        <button type="button" id="increase" class="btn btn-outline-secondary btn-sm">+</button>
+                    </div>
+                </div>
+
+                <!-- 🧾 Cost Breakdown -->
+                <div class="d-flex justify-content-between mb-2">
+                    <span><strong>Price per Ticket:</strong></span>
+                    <span>$25.00</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span><strong>Booking Fee:</strong></span>
+                    <span id="booking-fee-display">$3.00</span>
+                </div>
+
+                <hr>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span><strong>Subtotal:</strong></span>
+                    <span id="subtotal-display">$25.00</span>
+                </div>
+                <div class="d-flex justify-content-between mb-4">
+                    <span><strong>Total:</strong></span>
+                    <span><strong id="total-price">$28.00</strong></span>
+                </div>
+
+                <button id="checkout-button" class="btn btn-primary w-100">Pay $28.00</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'footer.html.twig' %}
+{% include 'chatbot/chatbot.html.twig' %}
+
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+    const stripe = Stripe('{{ stripe_public_key }}');
+
+    const basePrice = 25;
+    const bookingFee = 3;
+    let quantity = 1;
+
+    const countDisplay = document.getElementById('ticket-count');
+    const subtotalDisplay = document.getElementById('subtotal-display');
+    const bookingFeeDisplay = document.getElementById('booking-fee-display');
+    const totalPriceDisplay = document.getElementById('total-price');
+    const checkoutButton = document.getElementById('checkout-button');
+
+    document.getElementById('increase').addEventListener('click', () => {
+        quantity++;
+        updatePrice();
+    });
+
+    document.getElementById('decrease').addEventListener('click', () => {
+        if (quantity > 1) {
+            quantity--;
+            updatePrice();
+        }
+    });
+
+    function updatePrice() {
+        const subtotal = basePrice * quantity;
+        const totalFee = bookingFee * quantity;
+        const total = subtotal + totalFee;
+
+        countDisplay.textContent = quantity;
+        subtotalDisplay.textContent = `$${subtotal.toFixed(2)}`;
+        bookingFeeDisplay.textContent = `$${totalFee.toFixed(2)}`;
+        totalPriceDisplay.textContent = `$${total.toFixed(2)}`;
+        checkoutButton.textContent = `Pay $${total.toFixed(2)}`;
+    }
+
+    checkoutButton.addEventListener('click', async () => {
+        const res = await fetch('/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quantity }) // send quantity to backend
+        });
+
+        const data = await res.json();
+        stripe.redirectToCheckout({ sessionId: data.id });
+    });
+
+    // Initialize total on load
+    updatePrice();
+</script>
