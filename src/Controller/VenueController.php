@@ -35,4 +35,18 @@ final class VenueController extends AbstractController
 
         // dd($venues); // See if this dumps the venue list
     }
+
+    #[Route('/{id}', name: 'details', requirements: ['id' => '\d+'])]
+    public function details(int $id, EntityManagerInterface $entityManager): Response
+    {
+        $venue = $entityManager->getRepository(Venue::class)->find($id);
+
+        if (!$venue) {
+            throw $this->createNotFoundException('Venue not found.');
+        }
+
+        return $this->render('venue/details.html.twig', [
+            'venue' => $venue,
+        ]);
+    }
 }

@@ -1,7 +1,6 @@
+{% extends 'base.html.twig' %}
 
-{% include 'navbar.html.twig' %}
-
-<body>
+{% block body %}
     <!-- events section -->
     <section class="food_section layout_padding-bottom">
         <div class="container">
@@ -761,8 +760,4 @@
         </div>
     </section>
 
-</body>
-
-<footer>
-    {% include 'footer.html.twig' %}
-</footer>
+{% endblock %}

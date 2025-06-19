@@ -1,6 +1,6 @@
-{% include 'navbar.html.twig' %}
+{% extends 'base.html.twig' %}
 
-<body>
+{% block body %}
   <style>
     .register-card {
       background: #fff;
@@ -256,7 +256,4 @@
       }, false);
     })();
   </script>
-</body>
-<footer>
-  {% include 'footer.html.twig' %}
-</footer>
+{% endblock %}
