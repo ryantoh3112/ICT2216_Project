@@ -20,13 +20,11 @@ services:
     ports:
     # HOST_PORT:CONTAINER_PORT
     # HOST_PORT is the port on the host machine, CONTAINER_PORT is the port inside the container
-    # reverse proxy container listens on port 80 internally and exposes it on port 80 of your host.
-
-    # Any HTTP request to http://your-server:80 (from a browser or client) goes to your host machine, 
-    # which routes it to port 80 inside the reverse-proxy container.
-    # Client → Host port 80 → reverse-proxy container port 80 → (via proxy_pass) → nginx container port 80
+    # reverse proxy exposes ports 80 and 443 to the world
       - "80:80"
-      - "443:443"
+      # certbot ACME challenge will route through rev proxy port 80, look for certbot challenge 
+      - "443:443" 
+      # HTTPS route through 443 via rev proxy then, terminate SSL then get forwarded to nginx port 80
     volumes:
       - ./docker/proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./letsencrypt:/etc/letsencrypt              # New: Mount certs
@@ -39,8 +37,7 @@ services:
     volumes:
       - ./letsencrypt:/etc/letsencrypt
       - ./letsencrypt/www:/var/www/certbot
-    # keeping the container running idly without doing anything
-    # This is necessary to keep the certbot container alive for the reverse proxy to use it.
+    # cronjob in instance helps to renew certificates automatically
     entrypoint: ""
 
   nginx:
@@ -51,7 +48,7 @@ services:
     environment:
       - SERVER_NAME=${SERVER_NAME}
     expose:
-    # port 80 exposed to other containers in the same network, not to the host machine
+    # port 80 exposed internally only, for reverse proxy to connect
       - "80"
     volumes:
       - .:/var/www/html
