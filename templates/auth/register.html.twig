@@ -89,15 +89,25 @@
               <span class="register-title">My GoTix</span>
             </div> -->
             <h3 class="fw-normal mb-3 pb-2 text-center" style="letter-spacing: 1px;">Register</h3>
-            <form class="needs-validation" novalidate action="#" method="#" onsubmit="return false">
+            
+            {% for label, messages in app.flashes %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ label == 'success' ? 'success' : (label == 'error' ? 'danger' : 'info') }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endfor %}
+
+            <form class="needs-validation" novalidate action="{{ path('auth_register') }}" method="POST">
               <div class="form-group mb-3">
                 <label for="username_register">Username</label>
-                <input type="text" id="username_register" class="form-control" required />
+                <input type="text" id="username_register" name="username" class="form-control" required />
                 <div class="invalid-feedback">Please enter a username.</div>
               </div>
               <div class="form-group mb-3">
                 <label for="email_register">Email address</label>
-                <input type="email" id="email_register" class="form-control" required />
+                <input type="email" id="email_register" name="email" class="form-control" required />
                 <div class="invalid-feedback">Please enter a valid email.</div>
               </div>
               <div class="form-group mb-3">
