@@ -1,8 +1,8 @@
 {# templates/venue/index.html.twig #}
 
-{% include 'navbar.html.twig' %}
+{% extends 'base.html.twig' %}
 
-<body>
+{% block body %}
     <!-- venues section -->
     <section class="venue_section layout_padding-bottom">
         <div class="container">
@@ -35,13 +35,14 @@
                                 {% if venue.capacity > 1000 %}conference{% endif %}
                                 {% if venue.capacity < 500 %}theater{% endif %}
                             ">
+                            <a href="{{ path('venue_details', {'id': venue.id}) }}">
                                 <div class="box">
                                     <div>
                                         <div class="img-box">
                                             {% if venue.image %}
                                                 <img src="{{ asset(venue.image) }}" alt="{{ venue.name }}">
                                             {% else %}
-                                                <img src="{{ asset('images/venue-placeholder.png') }}" alt="{{ venue.name }}">
+                                                <img src="{{ asset('images/placeholder.jpg') }}" alt="{{ venue.name }}">
                                             {% endif %}
                                         </div>
                                         <div class="detail-box">
@@ -61,16 +62,14 @@
                                                     {% if venue.capacity %}
                                                         {{ venue.capacity|number_format }} capacity
                                                     {% else %}
-                                                        Contact for details
+                                                        No capacity details
                                                     {% endif %}
                                                 </h6>
-                                                {# <a href="{{ path('app_venue_show', {'id': venue.id}) }}" class="btn btn-primary btn-sm">
-                                                    View Details
-                                                </a> #}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+                            </a>
                             </div>
                         {% endfor %}
                     {% endif %}
@@ -84,8 +83,4 @@
             </div> #}
         </div>
     </section>
-</body>
-
-<footer>
-    {% include 'footer.html.twig' %}
-</footer>
+{% endblock %}
