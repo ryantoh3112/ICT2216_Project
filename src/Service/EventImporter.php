@@ -49,8 +49,8 @@ class EventImporter
 
             $event = new Event();
             // $event->setExternalId($externalId);
-            $event->setEventName($item['name']);
-            $event->setEventDescription($item['info'] ?? 'No description available');
+            $event->setName($item['name']);
+            $event->setDescription($item['info'] ?? 'No description available');
 
             // Handle venue as an object
             $venueData = $item['_embedded']['venues'][0];
@@ -72,18 +72,18 @@ class EventImporter
             }
             $event->setVenue($venue);
 
-            $event->setEventCapacity($item['_embedded']['venues'][0]['capacity'] ?? 0);
-            $event->setEventPurchaseStartDate(new \DateTime($item['dates']['start']['dateTime'] ?? 'now'));
-            $event->setEventPurchaseEndDate(new \DateTime($item['dates']['end']['dateTime'] ?? 'now'));
+            $event->setCapacity($item['_embedded']['venues'][0]['capacity'] ?? 0);
+            $event->setPurchaseStartDate(new \DateTime($item['dates']['start']['dateTime'] ?? 'now'));
+            $event->setPurchaseEndDate(new \DateTime($item['dates']['end']['dateTime'] ?? 'now'));
 
             // Handle classification/category
             $classification = $item['classifications'][0] ?? null;
             if ($classification) {
-                $event->setEventCategory($classification['segment']['name'] ?? 'Unknown');
+                $event->setCategory($classification['segment']['name'] ?? 'Unknown');
                 // $event->setGenre($classification['genre']['name'] ?? null);
                 // $event->setSubGenre($classification['subGenre']['name'] ?? null);
             } else {
-                $event->setEventCategory('Unknown');
+                $event->setCategory(null);
             }
 
             // echo "Importing: " . $item['name'] . PHP_EOL;
