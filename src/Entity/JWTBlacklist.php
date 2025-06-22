@@ -14,7 +14,8 @@ class JWTBlacklist
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'jwtBlacklist')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(name: "user_id", referencedColumnName: "id", nullable: false)]
+
     private ?User $user = null;
 
     #[ORM\Column]

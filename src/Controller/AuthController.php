@@ -2,17 +2,24 @@
 
 namespace App\Controller;
 
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Cookie;
+use App\Service\JwtService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Entity\User;
 use App\Entity\Auth;
+use App\Entity\JWTBlacklist;
 use App\Repository\UserRepository;
 use App\Repository\AuthRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
+#Conroller-level prefix for all routes in this controller
+#Everything below is part of /auth/...
 #[Route('/auth', name: 'auth_')]
 final class AuthController extends AbstractController
 {
@@ -74,7 +81,7 @@ final class AuthController extends AbstractController
         $entityManager->flush();
 
         $this->addFlash('success', 'Registration successful!');
-        return $this->redirectToRoute('auth_login');
+        return $this->redirectToRoute('auth_login_form');
         }
 
         // Render the registration page (GET)
@@ -82,51 +89,106 @@ final class AuthController extends AbstractController
             'controller_name' => 'AuthController',
         ]);
     }
+#[Route('/login', name: 'login_form', methods: ['GET'])]
+public function loginForm(): Response
+{
+    return $this->render('auth/login.html.twig');
+}
 
-    #[Route('/login', name: 'login', methods: ['GET', 'POST'])]
-    public function login(
-        Request $request,
-        AuthRepository $authRepository,
-        UserPasswordHasherInterface $passwordHasher
-    ): Response
-    {
-        if ($request->isMethod('POST')) {
-        $email = $request->request->get('email');
-        $password = $request->request->get('password');
+#[Route('/login', name: 'login', methods: ['POST'])]
+public function login(
+    Request $request,
+    AuthRepository $authRepository,
+    UserPasswordHasherInterface $passwordHasher,
+    JwtService $jwtService,
+    EntityManagerInterface $em
+): Response {
+    $email = $request->request->get('email');
+    $password = $request->request->get('password');
 
-        $auth = $authRepository->findOneBy(['email' => $email]);
-
-        if (!$auth) {
-            $this->addFlash('error', 'Invalid email or password.');
-            return $this->redirectToRoute('auth_login');
-        }
-
-        if (!$passwordHasher->isPasswordValid($auth, $password)) {
-            $this->addFlash('error', 'Invalid email or password.');
-            return $this->redirectToRoute('auth_login');
-        }
-
-        // Set session data (you can customize this)
-        $user = $auth->getUser();
-        $session = $request->getSession();
-        $session->set('user_id', $user->getId());
-        $session->set('user_name', $user->getName());
-        $session->set('user_role', $user->getRole());
-
-        $this->addFlash('success', 'Logged in successfully!');
-        return $this->redirectToRoute('app_home');
-        }
-
-        return $this->render('auth/login.html.twig', [
-            'controller_name' => 'AuthController',
-        ]);
+    // Step 1: Validate credentials
+    $auth = $authRepository->findOneBy(['email' => $email]);
+    if (!$auth || !$passwordHasher->isPasswordValid($auth, $password)) {
+        return new JsonResponse(['error' => 'Invalid credentials'], Response::HTTP_UNAUTHORIZED);
     }
 
-    #[Route('/logout', name: 'logout')]
-    public function logout(Request $request): Response
-    {
-        $request->getSession()->clear();
-        $this->addFlash('success', 'You have been logged out.');
-        return $this->redirectToRoute('auth_login');
+    // Step 2: Generate JWT
+    $token = $jwtService->createToken([
+        'id' => $auth->getUser()->getId(),
+        'email' => $auth->getEmail()
+    ]);
+
+    // Step 3: Track JWT in database
+    $expiresAt = (new \DateTime())->add(new \DateInterval('PT1H')); // expires in 1 hour
+
+    $jwtEntity = new JWTBlacklist();
+    $jwtEntity->setUser($auth->getUser());
+    $jwtEntity->setExpiresAt($expiresAt);
+
+    $em->persist($jwtEntity);
+    $em->flush();
+
+    // Step 4: Set JWT as HttpOnly cookie
+    $cookie = Cookie::create('JWT')
+        ->withValue($token)
+        ->withExpires($expiresAt)
+        ->withHttpOnly(true)
+        ->withSecure(false)
+        ->withPath('/')
+        ->withSameSite('Lax');
+
+    $response = new RedirectResponse($this->generateUrl('auth_login_success')); // or another route
+    $response->headers->setCookie($cookie);
+    return $response;
+}
+
+
+# For testing purposes, this endpoint will return the user information from the JWT cookie
+#[Route('/verify-jwt', name: 'login_success')]
+public function verifyJwtAndRedirect(Request $request, JwtService $jwtService): Response
+{
+    $jwt = $request->cookies->get('JWT');
+
+    if (!$jwt) {
+        $this->addFlash('error', 'Please log in first.');
+        return $this->redirectToRoute('auth_login_form');
     }
+
+    try {
+        $payload = $jwtService->verifyToken($jwt);
+        // You can optionally store payload in the session or context here if needed
+        return $this->redirectToRoute('user_profile');
+    } catch (\Exception $e) {
+        $this->addFlash('error', 'Invalid or expired token.');
+        return $this->redirectToRoute('auth_login_form');
+    }
+}
+
+
+#[Route('/logout', name: 'logout')]
+public function logout(Request $request): Response
+{
+    // Clear session (if used)
+    $request->getSession()->clear();
+
+    // Invalidate the JWT cookie by setting it to empty and expiring it
+    $expiredCookie = Cookie::create('JWT')
+        ->withValue('')
+        ->withExpires(new \DateTime('-1 day'))
+        ->withPath('/')
+        ->withHttpOnly(true)
+        ->withSecure(false)   // Set to true if using HTTPS
+        ->withSameSite('Lax');
+
+    // Redirect and attach the cookie
+    $response = $this->redirectToRoute('auth_login_form');
+    $response->headers->setCookie($expiredCookie);
+
+    // Optional flash message
+    $this->addFlash('success', 'You have been logged out.');
+
+    return $response;
+}
+
+
 }
