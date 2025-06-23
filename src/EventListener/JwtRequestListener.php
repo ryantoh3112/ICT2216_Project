@@ -34,19 +34,28 @@ class JwtRequestListener
         } catch (\Exception $e) {
             throw new AccessDeniedHttpException('Invalid token');
         }
+
         $user = $this->em->getRepository(User::class)->find($payload['id']);
-        $request->attributes->set('jwt_user', $user);
+        if (!$user) {
+            throw new AccessDeniedHttpException('User not found');
+        }
+
+        $issuedAt = (new \DateTime())->setTimestamp($payload['iat']);
 
         $tokenRecord = $this->em->getRepository(JWTBlacklist::class)
-            ->findOneBy(['user' => $user]);
+            ->findOneBy([
+                'user' => $user,
+                'issuedAt' => $issuedAt,
+                'revokedAt' => null
+            ]);
 
-        if (!$tokenRecord ||
-            $tokenRecord->getRevokedAt() !== null ||
-            $tokenRecord->getExpiresAt() < new \DateTime()) {
+        if (!$tokenRecord || $tokenRecord->getExpiresAt() < new \DateTime()) {
             throw new AccessDeniedHttpException('Token expired or revoked');
         }
+
         // ✅ Make user available to controller
         $request->attributes->set('jwt_user', $user);
     }
+
 }
 ?>

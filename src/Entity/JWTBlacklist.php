@@ -23,6 +23,8 @@ class JWTBlacklist
 
     #[ORM\Column(nullable: true)]
     private ?\DateTime $revokedAt = null;
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTime $issuedAt = null; # Newly Added
 
     public function getId(): ?int
     {
@@ -58,10 +60,21 @@ class JWTBlacklist
         return $this->revokedAt;
     }
 
+    # Newly Added Method - Need to add to our database Schema
     public function setRevokedAt(?\DateTime $revokedAt): static
     {
         $this->revokedAt = $revokedAt;
 
+        return $this;
+    }
+    public function getIssuedAt(): ?\DateTime
+    {
+        return $this->issuedAt;
+    }
+
+    public function setIssuedAt(?\DateTime $issuedAt): static
+    {
+        $this->issuedAt = $issuedAt;
         return $this;
     }
 }

@@ -108,22 +108,55 @@ public function login(
 
     // Step 1: Validate credentials
     $auth = $authRepository->findOneBy(['email' => $email]);
-    if (!$auth || !$passwordHasher->isPasswordValid($auth, $password)) {
-        return new JsonResponse(['error' => 'Invalid credentials'], Response::HTTP_UNAUTHORIZED);
+    
+    // Check if account is locked
+    if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
+        $this->addFlash('error', 'Account is locked. Please contact support.');
+        return $this->redirectToRoute('auth_login_form'); // Or your login form route name
     }
+    
+    if (!$auth || !$passwordHasher->isPasswordValid($auth, $password)) {
+        // Increment failed_login_count if user exists
+        if ($auth) {
+            $user = $auth->getUser();
+            $current = $user->getFailedLoginCount() ?? 0;
+            $user->setFailedLoginCount($current + 1);
+
+            // Lock the account if attempts exceed 10
+            if ($current + 1 >= 10) {
+                $user->setAccountStatus('locked');
+                $user->setLockedAt(new \DateTime());
+            }
+            $em->persist($user);
+            $em->flush();
+        }
+        $this->addFlash('error', 'Invalid credentials');
+        return $this->redirectToRoute('auth_login_form'); // Or your login form route name
+    }
+    # If credentials are valid, reset failed_login_count
+    $auth->getUser()->setFailedLoginCount(0);
+    $em->persist($auth->getUser());
+    $em->flush();
 
     // Step 2: Generate JWT
     $token = $jwtService->createToken([
         'id' => $auth->getUser()->getId(),
         'email' => $auth->getEmail()
     ]);
+    $decodedPayload = $jwtService->verifyToken($token); // decode to get iat
+    $issuedAt = (new \DateTime())->setTimestamp($decodedPayload['iat']);
+    $expiresAt = (new \DateTime())->setTimestamp($decodedPayload['exp']);
 
     // Step 3: Track JWT in database
-    $expiresAt = (new \DateTime())->add(new \DateInterval('PT1H')); // expires in 1 hour
-
     $jwtEntity = new JWTBlacklist();
     $jwtEntity->setUser($auth->getUser());
     $jwtEntity->setExpiresAt($expiresAt);
+    $jwtEntity->setIssuedAt($issuedAt);  // New Field added
+
+    // 🔧 Update login metadata
+    $user = $auth->getUser();
+    $user->setLastLoginAt(new \DateTime());
+    $user->setAccountStatus('active');
 
     $em->persist($jwtEntity);
     $em->flush();
@@ -164,31 +197,60 @@ public function verifyJwtAndRedirect(Request $request, JwtService $jwtService): 
     }
 }
 
-
+# Revoked once User logs out
 #[Route('/logout', name: 'logout')]
-public function logout(Request $request): Response
-{
+public function logout(
+    Request $request,
+    EntityManagerInterface $em,
+    JwtService $jwtService
+): Response {
+    // Step 1: Extract the JWT from cookie
+    $jwt = $request->cookies->get('JWT');
+    if ($jwt) {
+        try {
+            // Step 2: Verify and decode the token
+            $payload = $jwtService->verifyToken($jwt);
+            $issuedAt = (new \DateTime())->setTimestamp($payload['iat']);
+            dump([
+                'payload_iat' => $payload['iat'],
+                'issuedAt_object' => $issuedAt->format('Y-m-d H:i:s'),
+            ]);
+            // Step 3: Find the matching JWT record in DB
+            $repo = $em->getRepository(JWTBlacklist::class);
+            $jwtRecord = $em->getRepository(JWTBlacklist::class)->findOneBy([
+                'user' => $payload['id'],
+                'issuedAt' => $issuedAt,
+                'revokedAt' => null
+            ]);
+
+            // Step 4: Revoke the token by setting revoked_at
+            if ($jwtRecord) {
+                $jwtRecord->setRevokedAt(new \DateTime());
+                $em->flush();
+            }
+        } catch (\Exception $e) {
+            // Token might already be expired or invalid – ignore and continue
+        }
+    }
+
     // Clear session (if used)
     $request->getSession()->clear();
 
-    // Invalidate the JWT cookie by setting it to empty and expiring it
+    // Expire JWT cookie
     $expiredCookie = Cookie::create('JWT')
         ->withValue('')
         ->withExpires(new \DateTime('-1 day'))
         ->withPath('/')
         ->withHttpOnly(true)
-        ->withSecure(false)   // Set to true if using HTTPS
+        ->withSecure(false)
         ->withSameSite('Lax');
 
-    // Redirect and attach the cookie
+    // Redirect and attach the expired cookie
     $response = $this->redirectToRoute('auth_login_form');
     $response->headers->setCookie($expiredCookie);
 
-    // Optional flash message
     $this->addFlash('success', 'You have been logged out.');
 
     return $response;
-}
-
-
+    }
 }

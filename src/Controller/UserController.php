@@ -71,6 +71,7 @@ final class UserController extends AbstractController
         }
 
         $user->setName($newName);
+        $user->setUpdatedAt(new \DateTime()); // To update the field Updated_At
         $em->flush();
         $this->addFlash('success', 'Username updated successfully.');
         return $this->redirectToRoute('user_profile');
