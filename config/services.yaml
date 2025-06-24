@@ -22,6 +22,16 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+    App\Service\JwtService:
+        arguments:
+            $jwtSecret: '%env(JWT_SECRET)%' # Should match the construct in JwtService
+    App\EventListener\JwtRequestListener:
+        tags:
+            - { name: kernel.event_listener, event: kernel.request, priority: 5 }
+    App\EventSubscriber\JwtUserSubscriber:
+        tags:
+            - { name: kernel.event_subscriber }
+
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

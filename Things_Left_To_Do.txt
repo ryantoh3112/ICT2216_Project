@@ -1,0 +1,7 @@
+Figure out what is that main_deauth_profile (It seems ok to use this with JWT Tokens)
+Optimize the code if possible bec there is a repository for jwtblacklist
+but not used. 
+Consider changing the table name to JWTSession
+Add in more comments to understand the code well
+Use Mailgun since SendGrid having issues to be done for forget_password (mandatory) as well as for user accounts that want to enable 2FA for that user accounts
+Most likely need to use school acct.

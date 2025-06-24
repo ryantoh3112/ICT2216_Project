@@ -2,19 +2,20 @@
 
 namespace App\Entity;
 
-use App\Repository\JWTBlacklistRepository;
+use App\Repository\JWTSessionRepository;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: JWTBlacklistRepository::class)]
-class JWTBlacklist
+#[ORM\Entity(repositoryClass: JWTSessionRepository::class)]
+class JWTSession
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(inversedBy: 'jwtBlacklist')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\ManyToOne(inversedBy: 'jwtSession')]
+    #[ORM\JoinColumn(name: "user_id", referencedColumnName: "id", nullable: false)]
+
     private ?User $user = null;
 
     #[ORM\Column]
@@ -22,6 +23,8 @@ class JWTBlacklist
 
     #[ORM\Column(nullable: true)]
     private ?\DateTime $revokedAt = null;
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTime $issuedAt = null; # Newly Added
 
     public function getId(): ?int
     {
@@ -57,10 +60,21 @@ class JWTBlacklist
         return $this->revokedAt;
     }
 
+    # Newly Added Method - Need to add to our database Schema
     public function setRevokedAt(?\DateTime $revokedAt): static
     {
         $this->revokedAt = $revokedAt;
 
+        return $this;
+    }
+    public function getIssuedAt(): ?\DateTime
+    {
+        return $this->issuedAt;
+    }
+
+    public function setIssuedAt(?\DateTime $issuedAt): static
+    {
+        $this->issuedAt = $issuedAt;
         return $this;
     }
 }

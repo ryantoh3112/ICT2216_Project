@@ -21,25 +21,19 @@ final class UserController extends AbstractController
         AuthRepository $authRepository
     ): Response
     {
-        $session = $request->getSession();
-
-        if (!$session->has('user_id')) {
-            $this->addFlash('error', 'Please log in to view your profile.');
+        $user = $request->attributes->get('jwt_user');
+        if (!$user) {
+            $this->addFlash('error', 'Please log in.');
             return $this->redirectToRoute('auth_login');
         }
 
-        // Get user ID from session
-        $userId = $session->get('user_id');
-        $auth = $authRepository->findOneBy(['user' => $userId]);
-
-        if (!$auth) {
-            throw $this->createNotFoundException('User not found.');
-        }
+        $auth = $authRepository->findOneBy(['user' => $user]);
 
         return $this->render('user/profile.html.twig', [
-            'user' => $auth->getUser(),
+            'user' => $user,
             'email' => $auth->getEmail()
         ]);
+
     }
 
     #[Route('/profile/update-username', name: 'update_username', methods: ['POST'])]
@@ -48,15 +42,13 @@ final class UserController extends AbstractController
         EntityManagerInterface $em, 
         UserRepository $userRepo): Response
     {
-        $session = $request->getSession();
-        $userId = $session->get('user_id');
+        $user = $request->attributes->get('jwt_user');
 
-        if (!$userId) {
+        if (!$user) {
             $this->addFlash('error', 'Please log in.');
             return $this->redirectToRoute('auth_login');
         }
 
-        $user = $userRepo->find($userId);
 
         if (!$user) {
             throw $this->createNotFoundException('User not found.');
@@ -79,9 +71,8 @@ final class UserController extends AbstractController
         }
 
         $user->setName($newName);
+        $user->setUpdatedAt(new \DateTime()); // To update the field Updated_At
         $em->flush();
-
-        $session->set('user_name', $newName); // Update session value for navbar
         $this->addFlash('success', 'Username updated successfully.');
         return $this->redirectToRoute('user_profile');
     }
