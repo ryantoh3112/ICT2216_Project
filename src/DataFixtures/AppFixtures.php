@@ -20,30 +20,38 @@ class AppFixtures extends Fixture
 {
     public function load(ObjectManager $manager): void
     {
-        // // Create User
-        // $user = new User();
-        // $user->setName('John Doe');
-        // $user->setRole('ROLE_USER');
-        // $user->setCreatedAt(new \DateTime());
-        // $user->setUpdatedAt(new \DateTime());
-        // $user->setLastLoginAt(new \DateTime());
-        // $user->setFailedLoginCount(0);
-        // $user->setAccountStatus('active');
-        // $manager->persist($user);
+        // Create User
+        $user = new User();
+        $user->setName('John Doe');
+        $user->setRole('ROLE_USER');
+        $user->setCreatedAt(new \DateTime());
+        $manager->persist($user);
 
-        // // Create Auth
-        // $auth = new Auth();
-        // $auth->setUser($user);
-        // $auth->setEmail('john@example.com');
-        // $auth->setPassword(password_hash('password', PASSWORD_ARGON2I));
-        // $manager->persist($auth);
+        // Create Auth
+        $auth = new Auth();
+        $auth->setUser($user);
+        $auth->setEmail('john@example.com');
+        $auth->setPassword(password_hash('password', PASSWORD_BCRYPT));
+        $manager->persist($auth);
 
-        // // Create Category
-        // $category = new EventCategory();
-        // $category->setName('Music');
-        // $category->setDescription('Live music events');
-        // $category->setImage('music.jpg');
-        // $manager->persist($category);
+        // Create Event Categories
+        $category1 = new EventCategory();
+        $category1->setName('Concerts');
+        $category1->setDescription('Live music, festivals, and headline tours.');
+        $category1->setImage('images/categories/concerts.jpg');
+        $manager->persist($category1);
+
+        $category2 = new EventCategory();
+        $category2->setName('Sports');
+        $category2->setDescription('Matches, tournaments, and live sports events.');
+        $category2->setImage('images/categories/sports.jpg');
+        $manager->persist($category2);
+
+        $category3 = new EventCategory();
+        $category3->setName('Arts, Theatre & Comedy');
+        $category3->setDescription('Stand-up comedy, plays, and artistic showcases.');
+        $category3->setImage('images/categories/arts.jpg');
+        $manager->persist($category3);
 
         // Create Venue
         $venue1 = new Venue();
