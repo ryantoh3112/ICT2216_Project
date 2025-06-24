@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Entity\User;
 use App\Entity\Auth;
-use App\Entity\JWTBlacklist;
+use App\Entity\JWTSession;
 use App\Repository\UserRepository;
 use App\Repository\AuthRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -148,7 +148,7 @@ public function login(
     $expiresAt = (new \DateTime())->setTimestamp($decodedPayload['exp']);
 
     // Step 3: Track JWT in database
-    $jwtEntity = new JWTBlacklist();
+    $jwtEntity = new JWTSession();
     $jwtEntity->setUser($auth->getUser());
     $jwtEntity->setExpiresAt($expiresAt);
     $jwtEntity->setIssuedAt($issuedAt);  // New Field added
@@ -216,8 +216,8 @@ public function logout(
                 'issuedAt_object' => $issuedAt->format('Y-m-d H:i:s'),
             ]);
             // Step 3: Find the matching JWT record in DB
-            $repo = $em->getRepository(JWTBlacklist::class);
-            $jwtRecord = $em->getRepository(JWTBlacklist::class)->findOneBy([
+            $repo = $em->getRepository(JWTSession::class);
+            $jwtRecord = $em->getRepository(JWTSession::class)->findOneBy([
                 'user' => $payload['id'],
                 'issuedAt' => $issuedAt,
                 'revokedAt' => null

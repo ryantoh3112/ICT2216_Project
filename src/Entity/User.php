@@ -34,10 +34,10 @@ class User
     private Collection $history;
 
     /**
-     * @var Collection<int, JWTBlacklist>
+     * @var Collection<int, JWTSession>
      */
-    #[ORM\OneToMany(targetEntity: JWTBlacklist::class, mappedBy: 'user')]
-    private Collection $jwtBlacklist;
+    #[ORM\OneToMany(targetEntity: JWTSession::class, mappedBy: 'user')]
+    private Collection $jwtSession;
 
     #[ORM\Column(length: 255)]
     private ?string $role = null;
@@ -64,7 +64,7 @@ class User
     {
         $this->payment = new ArrayCollection();
         $this->history = new ArrayCollection();
-        $this->jwtBlacklist = new ArrayCollection();
+        $this->jwtSession = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -162,29 +162,29 @@ class User
     }
 
     /**
-     * @return Collection<int, JWTBlacklist>
+     * @return Collection<int, JWTSession>
      */
-    public function getJwtBlacklist(): Collection
+    public function getJwtSession(): Collection
     {
-        return $this->jwtBlacklist;
+        return $this->jwtSession;
     }
 
-    public function addJwtBlacklist(JWTBlacklist $jwtBlacklist): static
+    public function addJwtSession(JWTSession $jwtSession): static
     {
-        if (!$this->jwtBlacklist->contains($jwtBlacklist)) {
-            $this->jwtBlacklist->add($jwtBlacklist);
-            $jwtBlacklist->setUser($this);
+        if (!$this->$jwtSession->contains($jwtSession)) {
+            $this->$jwtSession->add($jwtSession);
+            $jwtSession->setUser($this);
         }
 
         return $this;
     }
 
-    public function removeJwtBlacklist(JWTBlacklist $jwtBlacklist): static
+    public function removeJwtBlacklist(JWTSession $jwtSession): static
     {
-        if ($this->jwtBlacklist->removeElement($jwtBlacklist)) {
+        if ($this->$jwtSession->removeElement($jwtSession)) {
             // set the owning side to null (unless already changed)
-            if ($jwtBlacklist->getUser() === $this) {
-                $jwtBlacklist->setUser(null);
+            if ($jwtSession->getUser() === $this) {
+                $jwtSession->setUser(null);
             }
         }
 

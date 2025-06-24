@@ -3,7 +3,7 @@
 namespace App\EventListener;
 
 use App\Entity\User;
-use App\Entity\JWTBlacklist;
+use App\Entity\JWTSession;
 use App\Service\JwtService;
 use App\Entity\JwtToken;
 use Doctrine\ORM\EntityManagerInterface;
@@ -42,7 +42,7 @@ class JwtRequestListener
 
         $issuedAt = (new \DateTime())->setTimestamp($payload['iat']);
 
-        $tokenRecord = $this->em->getRepository(JWTBlacklist::class)
+        $tokenRecord = $this->em->getRepository(JWTSession::class)
             ->findOneBy([
                 'user' => $user,
                 'issuedAt' => $issuedAt,

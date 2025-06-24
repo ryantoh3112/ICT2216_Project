@@ -2,18 +2,18 @@
 
 namespace App\Entity;
 
-use App\Repository\JWTBlacklistRepository;
+use App\Repository\JWTSessionRepository;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: JWTBlacklistRepository::class)]
-class JWTBlacklist
+#[ORM\Entity(repositoryClass: JWTSessionRepository::class)]
+class JWTSession
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(inversedBy: 'jwtBlacklist')]
+    #[ORM\ManyToOne(inversedBy: 'jwtSession')]
     #[ORM\JoinColumn(name: "user_id", referencedColumnName: "id", nullable: false)]
 
     private ?User $user = null;

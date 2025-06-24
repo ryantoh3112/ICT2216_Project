@@ -52,6 +52,9 @@ class JwtService
         if ($payload['exp'] < time()) {
             throw new \Exception('Token expired');
         }
+        if (isset($payload['iat']) && $payload['iat'] > time() + 60) {
+            throw new \Exception('Token issued in the future (iat)');
+        }
 
         return $payload;
     }
