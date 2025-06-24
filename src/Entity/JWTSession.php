@@ -23,7 +23,8 @@ class JWTSession
 
     #[ORM\Column(nullable: true)]
     private ?\DateTime $revokedAt = null;
-    #[ORM\Column(type: 'datetime', nullable: true)]
+
+    #[ORM\Column(nullable: true)]
     private ?\DateTime $issuedAt = null; # Newly Added
 
     public function getId(): ?int
@@ -67,6 +68,7 @@ class JWTSession
 
         return $this;
     }
+    
     public function getIssuedAt(): ?\DateTime
     {
         return $this->issuedAt;
