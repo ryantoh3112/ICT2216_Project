@@ -16,6 +16,8 @@ final class PaymentController extends AbstractController
     {
         return $this->render('payment/checkout.html.twig', [
             'stripe_public_key' => $_ENV['STRIPE_PUBLIC_KEY'],
+            'recaptcha_site_key' => $_ENV['RECAPTCHA_SITE_KEY'],
+
         ]);
     }
 
@@ -26,8 +28,20 @@ public function createCheckoutSession(Request $request): JsonResponse
 
     $data = json_decode($request->getContent(), true);
     $quantity = isset($data['quantity']) ? max(1, (int)$data['quantity']) : 1;
+    $recaptchaToken = $data['recaptchaToken'] ?? '';
 
-    $unitPrice = 28 * 100; // 25 base + 3 booking fee, converted to cents
+    // ✅ Step 1: Verify reCAPTCHA v2 token
+    $captchaResponse = file_get_contents(
+        'https://www.google.com/recaptcha/api/siteverify?secret=' . $_ENV['RECAPTCHA_SECRET_KEY'] . '&response=' . $recaptchaToken
+    );
+    $captchaResult = json_decode($captchaResponse, true);
+
+    if (!($captchaResult['success'] ?? false)) {
+        return $this->json(['error' => 'CAPTCHA failed. Please try again.'], 400);
+    }
+
+    // ✅ Step 2: Proceed with Stripe Checkout
+    $unitPrice = 28 * 100; // USD cents
 
     $session = \Stripe\Checkout\Session::create([
         'payment_method_types' => ['card'],
@@ -42,7 +56,6 @@ public function createCheckoutSession(Request $request): JsonResponse
             'quantity' => $quantity,
         ]],
         'mode' => 'payment',
-        // 'success_url' => $this->generateUrl('checkout_success', [], UrlGeneratorInterface::ABSOLUTE_URL),
         'success_url' => $this->generateUrl('checkout_success', [], 0) . '?session_id={CHECKOUT_SESSION_ID}',
         'cancel_url' => $this->generateUrl('checkout_cancel', [], UrlGeneratorInterface::ABSOLUTE_URL),
     ]);
