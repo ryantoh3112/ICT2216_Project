@@ -31,3 +31,5 @@ docker/nginx/conf.d/default.conf
 
 ## db setup (for migration to instance vm)
 gotix_appdb.sql
+
+letsencrypt/
