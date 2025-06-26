@@ -102,10 +102,10 @@
     }
 
     checkoutButton.addEventListener('click', async () => {
-        const recaptchaResponse = grecaptcha.getResponse();
+        const token = grecaptcha.getResponse(); // ✅ get token from checkbox
 
-        if (!recaptchaResponse) {
-            alert("Please complete the reCAPTCHA.");
+        if (!token) {
+            alert('Please complete the reCAPTCHA!');
             return;
         }
 
@@ -113,18 +113,20 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                quantity: quantity,
-                recaptchaToken: recaptchaResponse
+                quantity,
+                recaptchaToken: token
             })
         });
 
         const data = await res.json();
-        if (data.id) {
-            stripe.redirectToCheckout({ sessionId: data.id });
+        if (data.error) {
+            alert(data.error);
         } else {
-            alert("CAPTCHA failed. Please try again.");
+            stripe.redirectToCheckout({ sessionId: data.id });
+            grecaptcha.reset(); // ✅ Reset reCAPTCHA after successful payment
+
         }
     });
 
-    updatePrice();
+    updatePrice(); // initialize totals
 </script>

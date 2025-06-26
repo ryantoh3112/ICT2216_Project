@@ -30,3 +30,7 @@ docker/nginx/conf.d/default.conf
 ###< symfony/asset-mapper ###
 /public/build/
 node_modules
+
+captcha_log.json
+debug_result.json
+debug_token.txt

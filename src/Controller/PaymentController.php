@@ -36,6 +36,10 @@ public function createCheckoutSession(Request $request): JsonResponse
     );
     $captchaResult = json_decode($captchaResponse, true);
 
+    // Debugging: Uncomment these lines to save debug info, Stats wont show when testing in localhost
+    // file_put_contents(__DIR__ . '/debug_token.txt', $recaptchaToken);
+    // file_put_contents(__DIR__ . '/debug_result.json', json_encode($captchaResult, JSON_PRETTY_PRINT));
+
     if (!($captchaResult['success'] ?? false)) {
         return $this->json(['error' => 'CAPTCHA failed. Please try again.'], 400);
     }
