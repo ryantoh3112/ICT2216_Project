@@ -22,19 +22,21 @@ final class AdminController extends AbstractController
         AuthRepository $authRepository
     ): Response
     {
-        $session = $request->getSession();
+        $user = $request->attributes->get('jwt_user');
 
-        if (!$session->has('user_id')) {
+        if (!$user) {
             $this->addFlash('error', 'Please log in to view this page.');
             return $this->redirectToRoute('auth_login');
         }
 
         // Get user ID from session
-        $userId = $session->get('user_id');
-        $auth = $authRepository->findOneBy(['user' => $userId]);
+        // $userId = $session->get('user_id');
+        // $auth = $authRepository->findOneBy(['user' => $userId]);
+
+        $auth = $authRepository->findOneBy(['user' => $user]);
 
         return $this->render('admin/admin.html.twig', [
-            'user' => $auth->getUser(),
+            'user' => $user,
             'email' => $auth->getEmail(),
             'controller_name' => 'IndexController',
         ]);
@@ -46,16 +48,16 @@ final class AdminController extends AbstractController
         AuthRepository $authRepository
     ): Response
     {
-        $session = $request->getSession();
+        $user = $request->attributes->get('jwt_user');
 
-        if (!$session->has('user_id')) {
+        if (!$user) {
             $this->addFlash('error', 'Please log in to view this page.');
             return $this->redirectToRoute('auth_login');
         }
 
         // Get user ID from session
-        $userId = $session->get('user_id');
-        $auth = $authRepository->findOneBy(['user' => $userId]);
+        // $userId = $session->get('user_id');
+        $auth = $authRepository->findOneBy(['user' => $user]);
 
         return $this->render('admin/manage_events.html.twig', [
             'controller_name' => 'IndexController',
@@ -69,16 +71,16 @@ final class AdminController extends AbstractController
         AuthRepository $authRepository
         ): Response
     {
-        $session = $request->getSession();
+        $user = $request->attributes->get('jwt_user');
 
-        if (!$session->has('user_id')) {
+        if (!$user) {
             $this->addFlash('error', 'Please log in to view this page.');
             return $this->redirectToRoute('auth_login');
         }
 
         // Get user ID from session
-        $userId = $session->get('user_id');
-        $auth = $authRepository->findOneBy(['user' => $userId]);
+        // $userId = $session->get('user_id');
+        $auth = $authRepository->findOneBy(['user' => $user]);
 
         // Fetch all users
         $users = $entityManager->getRepository(User::class)->findAll();
@@ -87,4 +89,45 @@ final class AdminController extends AbstractController
             'users' => $users,
         ]);
     }
+
+    #[Route('/admin/manage_user/update/{id}', name: 'update_user', methods: ['POST'])]
+    public function updateUser(
+        int $id,
+        Request $request,
+        EntityManagerInterface $em,
+        UserRepository $userRepo
+    ): Response {
+        $user = $userRepo->find($id);
+
+        if (!$user) {
+            throw $this->createNotFoundException('User not found.');
+        }
+
+        $newName = trim($request->request->get('name'));
+        $newRole = $request->request->get('role');
+        $newStatus = $request->request->get('accountStatus');
+
+        // Check if the username field is empty
+        if (empty($newName)) {
+            $this->addFlash('error', 'Name cannot be empty.');
+            return $this->redirectToRoute('admin_manage_users');
+        }
+
+        // Check if the new username is already taken by another user
+        $existingUser = $userRepo->findOneBy(['name' => $newName]);
+        if ($existingUser && $existingUser->getId() !== $user->getId()) {
+            $this->addFlash('error', 'This username is already taken. Please choose another one.');
+            return $this->redirectToRoute('admin_manage_users');
+        }
+
+        $user->setName($newName);
+        $user->setRole($newRole);
+        $user->setAccountStatus($newStatus);
+
+        $em->flush();
+
+        $this->addFlash('success', 'User updated successfully.');
+        return $this->redirectToRoute('admin_manage_users');
+    }
+
 }
