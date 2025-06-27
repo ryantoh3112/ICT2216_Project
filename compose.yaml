@@ -12,17 +12,35 @@ services:
     environment:
       APP_ENV: prod
       APP_DEBUG: 0
-      DATABASE_URL: mysql://${MYSQL_USER:-app}:${MYSQL_PASSWORD:-!ChangeMe!}@database:3306/${MYSQL_DATABASE:-app}?serverVersion=8.0.32&charset=utf8mb4
+      DATABASE_URL: ${DATABASE_URL}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS}
 
   reverse-proxy:
     image: nginx:latest
     container_name: nginx_reverse_proxy
     ports:
+    # HOST_PORT:CONTAINER_PORT
+    # HOST_PORT is the port on the host machine, CONTAINER_PORT is the port inside the container
+    # reverse proxy exposes ports 80 and 443 to the world
       - "80:80"
+      # certbot ACME challenge will route through rev proxy port 80, look for certbot challenge 
+      - "443:443" 
+      # HTTPS route through 443 via rev proxy then, terminate SSL then get forwarded to nginx port 80
     volumes:
       - ./docker/proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./letsencrypt:/etc/letsencrypt              # New: Mount certs
+      - ./letsencrypt/www:/var/www/certbot          # New: For certbot challenge
     depends_on:
       - nginx
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./letsencrypt:/etc/letsencrypt
+      - ./letsencrypt/www:/var/www/certbot
+    # cronjob in instance helps to renew certificates automatically
+    entrypoint: ""
 
   nginx:
     build:
@@ -31,10 +49,9 @@ services:
     container_name: symfony_nginx
     environment:
       - SERVER_NAME=${SERVER_NAME}
-    # ports:
-    #   - "80:80"
     expose:
-      - "80"  # expose port 80 internally, not to the host
+    # port 80 exposed internally only, for reverse proxy to connect
+      - "80"
     volumes:
       - .:/var/www/html
       - ./docker/nginx/conf.d:/etc/nginx/conf.d
@@ -44,10 +61,10 @@ services:
   database:
     image: mysql:8.0
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-app}
-      MYSQL_USER: ${MYSQL_USER:-app}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-!ChangeMe!}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     volumes:
       - database_data:/var/lib/mysql
     healthcheck:
@@ -58,8 +75,8 @@ services:
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
-    ports:
-      - "8081:80"
+    # ports:
+    #   - "8081:80"
     environment:
       PMA_HOST: database
       MYSQL_ROOT_PASSWORD: rootpass
