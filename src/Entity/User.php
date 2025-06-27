@@ -60,6 +60,12 @@ class User
     #[ORM\Column(nullable: true)]
     private ?\DateTime $lockedAt = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $otpReset = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $otpExpiresAt = null;
+
     public function __construct()
     {
         $this->payment = new ArrayCollection();
@@ -271,6 +277,30 @@ class User
     public function setLockedAt(?\DateTime $lockedAt): static
     {
         $this->lockedAt = $lockedAt;
+
+        return $this;
+    }
+
+    public function getOtpReset(): ?string
+    {
+        return $this->otpReset;
+    }
+
+    public function setOtpReset(?string $otpReset): static
+    {
+        $this->otpReset = $otpReset;
+
+        return $this;
+    }
+
+    public function getOtpExpiresAt(): ?\DateTimeImmutable
+    {
+        return $this->otpExpiresAt;
+    }
+
+    public function setOtpExpiresAt(?\DateTimeImmutable $otpExpiresAt): static
+    {
+        $this->otpExpiresAt = $otpExpiresAt;
 
         return $this;
     }
