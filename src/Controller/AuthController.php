@@ -93,6 +93,7 @@ final class AuthController extends AbstractController
         if ($request->isMethod('POST')) {
         $email = $request->request->get('email');
         $password = $request->request->get('password');
+        $role = $request->request->get('role');
 
         $auth = $authRepository->findOneBy(['email' => $email]);
 
@@ -113,8 +114,14 @@ final class AuthController extends AbstractController
         $session->set('user_name', $user->getName());
         $session->set('user_role', $user->getRole());
 
-        $this->addFlash('success', 'Logged in successfully!');
-        return $this->redirectToRoute('app_home');
+        if ($user->getRole() === 'ROLE_USER') {
+            $this->addFlash('success', 'Logged in successfully!');
+            return $this->redirectToRoute('app_home');
+        } elseif($user->getRole() === 'ROLE_ADMIN') {
+            $this->addFlash('success', 'Logged in successfully!');
+            return $this->redirectToRoute('admin_dashboard');
+        }
+        
         }
 
         return $this->render('auth/login.html.twig', [
