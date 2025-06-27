@@ -2,18 +2,18 @@
 
 namespace App\Repository;
 
-use App\Entity\JWTBlacklist;
+use App\Entity\JWTSession;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<JWTBlacklist>
+ * @extends ServiceEntityRepository<JWTSession>
  */
-class JWTBlacklistRepository extends ServiceEntityRepository
+class JWTSessionRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, JWTBlacklist::class);
+        parent::__construct($registry, JWTSession::class);
     }
 
     //    /**
