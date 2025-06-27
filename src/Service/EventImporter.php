@@ -22,15 +22,23 @@ class EventImporter
 
     public function importEvents(int $size = 100): void
     {
+        //for the 3 event Categories
+        // $categories = [
+        //     'KZFzniwnSyZfZ7v7nJ', //concerts
+        //     'KZFzniwnSyZfZ7v7nE', //sports
+        //     'KZFzniwnSyZfZ7v7na' //Arts &Theatre
+        // ];
+
         $response = $this->client->request('GET', 'https://app.ticketmaster.com/discovery/v2/events', [
             'query' => [
                 'apikey' => $this->apiKey,
-                'size' => $size
+                'size' => $size,
+                //'segmentId' => $segmentId
             ]
         ]);
-
+            
         $data = $response->toArray();
-        // dump($data); die; // for debugging
+            // dump($data); die; // for debugging
 
         if (!isset($data['_embedded']['events'])) {
             echo "No events found.\n";
@@ -38,59 +46,77 @@ class EventImporter
         }
 
         foreach ($data['_embedded']['events'] as $item) {
-            $externalId = $item['id'];
-
-            // Skip duplicates
-            $existing = $this->em->getRepository(Event::class)->findOneBy(['externalId' => $externalId]);
-            if ($existing) {
-                // echo "Skipping duplicate: " . $item['name'] . PHP_EOL;
-                continue;
-            }
+        // Handle venue as an object
+            $venueData = $item['_embedded']['venues'][0] ?? null;
 
             $event = new Event();
-            // $event->setExternalId($externalId);
             $event->setName($item['name']);
             $event->setDescription($item['info'] ?? 'No description available');
+            $event->setImage($item['image'] ?? null);
 
-            // Handle venue as an object
-            $venueData = $item['_embedded']['venues'][0];
-            $externalVenueId = $venueData['id'] ?? null;
-            if (!$externalVenueId) {
-                continue; // skip if no unique ID
-            }
-            // Try to find the venue by external ID
-            $venue = $this->em->getRepository(Venue::class)->findOneBy([
-                'externalVenueId' => $externalVenueId,
-            ]);
-            if (!$venue) {
-                $venue = new Venue();
-                // $venue->setExternalVenueId($externalVenueId);
-                $venue->setName($venueData['name'] ?? 'Unknown');
-                $venue->setAddress($venueData['address']['line1'] ?? 'Address not available');
-                $venue->setCapacity($venueData['capacity'] ?? 0);
-                $this->em->persist($venue);
-            }
-            $event->setVenue($venue);
+            $event->setOrganiser($item['_embedded']['attractions'][0]['name'] ?? 'Unknown Organiser');
 
             $event->setCapacity($item['_embedded']['venues'][0]['capacity'] ?? 0);
             $event->setPurchaseStartDate(new \DateTime($item['dates']['start']['dateTime'] ?? 'now'));
             $event->setPurchaseEndDate(new \DateTime($item['dates']['end']['dateTime'] ?? 'now'));
 
-            // Handle classification/category
-            $classification = $item['classifications'][0] ?? null;
-            if ($classification) {
-                $event->setCategory($classification['segment']['name'] ?? 'Unknown');
-                // $event->setGenre($classification['genre']['name'] ?? null);
-                // $event->setSubGenre($classification['subGenre']['name'] ?? null);
+           
+            //$externalVenueId = $venueData['id'] ?? null;
+            // if (!$externalVenueId) {
+            //     continue; // skip if no unique ID
+            // }
+
+            if($venueData){
+                $venue = new Venue();
+                $venue->setName($venueData['name'] ?? 'Unknown');
+                $venue->setAddress($venueData['address']['line1'] ?? 'Address not available');
+                $venue->setCapacity($venueData['capacity'] ?? 0);
+                $this->em->persist($venue);
             } else {
-                $event->setCategory(null);
+                $venue = $this->em->getRepository(Venue::class)->findOneBy(['name' => 'Default Venue']);
+                if (!$venue) {
+                    $venue = new Venue();
+                    $venue->setName('Default Venue');
+                    $venue->setAddress('Unknown Venue');
+                    $venue->setCapacity(0);
+                    $this->em->persist($venue);
+                }
             }
 
-            // echo "Importing: " . $item['name'] . PHP_EOL;
+            $event->setVenue($venue);
 
-            $this->em->persist($event);
-        }
+                // // Try to find the venue by external ID
+                // $venue = $this->em->getRepository(Venue::class)->findOneBy([
+                //     'externalVenueId' => $externalVenueId,
+                // ]);
+                // if (!$venue) {
+                //     $venue = new Venue();
+                //     $venue->setExternalVenueId($externalVenueId);
+                //     $venue->setName($venueData['name'] ?? 'Unknown');
+                //     $venue->setAddress($venueData['address']['line1'] ?? 'Address not available');
+                //     $venue->setCapacity($venueData['capacity'] ?? 0);
+                //     $this->em->persist($venue);
+                // }
+                
+            
+                // Handle classification/category
+                // $classification = $item['classifications'][0] ?? null;
+                // if ($classification && isset($classification['segment']['name'])) {
+                //     $categoryName =  $classification['segment']['name'];
+                //     $category = $this->em->getRepository(Event)
+                //     $event->setCategory($classification['segment']['name'] ?? 'Unknown');
+                //     //$event->setGenre($classification['genre']['name'] ?? null);
+                //     //$event->setSubGenre($classification['subGenre']['name'] ?? null);
+                // } else {
+                //     $event->setCategory(null);
+                // }
 
+                echo "Importing: " . $item['name'] . PHP_EOL;
+
+                $this->em->persist($event);
+            }
+        
         $this->em->flush();
     }
 }
+
