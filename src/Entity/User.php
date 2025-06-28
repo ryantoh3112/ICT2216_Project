@@ -36,7 +36,7 @@ class User
     /**
      * @var Collection<int, JWTSession>
      */
-    #[ORM\OneToMany(targetEntity: JWTSession::class, mappedBy: 'user')]
+    #[ORM\OneToMany(targetEntity: JWTSession::class, mappedBy: 'user', cascade: ['remove'], orphanRemoval: true)]
     private Collection $jwtSession;
 
     #[ORM\Column(length: 255)]

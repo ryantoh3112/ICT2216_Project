@@ -15,55 +15,65 @@ use Symfony\Component\HttpFoundation\Request;
 #[Route('/admin', name: 'admin_')]
 final class AdminController extends AbstractController
 {
-    // route to admin page for development!
+    // Function to check if user Logged in AND Admin
+    private function getAuthenticatedAdmin(Request $request, AuthRepository $authRepository): Response|User
+    {
+        $user = $request->attributes->get('jwt_user');
+
+        if (!$user) {
+            $this->addFlash('error', 'Please log in to view this page.');
+            return $this->redirectToRoute('auth_login');
+        }
+
+        if ($user->getRole() !== 'ROLE_ADMIN') {
+            $this->addFlash('error', 'Access denied. Admins only.');
+            return $this->redirectToRoute('app_home'); 
+        }
+
+        return $user;
+    }
+
+    // Route to admin home page 
     #[Route('/dashboard', name: 'dashboard')]
     public function admin(
         Request $request, 
         AuthRepository $authRepository
     ): Response
     {
-        $user = $request->attributes->get('jwt_user');
-
-        if (!$user) {
-            $this->addFlash('error', 'Please log in to view this page.');
-            return $this->redirectToRoute('auth_login');
+        //check if admin
+        $result = $this->getAuthenticatedAdmin($request, $authRepository);
+        if ($result instanceof Response) {
+            return $result;
         }
+        $user = $result; // it's a valid User
 
-        // Get user ID from session
-        // $userId = $session->get('user_id');
         // $auth = $authRepository->findOneBy(['user' => $userId]);
 
         $auth = $authRepository->findOneBy(['user' => $user]);
 
-        return $this->render('admin/admin.html.twig', [
-            'user' => $user,
-            'email' => $auth->getEmail(),
-            'controller_name' => 'IndexController',
-        ]);
+        return $this->render('admin/admin.html.twig');
     }
 
+    // Page to manage all events 
     #[Route('/manage_events', name: 'manage_events')]
     public function manage_events(
         Request $request, 
         AuthRepository $authRepository
     ): Response
     {
-        $user = $request->attributes->get('jwt_user');
-
-        if (!$user) {
-            $this->addFlash('error', 'Please log in to view this page.');
-            return $this->redirectToRoute('auth_login');
+        //check if admin
+        $result = $this->getAuthenticatedAdmin($request, $authRepository);
+        if ($result instanceof Response) {
+            return $result;
         }
+        $user = $result; // it's a valid User
 
-        // Get user ID from session
-        // $userId = $session->get('user_id');
         $auth = $authRepository->findOneBy(['user' => $user]);
 
-        return $this->render('admin/manage_events.html.twig', [
-            'controller_name' => 'IndexController',
-        ]);
+        return $this->render('admin/manage_events.html.twig');
     }
 
+    // Page to manage all user accounts 
     #[Route('/manage_users', name: 'manage_users')]
     public function manage_users(
         EntityManagerInterface $entityManager,
@@ -71,16 +81,12 @@ final class AdminController extends AbstractController
         AuthRepository $authRepository
         ): Response
     {
-        $user = $request->attributes->get('jwt_user');
-
-        if (!$user) {
-            $this->addFlash('error', 'Please log in to view this page.');
-            return $this->redirectToRoute('auth_login');
+        //check if admin
+        $result = $this->getAuthenticatedAdmin($request, $authRepository);
+        if ($result instanceof Response) {
+            return $result;
         }
-
-        // Get user ID from session
-        // $userId = $session->get('user_id');
-        $auth = $authRepository->findOneBy(['user' => $user]);
+        $user = $result; // it's a valid User
 
         // Fetch all users
         $users = $entityManager->getRepository(User::class)->findAll();
@@ -90,6 +96,7 @@ final class AdminController extends AbstractController
         ]);
     }
 
+    // Functionality for Edit User button 
     #[Route('/admin/manage_user/update/{id}', name: 'update_user', methods: ['POST'])]
     public function updateUser(
         int $id,
@@ -97,6 +104,13 @@ final class AdminController extends AbstractController
         EntityManagerInterface $em,
         UserRepository $userRepo
     ): Response {
+        $submittedToken = $request->request->get('_token');
+
+        if (!$this->isCsrfTokenValid('update_user_' . $id, $submittedToken)) {
+            $this->addFlash('danger', 'Invalid CSRF token.');
+            return $this->redirectToRoute('admin_manage_users');
+        }
+
         $user = $userRepo->find($id);
 
         if (!$user) {
@@ -129,5 +143,41 @@ final class AdminController extends AbstractController
         $this->addFlash('success', 'User updated successfully.');
         return $this->redirectToRoute('admin_manage_users');
     }
+
+    // Functionality for delete user buttion 
+    #[Route('/admin/user/delete/{id}', name: 'delete_user', methods: ['POST'])]
+    public function deleteUser(
+        int $id,
+        Request $request,
+        EntityManagerInterface $em,
+        UserRepository $userRepo
+    ): Response {
+        // Optional: CSRF token check for security
+        $submittedToken = $request->request->get('_token');
+        if (!$this->isCsrfTokenValid('delete_user_' . $id, $submittedToken)) {
+            $this->addFlash('error', 'Invalid CSRF token.');
+            return $this->redirectToRoute('admin_manage_users');
+        }
+
+        $user = $userRepo->find($id);
+        if (!$user) {
+            $this->addFlash('error', 'User not found.');
+            return $this->redirectToRoute('admin_manage_users');
+        }
+
+        // Prevent deleting yourself (optional)
+        $currentUser = $request->attributes->get('jwt_user');
+        if ($currentUser && $currentUser->getId() === $id) {
+            $this->addFlash('error', 'You cannot delete your own account.');
+            return $this->redirectToRoute('admin_manage_users');
+        }
+
+        $em->remove($user);
+        $em->flush();
+
+        $this->addFlash('success', 'User deleted successfully.');
+        return $this->redirectToRoute('admin_manage_users');
+    }
+
 
 }

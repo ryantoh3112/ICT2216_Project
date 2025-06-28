@@ -74,9 +74,15 @@
                             <h4>User Profile</h4>
                             {% for label, messages in app.flashes %}
                                 {% for message in messages %}
-                                    <div class="alert alert-{{ label == 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
-                                        {{ message }}
-                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
+                                        <div class="toast align-items-center text-bg-{{ label == 'success' ? 'success' : (label == 'error' ? 'danger' : 'info') }} border-0 show" role="alert">
+                                            <div class="d-flex">
+                                                <div class="toast-body">
+                                                    {{ message }}
+                                                </div>
+                                                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                                            </div>
+                                        </div>
                                     </div>
                                 {% endfor %}
                             {% endfor %}
