@@ -21,13 +21,6 @@ class User
     #[ORM\OneToOne(mappedBy: 'user', cascade: ['persist', 'remove'])]
     private ?Auth $auth = null;
 
-    #[ORM\Column(name: 'otp_reset', type: 'string', nullable: true)]
-    private ?string $otpReset = null;
-
-
-    #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $otpExpiresAt = null;
-
 
     /**
      * @var Collection<int, Payment>
@@ -79,28 +72,6 @@ class User
         $this->payment = new ArrayCollection();
         $this->history = new ArrayCollection();
         $this->jwtSession = new ArrayCollection();
-    }
-
-    public function getPasswordResetOtp(): ?string
-    {
-        return $this->otpReset;
-    }
-
-    public function setPasswordResetOtp(?string $otp): self
-    {
-        $this->otpReset = $otp;
-        return $this;
-    }
-
-    public function getOtpExpiresAt(): ?\DateTimeImmutable
-    {
-        return $this->otpExpiresAt;
-    }
-
-    public function setOtpExpiresAt(?\DateTimeImmutable $expiresAt): self
-    {
-        $this->otpExpiresAt = $expiresAt;
-        return $this;
     }
 
     public function getId(): ?int

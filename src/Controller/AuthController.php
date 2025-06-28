@@ -91,9 +91,17 @@ final class AuthController extends AbstractController
         ]);
     }
     #[Route('/login', name: 'login_form', methods: ['GET'])]
-    public function loginForm(): Response
+    public function loginForm(Request $request): Response
     {
-        return $this->render('auth/login.html.twig');
+        $user = $request->attributes->get('jwt_user');
+        if ($user && $user->getRole() === 'ROLE_ADMIN') {
+            return $this->redirectToRoute('admin_dashboard');
+        } elseif ($user && $user->getRole() === 'ROLE_USER') {
+            return $this->redirectToRoute('user_profile');
+        }
+        else {
+            return $this->render('auth/login.html.twig');
+        }
     }
 
     #[Route('/login', name: 'login', methods: ['POST'])]
@@ -178,9 +186,13 @@ final class AuthController extends AbstractController
 
 
     # For testing purposes, this endpoint will return the user information from the JWT cookie
-    #[Route('/verify-jwt', name: 'login_success')]
-    public function verifyJwtAndRedirect(Request $request, JwtService $jwtService): Response
-    {
+    #[Route('/verify-redirect', name: 'login_success')]
+    public function verifyJwtAndRedirect(
+        Request $request, 
+        JwtService $jwtService,
+        UserRepository $userRepository,
+        AuthRepository $authRepository
+    ): Response {
         $jwt = $request->cookies->get('JWT');
 
         if (!$jwt) {
@@ -190,10 +202,39 @@ final class AuthController extends AbstractController
 
         try {
             $payload = $jwtService->verifyToken($jwt);
-            // You can optionally store payload in the session or context here if needed
-            return $this->redirectToRoute('user_profile');
-        } catch (\Exception $e) {
-            $this->addFlash('error', 'Invalid or expired token.');
+            
+            // Get user from DB using the ID from the JWT payload
+            $userId = $payload['id'] ?? null;
+
+            if (!$userId) {
+                $this->addFlash('error', 'Invalid token payload.');
+                return $this->redirectToRoute('auth_login_form');
+            }
+            $auth = $authRepository->findOneBy(['user' => $userId]);
+            // 3. Check roles from DB and redirect accordingly
+            #$user = $request->attributes->get('jwt_user');
+            
+            if (!$auth) {
+                $this->addFlash('error', 'Authentication record not found.');
+                return $this->redirectToRoute('auth_login_form');
+            }
+
+            // Get the actual User entity
+            #$user = $auth->getUser();
+            $roles = $auth->getRoles();
+            if (in_array('ROLE_ADMIN', $roles)) {
+                return $this->redirectToRoute('admin_dashboard');
+            } elseif (in_array('ROLE_USER', $roles)) {
+                return $this->redirectToRoute('user_profile');
+            } else {
+                $this->addFlash('error', 'Unauthorized access.');
+                return $this->redirectToRoute('auth_login_form');
+            }
+        } 
+        
+        catch (\Exception $e) {
+            $this->addFlash('error', 'JWT Exception: ' . $e->getMessage());
+            #echo 'Message: ' .$e->getMessage();
             return $this->redirectToRoute('auth_login_form');
         }
     }
