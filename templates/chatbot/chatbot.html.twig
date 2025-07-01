@@ -61,7 +61,7 @@ Now answer the user’s question briefly.`
                 body: JSON.stringify({ messages: HISTORY })
             });
             const data = await res.json();
-            const reply = data.reply || 'No response';
+            const reply = data.reply || 'Service is temporarily unavailable. Please try again later.';
 
             HISTORY.push({ role: 'assistant', content: reply });
 
