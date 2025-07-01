@@ -17,6 +17,7 @@ use App\Repository\AuthRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #Conroller-level prefix for all routes in this controller
 #Everything below is part of /auth/...
@@ -89,11 +90,48 @@ final class AuthController extends AbstractController
             'controller_name' => 'AuthController',
         ]);
     }
+
+// #[Route('/login', name: 'login_form', methods: ['GET'])]
+// public function loginForm(Request $request): Response
+// {
+//     $showCaptcha = false;
+
+//     // Check for login fail count cookie
+//     $failCount = $request->cookies->get('login_fail_count');
+//     if ($failCount !== null && (int)$failCount >= 3) {
+//         $showCaptcha = true;
+//     }
+
+//     return $this->render('auth/login.html.twig', [
+//         'show_captcha' => $showCaptcha,
+//         'recaptcha_site_key' => $_ENV['RECAPTCHA_SITE_KEY'], // or use parameter('recaptcha.site_key')
+//     ]);
+// }
+
 #[Route('/login', name: 'login_form', methods: ['GET'])]
-public function loginForm(): Response
-{
-    return $this->render('auth/login.html.twig');
+public function loginForm(
+    Request $request,
+    AuthRepository $authRepository
+): Response {
+    // get last email from session (or null)
+    $email = $request->getSession()->get('last_login_email');
+
+    $showCaptcha = false;
+    if ($email) {
+        $auth = $authRepository->findOneBy(['email' => $email]);
+        if ($auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3) {
+            $showCaptcha = true;
+        }
+    }
+
+    return $this->render('auth/login.html.twig', [
+        'show_captcha'      => $showCaptcha,
+        'recaptcha_site_key'=> $_ENV['RECAPTCHA_SITE_KEY'],
+        'last_email'        => $email,
+    ]);
 }
+
+
 
 #[Route('/login', name: 'login', methods: ['POST'])]
 public function login(
@@ -101,14 +139,34 @@ public function login(
     AuthRepository $authRepository,
     UserPasswordHasherInterface $passwordHasher,
     JwtService $jwtService,
-    EntityManagerInterface $em
+    EntityManagerInterface $em,
+    HttpClientInterface $httpClient   
 ): Response {
     $email = $request->request->get('email');
     $password = $request->request->get('password');
 
     // Step 1: Validate credentials
     $auth = $authRepository->findOneBy(['email' => $email]);
-    
+    $needsCaptcha  = $auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3;
+
+     if ($needsCaptcha) {
+            $recaptchaResponse = $request->request->get('g-recaptcha-response', '');
+            $resp = $httpClient->request('POST', 'https://www.google.com/recaptcha/api/siteverify', [
+                'body' => [
+                    'secret'   => $_ENV['RECAPTCHA_SECRET_KEY'],
+                    'response' => $recaptchaResponse,
+                    'remoteip' => $request->server->get('REMOTE_ADDR'),
+                ],
+            ]);
+            $data = $resp->toArray();
+            if (empty($data['success'])) {
+                $this->addFlash('error', 'Please complete the CAPTCHA.');
+                // store the last email in session
+                $request->getSession()->set('last_login_email', $email);
+
+                return $this->redirectToRoute('auth_login_form');            }
+        }
+
     // Check if account is locked
     if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
         $this->addFlash('error', 'Account is locked. Please contact support.');
@@ -123,16 +181,17 @@ public function login(
             $user->setFailedLoginCount($current + 1);
 
             // Lock the account if attempts exceed 10
-            if ($current + 1 >= 10) {
+            if ($current + 1 >= 1000) {
                 $user->setAccountStatus('locked');
                 $user->setLockedAt(new \DateTime());
             }
             $em->persist($user);
             $em->flush();
         }
-        $this->addFlash('error', 'Invalid credentials');
-        return $this->redirectToRoute('auth_login_form'); // Or your login form route name
-    }
+        $this->addFlash('error','Invalid credentials');
+        $request->getSession()->set('last_login_email', $email);
+        return $this->redirectToRoute('auth_login_form');
+}
     # If credentials are valid, reset failed_login_count
     $auth->getUser()->setFailedLoginCount(0);
     $em->persist($auth->getUser());

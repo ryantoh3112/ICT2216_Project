@@ -42,31 +42,22 @@
                         <span><strong>${{ (total)|number_format(2, '.', ',') }}</strong></span>
                     </div>
 
-                    {% include 'components/recaptcha.html.twig' %}
                     <button id="checkout-button" class="btn btn-primary w-100">
                         Pay ${{ (total )|number_format(2, '.', ',') }}
                     </button>
 
                     <script src="https://js.stripe.com/v3/"></script>
+<script src="https://js.stripe.com/v3/"></script>
 <script>
   const stripe = Stripe('{{ stripe_public_key }}');
 
   document.getElementById('checkout-button').addEventListener('click', function () {
-    const recaptchaToken = grecaptcha.getResponse(); // assumes reCAPTCHA v2 is already rendered
-
-    if (!recaptchaToken) {
-      alert('Please complete the CAPTCHA.');
-      return;
-    }
-
     fetch("/create-checkout-session", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        recaptchaToken: recaptchaToken
-      })
+      body: JSON.stringify({})
     })
     .then(res => {
       if (!res.ok) throw new Error("Failed to create session");
@@ -81,6 +72,7 @@
     });
   });
 </script>
+
 
                 {% endif %}
             </div>
