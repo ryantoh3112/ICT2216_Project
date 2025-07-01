@@ -32,10 +32,10 @@ class Venue
     private Collection $event;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $venueImage = null;
+    private ?string $image = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $venueDescription = null;
+    private ?string $description = null;
 
     public function __construct()
     {
@@ -113,26 +113,26 @@ class Venue
         return $this;
     }
 
-    public function getVenueImage(): ?string
+    public function getImage(): ?string
     {
-        return $this->venueImage;
+        return $this->image;
     }
 
-    public function setVenueImage(?string $venueImage): static
+    public function setImage(?string $image): static
     {
-        $this->venueImage = $venueImage;
+        $this->image = $image;
 
         return $this;
     }
 
-    public function getVenueDescription(): ?string
+    public function getDescription(): ?string
     {
-        return $this->venueDescription;
+        return $this->description;
     }
 
-    public function setVenueDescription(?string $venueDescription): static
+    public function setDescription(?string $description): static
     {
-        $this->venueDescription = $venueDescription;
+        $this->description = $description;
 
         return $this;
     }

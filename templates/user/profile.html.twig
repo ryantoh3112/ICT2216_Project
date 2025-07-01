@@ -1,0 +1,117 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<style>
+    @media (max-width: 767.98px) {
+        #profile-tabs {
+            flex-direction: row;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        #profile-tabs a {
+            flex: 1;
+            text-align: center;
+        }
+    }
+
+    .list-group-item.active {
+        background-color: #7393B3;
+        border-color: #A9A9A9;
+        color: #000000;
+        font-weight: bold;
+    }
+
+    .list-group-item-action:hover {
+        background-color: #f7f7f7;
+        color: #000;
+    }
+
+    .card-body dl dt {
+        font-weight: 600;
+    }
+
+    .tab-pane {
+        animation: fadeIn 0.4s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+</style>
+
+<div class="container py-5">
+    <div class="row">
+        <!-- Sidebar Navigation -->
+        <div class="col-md-3 mb-4">
+            <div class="list-group shadow-sm" id="profile-tabs" role="tablist">
+                <a class="list-group-item list-group-item-action active" id="tab-profile" data-bs-toggle="list"
+                   href="#profile" role="tab">
+                    <i class="fa fa-user me-2"></i> Profile Info
+                </a>
+                <a class="list-group-item list-group-item-action" id="tab-history" data-bs-toggle="list"
+                   href="#history" role="tab">
+                    <i class="fa fa-history me-2"></i> Purchase History
+                </a>
+                <a class="list-group-item list-group-item-action" id="tab-settings" data-bs-toggle="list"
+                   href="#change_password" role="tab">
+                    <i class="fa fa-key me-2"></i> Change Password
+                </a>
+                <a class="list-group-item list-group-item-action text-danger" href="{{ path('auth_logout') }}">
+                    <i class="fa fa-sign-out-alt me-2"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="col-md-9">
+            <div class="tab-content">
+                <!-- Profile Info -->
+                <div class="tab-pane fade show active" id="profile" role="tabpanel">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h4>User Profile</h4>
+                            {% for label, messages in app.flashes %}
+                                {% for message in messages %}
+                                    <div class="alert alert-{{ label == 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+                                        {{ message }}
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                    </div>
+                                {% endfor %}
+                            {% endfor %}
+                            <form method="POST" action="{{ path('user_update_username') }}">
+                                <dl class="row">
+                                    <dt class="col-sm-4">Username</dt>
+                                    <dd class="col-sm-8">
+                                        <div class="input-group">
+                                            <input type="text" name="username" class="form-control" value="{{ user.name }}" required>
+                                            <button class="btn btn-outline-primary" type="submit">Save</button>
+                                        </div>
+                                    </dd>
+
+                                    <dt class="col-sm-4">Email</dt>
+                                    <dd class="col-sm-8">{{ email }}</dd>
+
+                                    <dt class="col-sm-4">Joined On</dt>
+                                    <dd class="col-sm-8">{{ user.createdAt|date('F j, Y') }}</dd>
+                                </dl>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Purchase History -->
+                <div class="tab-pane fade" id="history" role="tabpanel">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h4>Purchase History</h4>
+                            <p class="text-muted">You haven’t made any purchases yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

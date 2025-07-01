@@ -34,12 +34,16 @@ class Payment
     #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'payment')]
     private Collection $ticket;
 
-    #[ORM\OneToOne(mappedBy: 'payment', cascade: ['persist', 'remove'])]
-    private ?History $history = null;
+    /**
+     * @var Collection<int, History>
+     */
+    #[ORM\OneToMany(targetEntity: History::class, mappedBy: 'payment')]
+    private Collection $history;
 
     public function __construct()
     {
         $this->ticket = new ArrayCollection();
+        $this->history = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -125,19 +129,32 @@ class Payment
         return $this;
     }
 
-    public function getHistory(): ?History
+    /**
+     * @return Collection<int, History>
+     */
+    public function getHistory(): Collection
     {
         return $this->history;
     }
 
-    public function setHistory(History $history): static
+    public function addHistory(History $history): static
     {
-        // set the owning side of the relation if necessary
-        if ($history->getPayment() !== $this) {
+        if (!$this->history->contains($history)) {
+            $this->history->add($history);
             $history->setPayment($this);
         }
 
-        $this->history = $history;
+        return $this;
+    }
+
+    public function removeHistory(History $history): static
+    {
+        if ($this->history->removeElement($history)) {
+            // set the owning side to null (unless already changed)
+            if ($history->getPayment() === $this) {
+                $history->setPayment(null);
+            }
+        }
 
         return $this;
     }

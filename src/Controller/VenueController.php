@@ -8,6 +8,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
+#[Route('/venues', name: 'venue_')]
 final class VenueController extends AbstractController
 {
     // #[Route('/venue', name: 'app_venue')]
@@ -18,7 +19,7 @@ final class VenueController extends AbstractController
     //     ]);
     // }
 
-    #[Route('/venues', name: 'app_venues')]
+    #[Route('', name: 'list')]
     public function index(EntityManagerInterface $entityManager): Response
     {
         // Fetch all venues
@@ -33,5 +34,19 @@ final class VenueController extends AbstractController
         ]);
 
         // dd($venues); // See if this dumps the venue list
+    }
+
+    #[Route('/{id}', name: 'details', requirements: ['id' => '\d+'])]
+    public function details(int $id, EntityManagerInterface $entityManager): Response
+    {
+        $venue = $entityManager->getRepository(Venue::class)->find($id);
+
+        if (!$venue) {
+            throw $this->createNotFoundException('Venue not found.');
+        }
+
+        return $this->render('venue/details.html.twig', [
+            'venue' => $venue,
+        ]);
     }
 }

@@ -19,20 +19,17 @@ class History
     #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
 
-    #[ORM\OneToOne(inversedBy: 'history', cascade: ['persist', 'remove'])]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\ManyToOne(inversedBy: 'history')]
     private ?Payment $payment = null;
 
-    /**
-     * @var Collection<int, Ticket>
-     */
-    #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'history')]
-    private Collection $ticket;
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $action = null;
 
-    public function __construct()
-    {
-        $this->ticket = new ArrayCollection();
-    }
+    #[ORM\ManyToOne(inversedBy: 'history')]
+    private ?Ticket $ticket = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTime $timestamp = null;
 
     public function getId(): ?int
     {
@@ -56,39 +53,45 @@ class History
         return $this->payment;
     }
 
-    public function setPayment(Payment $payment): static
+    public function setPayment(?Payment $payment): static
     {
         $this->payment = $payment;
 
         return $this;
     }
 
-    /**
-     * @return Collection<int, Ticket>
-     */
-    public function getTicket(): Collection
+    public function getAction(): ?string
     {
-        return $this->ticket;
+        return $this->action;
     }
 
-    public function addTicket(Ticket $ticket): static
+    public function setAction(?string $action): static
     {
-        if (!$this->ticket->contains($ticket)) {
-            $this->ticket->add($ticket);
-            $ticket->setHistory($this);
-        }
+        $this->action = $action;
 
         return $this;
     }
 
-    public function removeTicket(Ticket $ticket): static
+    public function getTicket(): ?Ticket
     {
-        if ($this->ticket->removeElement($ticket)) {
-            // set the owning side to null (unless already changed)
-            if ($ticket->getHistory() === $this) {
-                $ticket->setHistory(null);
-            }
-        }
+        return $this->ticket;
+    }
+
+    public function setTicket(?Ticket $ticket): static
+    {
+        $this->ticket = $ticket;
+
+        return $this;
+    }
+
+    public function getTimestamp(): ?\DateTime
+    {
+        return $this->timestamp;
+    }
+
+    public function setTimestamp(?\DateTime $timestamp): static
+    {
+        $this->timestamp = $timestamp;
 
         return $this;
     }

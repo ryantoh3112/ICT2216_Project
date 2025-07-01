@@ -4,9 +4,11 @@ namespace App\Entity;
 
 use App\Repository\AuthRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 
 #[ORM\Entity(repositoryClass: AuthRepository::class)]
-class Auth
+class Auth implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -62,5 +64,21 @@ class Auth
         $this->user = $user;
 
         return $this;
+    }
+
+    public function getUserIdentifier(): string
+    {
+        return $this->email;
+    }
+
+    public function getRoles(): array
+    {
+        // You can fetch roles from the linked User entity if needed
+        return [$this->getUser()?->getRole() ?? 'ROLE_USER'];
+    }
+
+    public function eraseCredentials(): void
+    {
+        // If you store temporary sensitive data, clear it here
     }
 }

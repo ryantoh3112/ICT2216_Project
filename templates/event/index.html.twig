@@ -1,0 +1,80 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<section class="food_section layout_padding-bottom">
+  <div class="container">
+    <br>
+    <div class="heading_container heading_center">
+      <h2>Our Events</h2>
+    </div>
+
+    <div class="row">
+      {% set items = [
+        {'id': 1, 'name': 'Delicious Pizza', 'price': 20, 'image': 'f1.png'},
+        {'id': 2, 'name': 'Tasty Burger', 'price': 15, 'image': 'f2.png'},
+        {'id': 3, 'name': 'Creamy Pasta', 'price': 18, 'image': 'f3.png'}
+      ] %}
+
+      {% for item in items %}
+      <div class="col-sm-6 col-lg-4">
+        <div class="box">
+          <div class="img-box">
+            <img src="{{ asset('images/' ~ item.image) }}" alt="{{ item.name }}">
+          </div>
+          <div class="detail-box">
+            <h5>{{ item.name }}</h5>
+            <p>Delicious event item. Perfect for your appetite.</p>
+            <div class="options d-flex justify-content-between align-items-center">
+              <h6>${{ item.price }}</h6>
+              <button
+                class="btn btn-warning add-to-cart"
+                data-id="{{ item.id }}"
+                data-name="{{ item.name }}"
+                data-price="{{ item.price }}"
+                data-image="{{ asset('images/' ~ item.image) }}"
+              >
+                <i class="fas fa-shopping-cart"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const buttons = document.querySelectorAll('.add-to-cart');
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const data = {
+          name: btn.dataset.name,
+          price: parseFloat(btn.dataset.price),
+          image: btn.dataset.image
+        };
+
+        fetch('/sync-cart', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (res.success) {
+            alert(`${data.name} added to cart!`);
+          } else {
+            alert('Error: ' + (res.error || 'Could not add item.'));
+          }
+        })
+        .catch(() => alert('Something went wrong while syncing cart.'));
+      });
+    });
+  });
+</script>
+{% endblock %}
