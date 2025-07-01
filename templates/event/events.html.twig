@@ -4,7 +4,7 @@
     <!-- events section -->
     <section class="event_section layout_padding">
         <div class="container">
-            <div class="heading_container heading_center">
+            <div class="heading_container heading_center mb-4">
                 <h2>Our Events</h2>
             </div>
 
@@ -13,13 +13,23 @@
                     <div class="col-md-6 col-lg-4 mb-4">
                         <div class="box flex-fill">
                             <div class="img-box mb-2">
-                                <img src="{{ asset(event.image ?: 'images/default-event.jpg')}}" alt="Event Image" class="img-fluid rounded" >
+                                <img src="{{ asset(event.image ?: 'images/events.jpg')}}" alt="Event Image" class="img-fluid rounded" >
                             </div>
                             <div class="detail-box">
                                 <h5 class="fw-bold">
                                     {{ event.name }}
                                 </h5>
-                                <a href="#" class="btn btn-outline-primary mt-2">View More</a>
+                               
+                                {% if event.purchaseStartDate and event.purchaseEndDate %}
+                                    <p class="text-muted small">
+                                        {{ event.purchaseStartDate|date('d M Y (D)') }}
+                                        {% if event.purchaseStartDate != event.purchaseEndDate %}
+                                            ~ {{ event.purchaseEndDate|date('d M Y (D)') }}
+                                        {% endif %}
+                                    </p>
+                                {% endif %}
+
+                                <a href="{{ path('event_show', { id: event.id }) }}" class="btn btn-outline-primary">View More</a>
                         
                             </div>
                         </div>
@@ -29,6 +39,46 @@
                 {% endfor %}
             </div>
         </div>
+
+        <!--Pagination-->
+        {% if totalPages > 1 %}
+        <nav aria-label="Page navigation" class="d-flex justify-content-center mt-3">
+            <ul class="pagination pagination-md">
+                {# Previous button #}
+                {% if currentPage > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ path('event_list', {'page': currentPage - 1}) }}" aria-label="Previous">
+                            &lsaquo;
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&lsaquo;</span>
+                    </li>
+                {% endif %}
+                
+                {# Page numbers #}
+                {% for i in 1..totalPages %}
+                    <li class="page-item {{ i == currentPage ? 'active' : ''}}">
+                         <a class="page-link" href="{{ path('event_list', { page: i }) }}">{{ i }}</a>
+                    </li>
+                {% endfor %}
+
+                {# Next button #}
+                {% if currentPage < totalPages %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ path('event_list', {'page': currentPage + 1}) }}" aria-label="Next">
+                            &rsaquo;
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&rsaquo;</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
     </section>
 
 {% endblock %}

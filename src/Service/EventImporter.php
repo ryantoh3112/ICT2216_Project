@@ -51,7 +51,11 @@ class EventImporter
 
             $event = new Event();
             $event->setName($item['name']);
-            $event->setDescription($item['info'] ?? 'No description available');
+            $event->setDescription($item['description']
+                ?? $item['pleaseNote']
+                ?? $item['info']
+                ?? 'No description available'
+            );
             $event->setImage($item['image'] ?? null);
 
             $event->setOrganiser($item['_embedded']['attractions'][0]['name'] ?? 'Unknown Organiser');
