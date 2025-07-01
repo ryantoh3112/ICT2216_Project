@@ -31,6 +31,7 @@ services:
     container_name: symfony_nginx
     environment:
       - SERVER_NAME=${SERVER_NAME}
+      - TZ=Asia/Singapore
     # ports:
     #   - "80:80"
     expose:
@@ -40,6 +41,11 @@ services:
       - ./docker/nginx/conf.d:/etc/nginx/conf.d
     depends_on:
       - app
+    logging: 
+      driver: syslog
+      options:
+        syslog-address: "udp://127.0.0.1:514"
+        tag: "symfony_nginx"
 
   database:
     image: mysql:8.0
