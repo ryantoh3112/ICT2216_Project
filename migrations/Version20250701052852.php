@@ -10,13 +10,8 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
-final class Version20250627083442 extends AbstractMigration
+final class Version20250701052852 extends AbstractMigration
 {
-    public function isTransactional(): bool
-    {
-        return false;
-    }
-
     public function getDescription(): string
     {
         return '';
@@ -50,7 +45,7 @@ final class Version20250627083442 extends AbstractMigration
             CREATE TABLE ticket_type (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, description LONGTEXT DEFAULT NULL, price DOUBLE PRECISION DEFAULT NULL, PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
         SQL);
         $this->addSql(<<<'SQL'
-            CREATE TABLE user (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, role VARCHAR(255) NOT NULL, created_at DATETIME NOT NULL, last_login_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL, failed_login_count INT DEFAULT NULL, account_status VARCHAR(255) DEFAULT NULL, locked_at DATETIME DEFAULT NULL, otp_reset VARCHAR(255) DEFAULT NULL, otp_expires_at DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)', PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
+            CREATE TABLE user (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, role VARCHAR(255) NOT NULL, created_at DATETIME NOT NULL, last_login_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL, failed_login_count INT DEFAULT NULL, account_status VARCHAR(255) DEFAULT NULL, locked_at DATETIME DEFAULT NULL, otp_code VARCHAR(255) DEFAULT NULL, otp_expires_at DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)', reset_token VARCHAR(255) DEFAULT NULL, reset_token_expires_at DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)', PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
         SQL);
         $this->addSql(<<<'SQL'
             CREATE TABLE venue (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, address VARCHAR(255) NOT NULL, capacity INT NOT NULL, image VARCHAR(255) DEFAULT NULL, description LONGTEXT DEFAULT NULL, PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB

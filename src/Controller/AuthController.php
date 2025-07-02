@@ -5,7 +5,7 @@ namespace App\Controller;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Cookie;
 use App\Service\JwtService;
-use App\Service\EmailOtpService;
+use App\Service\EmailService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,6 +18,7 @@ use App\Repository\AuthRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Uid\Uuid;
 
 #Conroller-level prefix for all routes in this controller
 #Everything below is part of /auth/...
@@ -63,7 +64,8 @@ final class AuthController extends AbstractController
         $user = new User();
         $user->setName($name);
         $user->setRole('ROLE_USER');
-        $user->setCreatedAt(new \DateTime('now', new \DateTimeZone('Asia/Singapore')));
+        $user->setCreatedAt(new \DateTime());
+        $user->setAccountStatus("active");
 
         // Persist User first
         $entityManager->persist($user);
@@ -90,6 +92,7 @@ final class AuthController extends AbstractController
             'controller_name' => 'AuthController',
         ]);
     }
+
     #[Route('/login', name: 'login_form', methods: ['GET'])]
     public function loginForm(Request $request): Response
     {
@@ -184,7 +187,6 @@ final class AuthController extends AbstractController
         return $response;
     }
 
-
     # For testing purposes, this endpoint will return the user information from the JWT cookie
     #[Route('/verify-redirect', name: 'login_success')]
     public function verifyJwtAndRedirect(
@@ -240,44 +242,231 @@ final class AuthController extends AbstractController
     }
     
     #[Route('/forgot_pwd', name: 'forgot_password_form', methods: ['GET'])]
-    public function showForgotPasswordForm(): Response
+    public function showForgotPasswordForm(Request $request): Response
     {
+        $user = $request->attributes->get('jwt_user');
+
+        if ($user) {
+            // Redirect authenticated users to their user profile page
+            return $this->redirectToRoute('user_profile');
+        }
         return $this->render('auth/forgot_pwd.html.twig');
     }
-
     
     #[Route('/forgot_pwd', name: 'forgot_password', methods: ['POST'])]
     public function forgotPassword(
         Request $request,
         AuthRepository $authRepository,
         EntityManagerInterface $em,
-        EmailOtpService $emailOtpService
+        EmailService $emailService
     ): Response {
         $email = $request->request->get('email');
         $auth = $authRepository->findOneBy(['email' => $email]);
         $user = $auth?->getUser();
 
         if ($user) {
-            // 1. Generate OTP
-            $otp = random_int(100000, 999999);
-            $user->setPasswordResetOtp((string) $otp);
-            $user->setOtpExpiresAt(new \DateTimeImmutable('+10 minutes'));
+            // // 1. Generate OTP
+            // $otp = random_int(100000, 999999);
+            // $user->setOtpCode((string) $otp);
+            // $user->setOtpExpiresAt(new \DateTimeImmutable('+10 minutes'));
 
-            // 2. Save to DB
+            // // 2. Save to DB
+            // $em->flush();
+
+            // // 3. Send email using Auth's email, and User's name
+            // $emailOtpService->sendOtp(
+            //     $auth->getEmail(),
+            //     $user->getName(), // or getUsername() if that's your naming
+            //     $otp
+            // );
+
+            $token = Uuid::v4()->toRfc4122(); // Generate secure unique token
+            $expiresAt = new \DateTimeImmutable('+15 minutes');
+
+            $user->setResetToken($token);
+            $user->setResetTokenExpiresAt($expiresAt);
             $em->flush();
 
-            // 3. Send email using Auth's email, and User's name
-            $emailOtpService->sendOtp(
-                $auth->getEmail(),
-                $user->getName(), // or getUsername() if that's your naming
-                $otp
-            );
+            // Send email with token link
+            $emailService->sendResetPasswordLink($auth->getEmail(), $user->getName(), $token);
         }
 
+        // // Save to session for verify_otp page
+        // $request->getSession()->set('otp_email', $email);
+
         // 4. Flash message (same response for both cases to protect privacy)
-        $this->addFlash('success', 'If this email is registered, an OTP has been sent.');
+        $this->addFlash('success', 'If this email is registered, a reset link has been sent.');
 
         return $this->redirectToRoute('auth_forgot_password_form');
+    }
+
+    // #[Route('/verify-otp', name: 'verify_otp', methods: ['GET', 'POST'])]
+    // public function verifyOtp(
+    //     Request $request,
+    //     AuthRepository $authRepository
+    // ): Response {
+    //     $session = $request->getSession();
+    //     $email = $request->get('email') ?? $session->get('otp_email');
+
+    //     if ($request->isMethod('POST')) {
+    //         $email = $request->request->get('email');
+    //         $otp = $request->request->get('otp');
+
+    //         $auth = $authRepository->findOneBy(['email' => $email]);
+
+    //         if (!$auth || !$auth->getUser()) {
+    //             $this->addFlash('error', 'Invalid email or OTP.');
+    //             return $this->redirectToRoute('auth_verify_otp');
+    //         }
+
+    //         $user = $auth->getUser();
+
+    //         // Check if OTP matches and not expired
+    //         if (
+    //             $user->getOtpCode() !== $otp ||
+    //             $user->getOtpExpiresAt() < new \DateTimeImmutable()
+    //         ) {
+    //             $this->addFlash('error', 'Invalid or expired OTP.');
+    //             return $this->redirectToRoute('auth_verify_otp');
+    //         }
+
+    //         // OTP is valid, store in session
+    //         $session->set('verified_email', $email);
+    //         $session->set('otp_verified', true);
+
+    //         // Clear temp OTP session
+    //         $session->remove('otp_email');
+
+    //         $this->addFlash('success', 'OTP verified. Please reset your password.');
+    //         return $this->redirectToRoute('auth_reset_password');
+    //     }
+
+    //     // Show OTP form only if email is known
+    //     if (!$email) {
+    //         $this->addFlash('error', 'Please enter your email first.');
+    //         return $this->redirectToRoute('auth_forgot_password_form');
+    //     }
+
+    //     // Store email temporarily for the GET view
+    //     $session->set('otp_email', $email);
+
+    //     return $this->render('auth/verify_otp.html.twig', [
+    //         'email' => $email
+    //     ]);
+    // }
+
+    #[Route('/reset-password', name: 'reset_password', methods: ['GET', 'POST'])]
+    public function resetPassword(
+        Request $request,
+        UserRepository $userRepository,
+        EntityManagerInterface $em,
+        UserPasswordHasherInterface $hasher
+    ): Response {
+        // $session = $request->getSession();
+        // $email = $session->get('verified_email');
+        // $otpVerified = $session->get('otp_verified');
+
+        // if (!$email || !$otpVerified) {
+        //     $this->addFlash('error', 'You must verify your email and OTP first.');
+        //     return $this->redirectToRoute('auth_forgot_password_form');
+        // }
+
+        // $auth = $authRepository->findOneBy(['email' => $email]);
+        // if (!$auth) {
+        //     $this->addFlash('error', 'Invalid session state. Try again.');
+        //     return $this->redirectToRoute('auth_forgot_password_form');
+        // }
+
+        // if ($request->isMethod('POST')) {
+        //     $newPassword = $request->request->get('new_password');
+        //     $confirm = $request->request->get('confirm_password');
+
+        //     if ($newPassword !== $confirm) {
+        //         $this->addFlash('error', 'Passwords do not match.');
+        //         return $this->redirectToRoute('auth_reset_password');
+        //     }
+
+        //     $auth->setPassword($hasher->hashPassword($auth, $newPassword));
+        //     $auth->getUser()->setOtpCode(null);
+        //     $auth->getUser()->setOtpExpiresAt(null);
+        //     $em->flush();
+
+        //     // Clear session
+        //     $session->remove('verified_email');
+        //     $session->remove('otp_verified');
+
+        //     $this->addFlash('success', 'Password has been reset! You can now log in.');
+        //     return $this->redirectToRoute('auth_login_form');
+        // }
+
+        // return $this->render('auth/reset_pwd.html.twig');
+        
+        $token = $request->query->get('token') ?? $request->request->get('token');
+
+        if (!$token) {
+            $this->addFlash('error', 'Missing reset token.');
+            return $this->redirectToRoute('auth_forgot_password_form');
+        }
+
+        $user = $userRepository->findOneBy(['resetToken' => $token]);
+
+        if (
+            !$user ||
+            !$user->getResetTokenExpiresAt() ||
+            $user->getResetTokenExpiresAt() < new \DateTimeImmutable()
+        ) {
+            $this->addFlash('error', 'Reset link is invalid or expired.');
+            return $this->redirectToRoute('auth_forgot_password_form');
+        }
+
+        if ($request->isMethod('POST')) {
+            $password = $request->request->get('password');
+            $confirm = $request->request->get('confirm_password');
+
+            if (
+                strlen($password) < 8 ||
+                !preg_match('/[A-Z]/', $password) ||
+                !preg_match('/[a-z]/', $password) ||
+                !preg_match('/[0-9]/', $password) ||
+                !preg_match('/[\W]/', $password)
+            ) {
+                $this->addFlash('error', 'Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.');
+                return $this->redirectToRoute('auth_reset_password', ['token' => $token]);
+            }
+
+            if ($password !== $confirm) {
+                $this->addFlash('error', 'Passwords do not match.');
+                return $this->redirectToRoute('auth_reset_password', ['token' => $token]);
+            }
+
+            // Reset password
+            $auth = $user->getAuth();
+            if (!$auth) {
+                $this->addFlash('error', 'Something went wrong while updating your password.');
+                return $this->redirectToRoute('auth_forgot_password_form');
+            }
+            $auth->setPassword($hasher->hashPassword($auth, $password));
+
+            // Invalidate reset token immediately
+            $user->setResetToken(null);
+            $user->setResetTokenExpiresAt(null);
+
+            $em->flush();
+
+            // Invalidate the session (if logged in)
+            $session = $request->getSession();
+            $this->addFlash('success', 'Password successfully reset. You can now log in.');
+            $session->invalidate();
+
+            $response = $this->redirectToRoute('auth_login_form');
+            $response->headers->clearCookie('JWT'); // Remove the JWT cookie
+            return $response;
+        }
+
+        return $this->render('auth/reset_pwd.html.twig', [
+            'token' => $token,
+            'email' => $user->getAuth()->getEmail()
+        ]);
     }
     
     # Revoked once User logs out
@@ -335,5 +524,5 @@ final class AuthController extends AbstractController
         $this->addFlash('success', 'You have been logged out.');
 
         return $response;
-        }
     }
+}
