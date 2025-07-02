@@ -1,22 +1,58 @@
-{% include 'navbar.html.twig' %}
+{# templates/payment/success.html.twig #}
+{% extends 'base.html.twig' %}
 
-<div class="container mt-5 mb-5 text-center" style="min-height: 70vh;">
+{% block body %}
+  <div class="container mt-5 mb-5 text-center" style="min-height: 70vh;">
     <div class="p-5 bg-light border rounded shadow-sm">
-        <h1 class="text-success mb-3">
-            ✅ Payment Successful!
-        </h1>
-        <p class="lead">Thank you for your purchase. Your ticket(s) have been confirmed.</p>
+      <h1 class="text-success mb-3">✅ Payment Successful!</h1>
+      <p class="lead">Thank you for your purchase. Your ticket(s) have been confirmed.</p>
 
-        <div class="mt-4">
-            <h4>Order Summary</h4>
-            <p><strong>Product:</strong> GoTix Concert Ticket</p>
-            <p><strong>Quantity:</strong> {{ quantity }}</p>
-            <p><strong>Total Paid:</strong> ${{ total }}</p>
-        </div>
+      <div class="mt-4 text-left mx-auto" style="max-width: 500px;">
+        <h4>Order Summary</h4>
 
-        <a href="{{ path('app_home') }}" class="btn btn-primary mt-4">Return to Home</a>
+        {% if bought is not empty %}
+          {# line‐items #}
+          {% for item in bought %}
+            <div class="d-flex justify-content-between">
+              <span><strong>Product:</strong></span>
+              <span>{{ item.productName }}</span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span><strong>Quantity:</strong></span>
+              <span>{{ item.quantity }}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <span><strong>Unit Price:</strong></span>
+              <span>${{ item.unitPrice|number_format(2) }}</span>
+            </div>
+          {% endfor %}
+
+          <hr/>
+
+          <div class="d-flex justify-content-between">
+            <span><strong>Subtotal:</strong></span>
+            <span>${{ subtotal }}</span>
+          </div>
+
+          {% if bookingFee > 0 %}
+            <div class="d-flex justify-content-between">
+              <span><strong>Booking Fee:</strong></span>
+              <span>${{ bookingFee }}</span>
+            </div>
+            <hr/>
+          {% endif %}
+
+          <div class="d-flex justify-content-between">
+            <span><strong>Total Paid:</strong></span>
+            <span>${{ total }}</span>
+          </div>
+
+        {% else %}
+          <p class="text-muted">No items found in your purchase history.</p>
+        {% endif %}
+      </div>
+
+      <a href="{{ path('app_home') }}" class="btn btn-primary mt-4">← Return to Home</a>
     </div>
-</div>
-
-{% include 'footer.html.twig' %}
-{% include 'chatbot/chatbot.html.twig' %}
+  </div>
+{% endblock %}

@@ -2,18 +2,24 @@
 
 namespace App\Controller;
 
+use App\Entity\PurchaseHistory;
+use App\Entity\CartItem;
+use App\Entity\History;
+use App\Entity\Payment;
+use App\Repository\PaymentRepository;
+use Doctrine\ORM\EntityManagerInterface;
+use Stripe\Checkout\Session as StripeSession;
+use Stripe\Stripe;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use App\Entity\CartItem;
-use Doctrine\ORM\EntityManagerInterface;
 
 final class PaymentController extends AbstractController
 {
-    #[Route('/checkout', name: 'checkout_page')]
+     #[Route('/checkout', name: 'checkout_page')]
     public function checkout(Request $request, EntityManagerInterface $em): Response
     {
         $user = $request->attributes->get('jwt_user');
@@ -21,99 +27,189 @@ final class PaymentController extends AbstractController
             return $this->redirectToRoute('auth_login_form');
         }
 
-        $cartItems = $em->getRepository(CartItem::class)->findBy(['user' => $user]);
+        $cartItems = $em->getRepository(CartItem::class)
+                       ->findBy(['user' => $user]);
 
         return $this->render('payment/checkout.html.twig', [
-            'stripe_public_key' => $_ENV['STRIPE_PUBLIC_KEY'],
+            'stripe_public_key'  => $_ENV['STRIPE_PUBLIC_KEY'],
             'recaptcha_site_key' => $_ENV['RECAPTCHA_SITE_KEY'],
-            'cartItems' => $cartItems,
+            'cartItems'          => $cartItems,
         ]);
     }
 
-#[Route('/create-checkout-session', name: 'create_checkout_session', methods: ['POST'])]
-public function createCheckoutSession(Request $request, EntityManagerInterface $em): JsonResponse
-{
-    \Stripe\Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY']);
+    #[Route('/create-checkout-session', name: 'create_checkout_session', methods: ['POST'])]
+    public function createCheckoutSession(
+        Request $request,
+        EntityManagerInterface $em
+    ): JsonResponse {
+        // configure Stripe
+        Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY']);
 
-    $user = $request->attributes->get('jwt_user');
-    if (!$user) {
-        return $this->json(['error' => 'User not authenticated.'], 403);
-    }
-
-    $cartItems = $em->getRepository(CartItem::class)->findBy(['user' => $user]);
-    if (!$cartItems) {
-        return $this->json(['error' => 'Cart is empty.'], 400);
-    }
-
-    $lineItems = [];
-    foreach ($cartItems as $item) {
-        $lineItems[] = [
-            'price_data' => [
-                'currency' => 'usd',
-                'product_data' => [
-                    'name' => $item->getName(),
-                ],
-                'unit_amount' => (int) round($item->getPrice() * 100),
-            ],
-            'quantity' => $item->getQuantity(),
-        ];
-    }
-
-    $bookingFeePerItem = 3.00;
-    $bookingFeeTotal = $bookingFeePerItem * count($cartItems);
-
-    if ($bookingFeeTotal > 0) {
-        $lineItems[] = [
-            'price_data' => [
-                'currency' => 'usd',
-                'product_data' => [
-                    'name' => 'Booking Fee',
-                ],
-                'unit_amount' => (int) round($bookingFeeTotal * 100),
-            ],
-            'quantity' => 1,
-        ];
-    }
-
-    $session = \Stripe\Checkout\Session::create([
-        'payment_method_types' => ['card'],
-        'line_items' => $lineItems,
-        'mode' => 'payment',
-        'success_url' => $this->generateUrl('checkout_success', [], UrlGeneratorInterface::ABSOLUTE_URL) . '?session_id={CHECKOUT_SESSION_ID}',
-        'cancel_url' => $this->generateUrl('checkout_cancel', [], UrlGeneratorInterface::ABSOLUTE_URL),
-    ]);
-
-    return $this->json(['id' => $session->id]);
-}
-
-
-    #[Route('/success', name: 'checkout_success')]
-    public function success(Request $request): Response
-    {
-        \Stripe\Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY']);
-
-        $sessionId = $request->query->get('session_id');
-
-        if (!$sessionId) {
-            return $this->redirectToRoute('checkout_page');
+        // AUTH
+        $user = $request->attributes->get('jwt_user');
+        if (!$user) {
+            return $this->json(['error' => 'User not authenticated.'], 403);
         }
 
-        $session = \Stripe\Checkout\Session::retrieve($sessionId);
-        $lineItem = \Stripe\Checkout\Session::allLineItems($sessionId, ['limit' => 1])->data[0];
+        // LOAD CART
+        /** @var CartItem[] $cartItems */
+        $cartItems = $em->getRepository(CartItem::class)
+                        ->findBy(['user' => $user]);
+        if (empty($cartItems)) {
+            return $this->json(['error' => 'Cart is empty.'], 400);
+        }
 
-        $quantity = $lineItem['quantity'] ?? 1;
-        $unitAmount = $lineItem['price']['unit_amount'] ?? 2500; // cents
-        $total = number_format(($quantity * $unitAmount) / 100, 2);
+        // BUILD LINE ITEMS
+        $lineItems = [];
+        foreach ($cartItems as $item) {
+            $lineItems[] = [
+                'price_data' => [
+                    'currency'     => 'usd',
+                    'product_data' => ['name' => $item->getName()],
+                    'unit_amount'  => (int) round($item->getPrice() * 100),
+                ],
+                'quantity' => $item->getQuantity(),
+            ];
+        }
+        $bookingFee = 3.00 * count($cartItems);
+        if ($bookingFee > 0) {
+            $lineItems[] = [
+                'price_data' => [
+                    'currency'     => 'usd',
+                    'product_data' => ['name' => 'Booking Fee'],
+                    'unit_amount'  => (int) round($bookingFee * 100),
+                ],
+                'quantity' => 1,
+            ];
+        }
 
-        return $this->render('payment/success.html.twig', [
-            'quantity' => $quantity,
-            'total' => $total
+        // CREATE STRIPE SESSION
+        $session = StripeSession::create([
+            'payment_method_types' => ['card'],
+            'line_items'           => $lineItems,
+            'mode'                 => 'payment',
+            'success_url'          => $this->generateUrl(
+                                         'checkout_success',
+                                         [],
+                                         UrlGeneratorInterface::ABSOLUTE_URL
+                                     ) . '?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url'           => $this->generateUrl(
+                                         'checkout_cancel',
+                                         [],
+                                         UrlGeneratorInterface::ABSOLUTE_URL
+                                     ),
         ]);
+
+        // COMPUTE TOTAL PRICE
+        $subtotal = array_reduce(
+            $cartItems,
+            fn($sum, CartItem $i) => $sum + ($i->getPrice() * $i->getQuantity()),
+            0
+        );
+        $total = $subtotal + $bookingFee;
+
+        // PERSIST Payment with session ID
+        $payment = (new Payment())
+            ->setUser($user)
+            ->setTotalPrice($total)
+            ->setPaymentMethod('stripe')
+            ->setPaymentDateTime(new \DateTime())
+            ->setSessionId($session->id)
+            ->setStatus('pending');
+
+        $em->persist($payment);
+        $em->flush();
+
+        // PERSIST History with the same session ID
+        $history = (new History())
+            ->setUser($user)
+            ->setPayment($payment)
+            ->setAction('Checkout session created')
+            ->setTimestamp(new \DateTime())
+            ->setSessionId($session->id)
+            ->setStatus('pending');
+
+        $em->persist($history);
+        $em->flush();
+
+        // STORE for /success
+        $request->getSession()->set('last_payment_id', $payment->getId());
+
+        return $this->json(['id' => $session->id]);
+    }
+
+#[Route('/success', name: 'checkout_success')]
+public function success(
+    Request $request,
+    EntityManagerInterface $em,
+    PaymentRepository $payments
+): Response {
+    // — AUTH & PAYMENT lookup (unchanged) —
+    $user = $request->attributes->get('jwt_user');
+    if (!$user) {
+        return $this->redirectToRoute('auth_login_form');
+    }
+
+    $paymentId = $request->getSession()->get('last_payment_id');
+    if (!$paymentId) {
+        return $this->redirectToRoute('checkout_page');
+    }
+
+    $payment = $payments->find($paymentId);
+    if (
+        !$payment ||
+        $payment->getUser() !== $user ||
+        $payment->getStatus() !== 'completed'
+    ) {
+        return $this->redirectToRoute('checkout_page');
+    }
+
+    // — LOAD PURCHASED ITEMS from PurchaseHistory —
+    /** @var PurchaseHistory[] $records */
+    $records = $em->getRepository(PurchaseHistory::class)
+                  ->findBy(['payment' => $payment]);
+
+    // — BUILD A SIMPLE ARRAY & CALC SUBTOTAL —
+    $bought   = [];
+    $subtotal = 0;
+    foreach ($records as $rec) {
+        $line = $rec->getUnitPrice() * $rec->getQuantity();
+        $bought[] = [
+            'productName' => $rec->getProductName(),
+            'quantity'    => $rec->getQuantity(),
+            'unitPrice'   => $rec->getUnitPrice(),
+            'line'        => $line,
+        ];
+        $subtotal += $line;
+    }
+
+    // — DERIVE BOOKING FEE: payment.total − subtotal —
+    $total      = $payment->getTotalPrice();
+    $bookingFee = max(0, $total - $subtotal);
+
+    // — PASS EVERYTHING INTO TWIG —
+    return $this->render('payment/success.html.twig', [
+        'bought'     => $bought,
+        'subtotal'   => number_format($subtotal, 2),
+        'bookingFee' => number_format($bookingFee, 2),
+        'total'      => number_format($total, 2),
+    ]);
     }
 
     #[Route('/cancel', name: 'checkout_cancel')]
-    public function cancel(): Response
+    public function cancel(Request $request, EntityManagerInterface $em): Response
     {
-        return $this->render('payment/cancel.html.twig');
+        $user = $request->attributes->get('jwt_user');
+        if (!$user) {
+            return $this->redirectToRoute('auth_login_form');
+        }
+
+        $cartItems = $em->getRepository(CartItem::class)
+                       ->findBy(['user' => $user]);
+
+        return $this->render('payment/cancel.html.twig', [
+            'cartItems'          => $cartItems,
+            'stripe_public_key'  => $_ENV['STRIPE_PUBLIC_KEY'],
+        ]);
     }
 }

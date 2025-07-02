@@ -19,16 +19,16 @@ final class Version20250701182255 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        // this up() migration is auto-generated, please modify it to your needs
-        $this->addSql(<<<'SQL'
-            ALTER TABLE cart_item DROP FOREIGN KEY FK_F0FE2527A76ED395
-        SQL);
-        $this->addSql(<<<'SQL'
-            DROP INDEX IDX_F0FE2527A76ED395 ON cart_item
-        SQL);
-        $this->addSql(<<<'SQL'
-            ALTER TABLE cart_item ADD image VARCHAR(255) DEFAULT NULL, DROP user_id, DROP quantity, CHANGE price price DOUBLE PRECISION NOT NULL, CHANGE product_name name VARCHAR(255) NOT NULL
-        SQL);
+        // // this up() migration is auto-generated, please modify it to your needs
+        // $this->addSql(<<<'SQL'
+        //     ALTER TABLE cart_item DROP FOREIGN KEY FK_F0FE2527A76ED395
+        // SQL);
+        // $this->addSql(<<<'SQL'
+        //     DROP INDEX IDX_F0FE2527A76ED395 ON cart_item
+        // SQL);
+        // $this->addSql(<<<'SQL'
+        //     ALTER TABLE cart_item ADD image VARCHAR(255) DEFAULT NULL, DROP user_id, DROP quantity, CHANGE price price DOUBLE PRECISION NOT NULL, CHANGE product_name name VARCHAR(255) NOT NULL
+        // SQL);
     }
 
     public function down(Schema $schema): void

@@ -1,3 +1,4 @@
+{# templates/payment/checkout.html.twig #}
 {% extends 'base.html.twig' %}
 
 {% block body %}
@@ -7,13 +8,12 @@
             <div class="shadow-sm p-4" style="background-color: #f9f9f9; border-radius: 10px;">
 
                 <h2 class="text-center mb-3">🛒 Your Cart</h2>
-
                 <hr>
 
                 {% set subtotal = 0 %}
                 {% set booking_fee = 3 %}
                 {% for item in cartItems %}
-                    {% set line_total = item.price * item.quantity %}
+                    {% set line_total = item.getPrice() * item.getQuantity() %}
                     {% set subtotal = subtotal + line_total %}
 
                     <div class="d-flex justify-content-between mb-2">
@@ -26,7 +26,7 @@
 
                 {% if cartItems|length > 0 %}
                     {% set total_fee = booking_fee * cartItems|length %}
-                    {% set total = subtotal + total_fee  %}
+                    {% set total = subtotal + total_fee %}
 
                     <hr>
                     <div class="d-flex justify-content-between">
@@ -39,44 +39,66 @@
                     </div>
                     <div class="d-flex justify-content-between mb-3">
                         <span><strong>Total:</strong></span>
-                        <span><strong>${{ (total)|number_format(2, '.', ',') }}</strong></span>
+                        <span><strong>${{ total|number_format(2, '.', ',') }}</strong></span>
                     </div>
 
                     <button id="checkout-button" class="btn btn-primary w-100">
-                        Pay ${{ (total )|number_format(2, '.', ',') }}
+                        Pay ${{ total|number_format(2, '.', ',') }}
                     </button>
-
-                    <script src="https://js.stripe.com/v3/"></script>
-<script src="https://js.stripe.com/v3/"></script>
-<script>
-  const stripe = Stripe('{{ stripe_public_key }}');
-
-  document.getElementById('checkout-button').addEventListener('click', function () {
-    fetch("/create-checkout-session", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({})
-    })
-    .then(res => {
-      if (!res.ok) throw new Error("Failed to create session");
-      return res.json();
-    })
-    .then(data => {
-      if (!data.id) throw new Error("Session ID not returned");
-      return stripe.redirectToCheckout({ sessionId: data.id });
-    })
-    .catch(err => {
-      alert("Error: " + err.message);
-    });
-  });
-</script>
-
-
                 {% endif %}
+
             </div>
         </div>
     </div>
 </div>
+
+{% if cartItems|length > 0 %}
+    <script src="https://js.stripe.com/v3/"></script>
+    <script>
+    (function() {
+        const stripe = Stripe('{{ stripe_public_key }}');
+        const payBtn = document.getElementById('checkout-button');
+
+        payBtn.addEventListener('click', function () {
+            fetch("/create-checkout-session", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({})
+            })
+            .then(async res => {
+                // 1) Log status
+                console.log('create-checkout-session returned', res.status, res.statusText);
+
+                // 2) Try JSON, else text
+                let payload;
+                const ct = res.headers.get('Content-Type') || '';
+                if (ct.includes('application/json')) {
+                    payload = await res.json();
+                } else {
+                    payload = await res.text();
+                }
+
+                // 3) If not OK, throw with full details
+                if (!res.ok) {
+                    throw new Error(
+                        'HTTP ' + res.status + ': ' +
+                        (typeof payload === 'string' ? payload : JSON.stringify(payload))
+                    );
+                }
+
+                return payload;
+            })
+            .then(data => {
+                if (!data.id) {
+                    throw new Error('Session ID not returned');
+                }
+                return stripe.redirectToCheckout({ sessionId: data.id });
+            })
+            .catch(err => {
+                alert("Error creating session:\n" + err.message);
+            });
+        });
+    })();
+    </script>
+{% endif %}
 {% endblock %}

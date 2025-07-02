@@ -59,27 +59,27 @@ final class MainController extends AbstractController
 
     // PaymentController.php
 
-    #[Route('/success', name: 'checkout_success')]
-    public function success(Request $request): Response
-    {
-        \Stripe\Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY']);
+    // #[Route('/success', name: 'checkout_success')]
+    // public function success(Request $request): Response
+    // {
+    //     \Stripe\Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY']);
 
-        $sessionId = $request->query->get('session_id');
-        $session = \Stripe\Checkout\Session::retrieve($sessionId);
-        $lineItems = \Stripe\Checkout\Session::allLineItems($sessionId, ['limit' => 5]);
+    //     $sessionId = $request->query->get('session_id');
+    //     $session = \Stripe\Checkout\Session::retrieve($sessionId);
+    //     $lineItems = \Stripe\Checkout\Session::allLineItems($sessionId, ['limit' => 5]);
 
-        return $this->render('payment/success.html.twig', [
-            'session' => $session,
-            'line_items' => $lineItems,
-        ]);
-    }
+    //     return $this->render('payment/success.html.twig', [
+    //         'session' => $session,
+    //         'line_items' => $lineItems,
+    //     ]);
+    // }
 
 
-    #[Route('/cancel', name: 'checkout_cancel')]
-    public function cancel(): Response
-    {
-        return $this->render('payment/cancel.html.twig');
-    }
+    // #[Route('/cancel', name: 'checkout_cancel')]
+    // public function cancel(): Response
+    // {
+    //     return $this->render('payment/cancel.html.twig');
+    // }
 
 
 }
