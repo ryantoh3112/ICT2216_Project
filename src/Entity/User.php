@@ -72,8 +72,6 @@ class User
         $this->payment = new ArrayCollection();
         $this->history = new ArrayCollection();
         $this->jwtSession = new ArrayCollection();
-        $this->cartItems = new ArrayCollection();
-
     }
 
     public function getId(): ?int
@@ -306,10 +304,5 @@ class User
         $this->otpExpiresAt = $otpExpiresAt;
 
         return $this;
-    }
-
-    public function getCartItems(): Collection
-    {
-        return $this->cartItems;
     }
 }
