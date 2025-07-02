@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
-final class Version20250609150810 extends AbstractMigration
+final class Version20250627083442 extends AbstractMigration
 {
     public function isTransactional(): bool
     {
@@ -38,7 +38,7 @@ final class Version20250609150810 extends AbstractMigration
             CREATE TABLE history (id INT AUTO_INCREMENT NOT NULL, user_id INT NOT NULL, payment_id INT DEFAULT NULL, ticket_id INT DEFAULT NULL, action VARCHAR(255) DEFAULT NULL, timestamp DATETIME DEFAULT NULL, INDEX IDX_27BA704BA76ED395 (user_id), INDEX IDX_27BA704B4C3A3BB (payment_id), INDEX IDX_27BA704B700047D2 (ticket_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
         SQL);
         $this->addSql(<<<'SQL'
-            CREATE TABLE jwtblacklist (id INT AUTO_INCREMENT NOT NULL, user_id INT NOT NULL, expires_at DATETIME NOT NULL, revoked_at DATETIME DEFAULT NULL, INDEX IDX_4C1567BFA76ED395 (user_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
+            CREATE TABLE jwtsession (id INT AUTO_INCREMENT NOT NULL, user_id INT NOT NULL, expires_at DATETIME NOT NULL, revoked_at DATETIME DEFAULT NULL, issued_at DATETIME DEFAULT NULL, INDEX IDX_D4BFC713A76ED395 (user_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
         SQL);
         $this->addSql(<<<'SQL'
             CREATE TABLE payment (id INT AUTO_INCREMENT NOT NULL, user_id INT NOT NULL, payment_method VARCHAR(100) NOT NULL, payment_date_time DATETIME NOT NULL, total_price DOUBLE PRECISION NOT NULL, INDEX IDX_6D28840DA76ED395 (user_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
@@ -50,7 +50,7 @@ final class Version20250609150810 extends AbstractMigration
             CREATE TABLE ticket_type (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, description LONGTEXT DEFAULT NULL, price DOUBLE PRECISION DEFAULT NULL, PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
         SQL);
         $this->addSql(<<<'SQL'
-            CREATE TABLE user (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, role VARCHAR(255) NOT NULL, created_at DATETIME NOT NULL, last_login_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL, failed_login_count INT DEFAULT NULL, account_status VARCHAR(255) DEFAULT NULL, locked_at DATETIME DEFAULT NULL, PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
+            CREATE TABLE user (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, role VARCHAR(255) NOT NULL, created_at DATETIME NOT NULL, last_login_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL, failed_login_count INT DEFAULT NULL, account_status VARCHAR(255) DEFAULT NULL, locked_at DATETIME DEFAULT NULL, otp_reset VARCHAR(255) DEFAULT NULL, otp_expires_at DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)', PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
         SQL);
         $this->addSql(<<<'SQL'
             CREATE TABLE venue (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, address VARCHAR(255) NOT NULL, capacity INT NOT NULL, image VARCHAR(255) DEFAULT NULL, description LONGTEXT DEFAULT NULL, PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
@@ -74,7 +74,7 @@ final class Version20250609150810 extends AbstractMigration
             ALTER TABLE history ADD CONSTRAINT FK_27BA704B700047D2 FOREIGN KEY (ticket_id) REFERENCES ticket (id)
         SQL);
         $this->addSql(<<<'SQL'
-            ALTER TABLE jwtblacklist ADD CONSTRAINT FK_4C1567BFA76ED395 FOREIGN KEY (user_id) REFERENCES user (id)
+            ALTER TABLE jwtsession ADD CONSTRAINT FK_D4BFC713A76ED395 FOREIGN KEY (user_id) REFERENCES user (id)
         SQL);
         $this->addSql(<<<'SQL'
             ALTER TABLE payment ADD CONSTRAINT FK_6D28840DA76ED395 FOREIGN KEY (user_id) REFERENCES user (id)
@@ -112,7 +112,7 @@ final class Version20250609150810 extends AbstractMigration
             ALTER TABLE history DROP FOREIGN KEY FK_27BA704B700047D2
         SQL);
         $this->addSql(<<<'SQL'
-            ALTER TABLE jwtblacklist DROP FOREIGN KEY FK_4C1567BFA76ED395
+            ALTER TABLE jwtsession DROP FOREIGN KEY FK_D4BFC713A76ED395
         SQL);
         $this->addSql(<<<'SQL'
             ALTER TABLE payment DROP FOREIGN KEY FK_6D28840DA76ED395
@@ -139,7 +139,7 @@ final class Version20250609150810 extends AbstractMigration
             DROP TABLE history
         SQL);
         $this->addSql(<<<'SQL'
-            DROP TABLE jwtblacklist
+            DROP TABLE jwtsession
         SQL);
         $this->addSql(<<<'SQL'
             DROP TABLE payment

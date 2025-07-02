@@ -23,17 +23,16 @@
                         <a class="nav-link {% if app.request.get('_route') starts with 'venue' %}active{% endif %}" href="{{ path('venue_list') }}">Venues</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if app.request.get('_route') starts with 'venue' %}active{% endif %}" href="{{ path('venue_list') }}">Categories</a>
+                        <a class="nav-link {% if app.request.get('_route') starts with 'category' %}active{% endif %}" href="{{ path('category_list') }}">Categories</a>
                     </li>
                 </ul>
 
                 <ul class="navbar-nav ms-auto align-items-center">
-                    {% set user_id = app.session.get('user_id') %}
-                    {% set user_name = app.session.get('user_name') %}
+                    {% set user = app.request.attributes.get('jwt_user') %}
 
-                    {% if user_id %}
+                    {% if user %}
                         <li class="nav-item">
-                            <span class="nav-link disabled text-light">Welcome, {{ user_name }}!</span>
+                            <span class="nav-link disabled text-light">Welcome, {{ user.name }}!</span>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ path('user_profile') }}"><i class="fa fa-user"></i> Profile</a>
@@ -46,7 +45,7 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ path('auth_login') }}"><i class="fa fa-sign-in-alt"></i> Login</a>
+                            <a class="nav-link" href="{{ path('auth_login_form') }}"><i class="fa fa-sign-in-alt"></i> Login</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ path('auth_register') }}"><i class="fa fa-user-plus"></i> Register</a>
