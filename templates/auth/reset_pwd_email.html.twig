@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Reset Your Password</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      color: #333;
+      line-height: 1.6;
+      text-align: center;
+    }
+    .container {
+      max-width: 600px;
+      background: #fff;
+      padding: 2rem;
+      margin: 1rem auto;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    }
+    .btn {
+      display: inline-block;
+      background: #2196f3;
+      color: #fff !important;
+      padding: 0.8rem 1.2rem;
+      border-radius: 5px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .footer {
+      font-size: 0.85rem;
+      color: #777;
+      margin-top: 3rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Hello {{ name }},</h2>
+
+    <p>We received a request to reset your password for your My GoTix account.</p>
+
+    <p>Click the button below to reset your password. This link will expire in 15 minutes:</p>
+
+    <p>
+        <a href="{{ resetUrl }}" class="btn" style="display: inline-block;">Reset Password</a>
+    </p>
+
+    <p>If you didn't request a password reset, please ignore this email or contact support.</p>
+
+    <p class="footer">This is an automated email. Please do not reply directly to this message.</p>
+  </div>
+</body>
+</html>
