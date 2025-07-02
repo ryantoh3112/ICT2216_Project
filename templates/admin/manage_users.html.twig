@@ -17,6 +17,7 @@
     
             <main class="col-10 p-4">
                 <h1>Manage Users</h1>
+                
                 {% for label, messages in app.flashes %}
                     {% for message in messages %}
                         <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
@@ -31,6 +32,7 @@
                         </div>
                     {% endfor %}
                 {% endfor %}
+
                 <table class="table table-bordered table-striped table-hover">
                     <thead class="table-dark">
                         <tr>
