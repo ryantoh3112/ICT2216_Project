@@ -133,6 +133,12 @@ final class AdminController extends AbstractController
          //get img file from imagefile input
         $imagefile = $request->files->get('imagefile');
         if ($imagefile && $imagefile->isValid()) {
+            $allowedImgTypes = ['image/jpg', 'image/jpeg', 'image/png'];
+            // if user uploads invalid file type for img, redirect them back to manage events page with error message
+            if(!in_array($imagefile->getMimeType(), $allowedImgTypes)) {
+                $this->addFlash('error', 'Invalid image file type. Only JPG, JPEG, and PNG are allowed.');
+                return $this->redirectToRoute('admin_manage_events');
+            }
             // Generate a unique filename
             $filename = uniqid() . '.' . $imagefile->guessExtension();
             // Move the file to the uploads directory
@@ -184,6 +190,15 @@ final class AdminController extends AbstractController
         //get img file from imagefile input
         $imagefile = $request->files->get('imagefile');
         if ($imagefile && $imagefile->isValid()) {
+            # setting only valid image file type - jpg, jpeg & png
+            $allowedImgTypes = ['image/jpg', 'image/jpeg', 'image/png'];
+
+            // if user uploads invalid file type for img, redirect them back to manage events page with error message
+            if(!in_array($imagefile->getMimeType(), $allowedImgTypes)) {
+                $this->addFlash('error', 'Invalid image file type. Only JPG, JPEG, and PNG are allowed.');
+                return $this->redirectToRoute('admin_manage_events');
+            }
+
             // Generate a unique filename
             $filename = uniqid() . '.' . $imagefile->guessExtension();
             // Move the file to the uploads directory
