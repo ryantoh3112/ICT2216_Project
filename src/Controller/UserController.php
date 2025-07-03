@@ -11,6 +11,7 @@ use App\Repository\UserRepository;
 use App\Repository\AuthRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
+use App\Service\EmailService;
 
 #[Route('/user', name: 'user_')]
 final class UserController extends AbstractController
@@ -75,5 +76,47 @@ final class UserController extends AbstractController
         $em->flush();
         $this->addFlash('success', 'Username updated successfully.');
         return $this->redirectToRoute('user_profile');
+    }
+
+    #[Route('/profile/2fa/request', name: 'request_2fa_toggle', methods: ['POST'])]
+    public function request2FAToggle(
+        Request $request,
+        EntityManagerInterface $em,
+        EmailService $emailService
+    ): Response {
+        $user = $request->attributes->get('jwt_user');
+        if (!$user) {
+            $this->addFlash('error', 'Please log in first.');
+            return $this->redirectToRoute('auth_login');
+        }
+
+        $requested2FAState = $request->request->getBoolean('otp_enabled');
+
+        // If no change made to 2FA settings, just flash and return
+        if ($user->isOtpEnabled() === $requested2FAState) {
+            $this->addFlash('info', 'No changes made to your 2FA settings.');
+            return $this->redirectToRoute('user_profile');
+        }
+
+        // Store the requested state in session
+        $session = $request->getSession();
+        $session->set('pending_2fa_toggle_state', $requested2FAState);
+
+        // Generate OTP
+        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $user->setOtpCode($otp);
+        $user->setOtpExpiresAt((new \DateTimeImmutable())->add(new \DateInterval('PT5M')));
+        $em->flush();
+
+        // Send 2FA-specific OTP email
+        $emailService->send2FAToggleOtp(
+            $user->getAuth()->getEmail(),
+            $user->getName(),
+            $otp,
+            $requested2FAState ? 'enable' : 'disable'
+        );
+
+        $this->addFlash('success', 'A verification code has been sent to your email.');
+        return $this->redirectToRoute('auth_verify_otp_form');
     }
 }

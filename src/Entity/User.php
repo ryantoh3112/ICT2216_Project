@@ -66,6 +66,9 @@ class User
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $otpExpiresAt = null;
+    
+    #[ORM\Column(nullable: true)]
+    private ?bool $otpEnabled = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $resetToken = null;
@@ -332,6 +335,18 @@ class User
     public function setResetTokenExpiresAt(?\DateTimeImmutable $resetTokenExpiresAt): static
     {
         $this->resetTokenExpiresAt = $resetTokenExpiresAt;
+
+        return $this;
+    }
+
+    public function isOtpEnabled(): ?bool
+    {
+        return $this->otpEnabled;
+    }
+
+    public function setOtpEnabled(?bool $otpEnabled): static
+    {
+        $this->otpEnabled = $otpEnabled;
 
         return $this;
     }

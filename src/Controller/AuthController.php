@@ -66,6 +66,7 @@ final class AuthController extends AbstractController
         $user->setRole('ROLE_USER');
         $user->setCreatedAt(new \DateTime());
         $user->setAccountStatus("active");
+        $user->setOtpEnabled(0);
 
         // Persist User first
         $entityManager->persist($user);
@@ -113,6 +114,7 @@ final class AuthController extends AbstractController
         AuthRepository $authRepository,
         UserPasswordHasherInterface $passwordHasher,
         JwtService $jwtService,
+        EmailService $emailService,
         EntityManagerInterface $em
     ): Response {
         $email = $request->request->get('email');
@@ -145,11 +147,32 @@ final class AuthController extends AbstractController
             $this->addFlash('error', 'Invalid credentials');
             return $this->redirectToRoute('auth_login_form'); // Or your login form route name
         }
-        # If credentials are valid, reset failed_login_count
-        $auth->getUser()->setFailedLoginCount(0);
-        $em->persist($auth->getUser());
-        $em->flush();
 
+        # If credentials are valid, reset failed_login_count
+        $user = $auth->getUser();
+        $user->setFailedLoginCount(0);
+        $user->setLastLoginAt(new \DateTime());
+        $user->setAccountStatus('active');
+
+        // If 2FA is enabled, delay JWT until OTP is verified
+        if ($user->isOtpEnabled()) {
+            $otp = random_int(100000, 999999);
+            $user->setOtpCode((string) $otp);
+            $user->setOtpExpiresAt(new \DateTimeImmutable('+5 minutes'));
+
+            $em->persist($user);
+            $em->flush();
+
+            // Send OTP email using sendOtp in EmailService
+            $emailService->sendOtp($auth->getEmail(), $user->getName(), $otp);
+
+            // Store user in session for later OTP verification
+            $request->getSession()->set('pending_2fa_user_id', $user->getId());
+
+            return $this->redirectToRoute('auth_verify_otp_form');
+        }
+
+        // If 2FA is not enabled, issue JWT immediately
         // Step 2: Generate JWT
         $token = $jwtService->createToken([
             'id' => $auth->getUser()->getId(),
@@ -164,11 +187,6 @@ final class AuthController extends AbstractController
         $jwtEntity->setUser($auth->getUser());
         $jwtEntity->setExpiresAt($expiresAt);
         $jwtEntity->setIssuedAt($issuedAt);  // New Field added
-
-        // 🔧 Update login metadata
-        $user = $auth->getUser();
-        $user->setLastLoginAt(new \DateTime());
-        $user->setAccountStatus('active');
 
         $em->persist($jwtEntity);
         $em->flush();
@@ -300,60 +318,152 @@ final class AuthController extends AbstractController
         return $this->redirectToRoute('auth_forgot_password_form');
     }
 
-    // #[Route('/verify-otp', name: 'verify_otp', methods: ['GET', 'POST'])]
-    // public function verifyOtp(
-    //     Request $request,
-    //     AuthRepository $authRepository
-    // ): Response {
-    //     $session = $request->getSession();
-    //     $email = $request->get('email') ?? $session->get('otp_email');
+    #[Route('/verify-otp', name: 'verify_otp_form', methods: ['GET'])]
+    public function showOtpForm(Request $request): Response
+    {
+        $session = $request->getSession();
+        $isLoginOtp = $session->has('pending_2fa_user_id') && !$session->has('pending_2fa_toggle_state');
 
-    //     if ($request->isMethod('POST')) {
-    //         $email = $request->request->get('email');
-    //         $otp = $request->request->get('otp');
+        return $this->render('auth/verify_otp.html.twig', [
+            'isLoginOtp' => $isLoginOtp
+        ]);
+    }
 
-    //         $auth = $authRepository->findOneBy(['email' => $email]);
+    #[Route('/verify-otp', name: 'verify_otp', methods: ['POST'])]
+    public function verifyOtp(
+        Request $request,
+        EntityManagerInterface $em,
+        JwtService $jwtService
+    ): Response {
+        $session = $request->getSession();
+        $submittedOtp = $request->request->get('otp');
 
-    //         if (!$auth || !$auth->getUser()) {
-    //             $this->addFlash('error', 'Invalid email or OTP.');
-    //             return $this->redirectToRoute('auth_verify_otp');
-    //         }
+        // 1. Handle 2FA toggle confirmation
+        $pendingToggle = $session->get('pending_2fa_toggle_state');
+        $jwtUser = $request->attributes->get('jwt_user');
 
-    //         $user = $auth->getUser();
+        if ($pendingToggle !== null && $jwtUser !== null) {
+            if (
+                $jwtUser->getOtpCode() !== $submittedOtp ||
+                $jwtUser->getOtpExpiresAt() < new \DateTimeImmutable()
+            ) {
+                $this->addFlash('error', 'Invalid or expired OTP code.');
+                return $this->redirectToRoute('auth_verify_otp_form');
+            }
 
-    //         // Check if OTP matches and not expired
-    //         if (
-    //             $user->getOtpCode() !== $otp ||
-    //             $user->getOtpExpiresAt() < new \DateTimeImmutable()
-    //         ) {
-    //             $this->addFlash('error', 'Invalid or expired OTP.');
-    //             return $this->redirectToRoute('auth_verify_otp');
-    //         }
+            // Apply the toggle for 2FA setting
+            $jwtUser->setOtpEnabled($pendingToggle);
+            $jwtUser->setOtpCode(null);
+            $jwtUser->setOtpExpiresAt(null);
+            $em->flush();
 
-    //         // OTP is valid, store in session
-    //         $session->set('verified_email', $email);
-    //         $session->set('otp_verified', true);
+            $session->remove('pending_2fa_toggle_state');
 
-    //         // Clear temp OTP session
-    //         $session->remove('otp_email');
+            $this->addFlash('success', '2FA settings updated successfully.');
+            return $this->redirectToRoute('user_profile');
+        }
 
-    //         $this->addFlash('success', 'OTP verified. Please reset your password.');
-    //         return $this->redirectToRoute('auth_reset_password');
-    //     }
+        // 2. Handle login-based 2FA
+        $userId = $session->get('pending_2fa_user_id');
+        if ($userId !== null) {
+            $user = $em->getRepository(\App\Entity\User::class)->find($userId);
 
-    //     // Show OTP form only if email is known
-    //     if (!$email) {
-    //         $this->addFlash('error', 'Please enter your email first.');
-    //         return $this->redirectToRoute('auth_forgot_password_form');
-    //     }
+            if (
+                !$user ||
+                $user->getOtpCode() !== $submittedOtp ||
+                $user->getOtpExpiresAt() < new \DateTimeImmutable()
+            ) {
+                $this->addFlash('error', 'Invalid or expired OTP code.');
+                return $this->redirectToRoute('auth_verify_otp_form');
+            }
 
-    //     // Store email temporarily for the GET view
-    //     $session->set('otp_email', $email);
+            // OTP valid – clear OTP fields
+            $user->setOtpCode(null);
+            $user->setOtpExpiresAt(null);
+            $user->setLastLoginAt(new \DateTime());
+            $user->setAccountStatus('active');
+            $em->flush();
 
-    //     return $this->render('auth/verify_otp.html.twig', [
-    //         'email' => $email
-    //     ]);
-    // }
+            $auth = $user->getAuth();
+
+            // Generate JWT
+            $token = $jwtService->createToken([
+                'id' => $user->getId(),
+                'email' => $auth->getEmail()
+            ]);
+            $decodedPayload = $jwtService->verifyToken($token);
+            $issuedAt = (new \DateTime())->setTimestamp($decodedPayload['iat']);
+            $expiresAt = (new \DateTime())->setTimestamp($decodedPayload['exp']);
+
+            // Save JWT session
+            $jwtEntity = new JWTSession();
+            $jwtEntity->setUser($user);
+            $jwtEntity->setIssuedAt($issuedAt);
+            $jwtEntity->setExpiresAt($expiresAt);
+            $em->persist($jwtEntity);
+            $em->flush();
+
+            // Set cookie and redirect
+            $cookie = Cookie::create('JWT')
+                ->withValue($token)
+                ->withExpires($expiresAt)
+                ->withHttpOnly(true)
+                ->withSecure(false)
+                ->withPath('/')
+                ->withSameSite('Lax');
+
+            $session->remove('pending_2fa_user_id');
+
+            $response = new RedirectResponse(
+                $user->getRole() === 'ROLE_ADMIN' ? 
+                    $this->generateUrl('admin_dashboard') :
+                    $this->generateUrl('user_profile')
+            );
+
+            $response->headers->setCookie($cookie);
+            return $response;
+        }
+
+        // 3. If no known 2FA flow
+        $this->addFlash('error', 'Unexpected 2FA context. Please log in again.');
+        return $this->redirectToRoute('auth_login_form');
+    }
+
+    #[Route('/resend-otp', name: 'resend_otp', methods: ['POST'])]
+    public function resendOtp(
+        Request $request,
+        UserRepository $userRepository,
+        EntityManagerInterface $em,
+        EmailService $emailService
+    ): Response {
+        $session = $request->getSession();
+        $userId = $session->get('pending_2fa_user_id');
+
+        if (!$userId) {
+            $this->addFlash('error', 'Session expired. Please log in again.');
+            return $this->redirectToRoute('auth_login_form');
+        }
+
+        $user = $userRepository->find($userId);
+
+        if (!$user) {
+            $this->addFlash('error', 'User not found.');
+            return $this->redirectToRoute('auth_login_form');
+        }
+
+        $otp = random_int(100000, 999999);
+        $user->setOtpCode((string) $otp);
+        $user->setOtpExpiresAt(new \DateTimeImmutable('+5 minutes'));
+
+        $em->flush();
+
+        // Send OTP again
+        $email = $user->getAuth()->getEmail();
+        $emailService->sendOtp($email, $user->getName(), $otp);
+
+        $this->addFlash('success', 'A new OTP has been sent to your email.');
+        return $this->redirectToRoute('auth_verify_otp_form');
+    }
 
     #[Route('/reset-password', name: 'reset_password', methods: ['GET', 'POST'])]
     public function resetPassword(
