@@ -1,7 +1,6 @@
 # template file for nginx config
 # for placeholder values in use
 
-
 server {
     listen 80;
     server_name ${SERVER_NAME};
@@ -18,5 +17,10 @@ server {
         fastcgi_pass app:9000;
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    }
+
+    # block script execution in /uploads/
+    location ~* /uploads/.*\.(php|phtml|phar|cgi|pl|py|sh|exe|jsp|bat)$ {
+        deny all;
     }
 }
