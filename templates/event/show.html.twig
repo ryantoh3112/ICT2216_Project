@@ -5,11 +5,19 @@
 {% block body %}
 <div class="container py-5">
     <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
+        <div class="card-body mb-3 position-relative">
             <h1 class="card-title display-5 fw-bold mb-3">{{ event.name }}</h1>
+            {% if event.image %}
+            <img src="{{ asset(event.image) }}" alt="{{ event.name }} image" class="img-fluid rounded mb-3">
+            {% endif %}
             <p><strong>Organiser: </strong>{{ event.organiser|default('N/A') }}</p>
-            <p><strong>Event period: </strong>{{ event.purchaseStartDate|date('d M Y (D)') }} ~ {{ event.purchaseEndDate|date('d M Y (D)') }}</p>
+            <p><strong>Ticketing Period: </strong>{{ event.purchaseStartDate|date('d M Y (D)') }} ~ {{ event.purchaseEndDate|date('d M Y (D)') }}</p>
+            <p><strong>Venue: </strong>{{ event.venue.name }}</p>
             <p><strong>Capacity: </strong>{{ event.capacity }}</p>
+
+            <a href="#" class="btn btn-success position-absolute" style="width:20%; bottom: 0; right: 0;">
+                Purchase Tickets
+            </a>
         </div>
     </div>
 
@@ -58,7 +66,6 @@
         ← Back to Events</a>
 
         {# Later Add to cart button #}
-
     </div>
 </div>
 
