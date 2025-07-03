@@ -3,51 +3,65 @@
 
 {% block body %}
 <style>
-    @media (max-width: 767.98px) {
-        #profile-tabs {
-            flex-direction: row;
-            overflow-x: auto;
-            white-space: nowrap;
-        }
-        #profile-tabs a {
-            flex: 1;
-            text-align: center;
-        }
+    @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap');
+
+    .profile-wrapper {
+        padding: 2rem 0;
+        font-family: "Quicksand", sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 700;
+        font-style: normal;
     }
-    .list-group-item.active {
-        background-color: #7393B3;
-        border-color: #A9A9A9;
-        color: #000;
-        font-weight: bold;
+
+    .nav-tabs .nav-link.active {
+        background-color: #f8f9fa;
+        border-color: #dee2e6 #dee2e6 #fff;
     }
-    .list-group-item-action:hover {
-        background-color: #f7f7f7;
-        color: #000;
+
+    .profile-card {
+        border-radius: 0.8rem;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
     }
-    .tab-pane {
-        animation: fadeIn 0.4s ease-in;
+
+    .profile-label {
+        font-weight: 500;
+        color: #6c757d;
     }
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+
+    .form-check-label {
+        font-size: 0.95rem;
+    }
+
+    .form-section {
+        margin-top: 1.2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #dee2e6;
+    }
+
+    .twofa-card:hover {
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        transition: 0.3s ease-in-out;
+    }
+
+    .form-check-input {
+        width: 2.2em;
+        height: 1.2em;
+        cursor: pointer;
     }
 </style>
 
-<div class="container py-5">
+<div class="container profile-wrapper">
     <div class="row">
-        <!-- Sidebar Navigation -->
-        <div class="col-md-3 mb-4">
+        <!-- Sidebar Tabs -->
+        <div class="col-md-3 mb-3">
             <div class="list-group shadow-sm" id="profile-tabs" role="tablist">
-                <a class="list-group-item list-group-item-action active"
-                   data-bs-toggle="list" href="#profile" role="tab">
+                <a class="list-group-item list-group-item-action active" data-bs-toggle="list" href="#profile-info">
                     <i class="fa fa-user me-2"></i> Profile Info
                 </a>
-                <a class="list-group-item list-group-item-action"
-                   data-bs-toggle="list" href="#history" role="tab">
+                <a class="list-group-item list-group-item-action" data-bs-toggle="list" href="#history">
                     <i class="fa fa-history me-2"></i> Purchase History
                 </a>
-                <a class="list-group-item list-group-item-action"
-                   data-bs-toggle="list" href="#change_password" role="tab">
+                <a class="list-group-item list-group-item-action" data-bs-toggle="list" href="#change-password">
                     <i class="fa fa-key me-2"></i> Change Password
                 </a>
                 <a class="list-group-item list-group-item-action text-danger"
@@ -57,50 +71,101 @@
             </div>
         </div>
 
-        <!-- Tab Content -->
+        <!-- Main Content -->
         <div class="col-md-9">
             <div class="tab-content">
+                <!-- Profile Info Tab -->
+                <div class="tab-pane fade show active" id="profile-info">
+                    <div class="card profile-card shadow-sm p-4">
+                        <h4 class="mb-3">User Profile</h4>
 
-                {# Profile Info #}
-                <div class="tab-pane fade show active" id="profile" role="tabpanel">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <h4>User Profile</h4>
-                            {% for label, messages in app.flashes %}
-                                {% for message in messages %}
-                                    <div class="alert alert-{{ label == 'success' ? 'success' : 'danger' }} alert-dismissible fade show">
-                                        {{ message }}
-                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                    </div>
-                                {% endfor %}
+                        {% for label, messages in app.flashes %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ label == 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
                             {% endfor %}
+                        {% endfor %}
 
-                            <form method="POST" action="{{ path('user_update_username') }}">
-                                <dl class="row">
-                                    <dt class="col-sm-4">Username</dt>
-                                    <dd class="col-sm-8">
-                                        <div class="input-group">
-                                            <input name="username" class="form-control" value="{{ user.name }}" required>
-                                            <button class="btn btn-outline-primary">Save</button>
-                                        </div>
-                                    </dd>
+                        <form method="POST" action="{{ path('user_update_username') }}">
+                            <div class="mb-3">
+                                <label class="form-label profile-label">Username</label>
+                                <div class="input-group">
+                                    <input type="text" name="username" class="form-control" value="{{ user.name }}" required>
+                                    <button class="btn btn-outline-primary" type="submit">Save</button>
+                                </div>
+                            </div>
+                        </form>
 
-                                    <dt class="col-sm-4">Email</dt>
-                                    <dd class="col-sm-8">{{ email }}</dd>
-
-                                    <dt class="col-sm-4">Joined On</dt>
-                                    <dd class="col-sm-8">{{ user.createdAt|date('F j, Y, g:i A', 'Asia/Singapore') }}</dd>
-                                </dl>
-                            </form>
+                        <div class="mb-3">
+                            <label class="form-label profile-label">Email</label>
+                            <input type="text" class="form-control" value="{{ email }}" disabled>
                         </div>
+
+                        <div class="mb-3">
+                            <label class="form-label profile-label">Joined On</label>
+                            <input type="text" class="form-control" value="{{ user.createdAt|date('F j, Y, g:i A', 'Asia/Singapore') }}" disabled>
+                        </div>
+
+                        <form method="POST" action="{{ path('user_request_2fa_toggle') }}" id="twofa-form">
+                            <div class="card border-0 shadow-sm p-3 mb-3 position-relative twofa-card">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="card-title mb-1">
+                                            <i class="fa fa-shield-alt text-primary me-2"></i>
+                                            Two-Factor Authentication (2FA)
+                                            <i class="fa fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="right"
+                                            title="Adds an extra layer of security to your account by requiring a one-time password during login."></i>
+                                        </h5>
+                                        <div>
+                                            <span class="badge {% if user.otpEnabled %}bg-success{% else %}bg-secondary{% endif %} mt-1">
+                                                {% if user.otpEnabled %}Enabled{% else %}Disabled{% endif %}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-check form-switch fs-5">
+                                        <input class="form-check-input" type="checkbox" role="switch" name="otp_enabled"
+                                            id="otp_enabled_switch"
+                                            {{ user.otpEnabled ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="otp_enabled_switch">
+                                            {{ user.otpEnabled ? 'Enabled' : 'Disabled' }}
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="text-end mt-3">
+                                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#confirmModal">
+                                        Save 2FA Settings
+                                    </button>
+                                </div>
+                                <!-- Confirmation Pop-up Modal/Window for saving 2FA settings -->
+                                <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="confirmModalLabel">Confirm 2FA Settings</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body" id="confirmModalMessage">
+                                            Are you sure you want to update your 2FA settings?
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-primary" id="confirmSubmitBtn">Yes, Save</button>
+                                        </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
 
-                {# Purchase History #}
-                <div class="tab-pane fade" id="history" role="tabpanel">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <h4>Purchase History</h4>
+                {# Purchase History Tab #}
+                <div class="tab-pane fade" id="history">
+                    <div class="card profile-card shadow-sm p-4">
+                        <h4 class="mb-3">Purchase History</h4>
 
                             {% if purchases is defined and purchases|length > 0 %}
                                 {% for purchase in purchases %}
@@ -143,7 +208,7 @@
                                     </div>
                                 {% endfor %}
                             {% else %}
-                                <p class="text-muted">You haven’t made any purchases yet.</p>
+                            <p class="text-muted">You haven’t made any purchases yet.</p>
                             {% endif %}
                         </div>
                     </div>
@@ -155,7 +220,14 @@
                         <div class="card-body">
                             <h4>Change Password</h4>
                             {# your existing change-password form goes here #}
-                        </div>
+                    </div>
+                </div>
+
+                <!-- Change Password Tab -->
+                <div class="tab-pane fade" id="change-password">
+                    <div class="card profile-card shadow-sm p-4">
+                        <h4 class="mb-3">Change Password</h4>
+                        <p class="text-muted">Coming soon or handled via separate flow.</p>
                     </div>
                 </div>
 
@@ -163,4 +235,15 @@
         </div>
     </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Initialize tooltip
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  });
+</script>
+
 {% endblock %}
