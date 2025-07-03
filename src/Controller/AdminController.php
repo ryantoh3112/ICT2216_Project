@@ -128,6 +128,22 @@ final class AdminController extends AbstractController
         $event->setPurchaseEndDate($endDate);
         $event->setOrganiser($request->request->get('organiser'));
 
+
+        // $event->setImagePath($request->request->get('imagepath'));
+         //get img file from imagefile input
+        $imagefile = $request->files->get('imagefile');
+        if ($imagefile && $imagefile->isValid()) {
+            // Generate a unique filename
+            $filename = uniqid() . '.' . $imagefile->guessExtension();
+            // Move the file to the uploads directory
+            $imagefile->move($this->getParameter('uploads_directory'), $filename);
+            // Set the image path in the event entity
+            $event->setImagePath($filename);
+        } else {
+            // If no file is uploaded, set a default or null value
+            $event->setImagePath(null);
+        }
+
         $em->flush();
 
         $this->addFlash('success', 'Event updated successfully.');
@@ -164,7 +180,22 @@ final class AdminController extends AbstractController
         $event->setDescription($request->request->get('description'));
         $event->setCapacity((int)$request->request->get('capacity'));
         $event->setOrganiser($request->request->get('organiser'));
-        $event->setImage($request->request->get('image'));
+
+        //get img file from imagefile input
+        $imagefile = $request->files->get('imagefile');
+        if ($imagefile && $imagefile->isValid()) {
+            // Generate a unique filename
+            $filename = uniqid() . '.' . $imagefile->guessExtension();
+            // Move the file to the uploads directory
+            $imagefile->move($this->getParameter('uploads_directory'), $filename);
+            // Set the image path in the event entity
+            $event->setImagePath($filename);
+        } else {
+            // If no file is uploaded, set a default or null value
+            $event->setImagePath(null);
+        }
+        //$event->setImagePath($request->request->get('imagepath'));
+
         $event->setPurchaseStartDate($startDate);
         $event->setPurchaseEndDate($endDate);
 

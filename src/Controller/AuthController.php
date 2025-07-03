@@ -117,32 +117,7 @@ final class AuthController extends AbstractController
     ): Response {
         $email = $request->request->get('email');
         $password = $request->request->get('password');
-    #[Route('/login', name: 'login', methods: ['POST'])]
-    public function login(
-        Request $request,
-        AuthRepository $authRepository,
-        UserPasswordHasherInterface $passwordHasher,
-        JwtService $jwtService,
-        EntityManagerInterface $em
-    ): Response {
-        $email = $request->request->get('email');
-        $password = $request->request->get('password');
 
-        // Step 1: Validate credentials
-        $auth = $authRepository->findOneBy(['email' => $email]);
-        
-        // Check if account is locked
-        if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
-            $this->addFlash('error', 'Account is locked. Please contact support.');
-            return $this->redirectToRoute('auth_login_form'); // Or your login form route name
-        }
-        
-        if (!$auth || !$passwordHasher->isPasswordValid($auth, $password)) {
-            // Increment failed_login_count if user exists
-            if ($auth) {
-                $user = $auth->getUser();
-                $current = $user->getFailedLoginCount() ?? 0;
-                $user->setFailedLoginCount($current + 1);
         // Step 1: Validate credentials
         $auth = $authRepository->findOneBy(['email' => $email]);
         
@@ -174,30 +149,7 @@ final class AuthController extends AbstractController
         $auth->getUser()->setFailedLoginCount(0);
         $em->persist($auth->getUser());
         $em->flush();
-                // Lock the account if attempts exceed 10
-                if ($current + 1 >= 10) {
-                    $user->setAccountStatus('locked');
-                    $user->setLockedAt(new \DateTime());
-                }
-                $em->persist($user);
-                $em->flush();
-            }
-            $this->addFlash('error', 'Invalid credentials');
-            return $this->redirectToRoute('auth_login_form'); // Or your login form route name
-        }
-        # If credentials are valid, reset failed_login_count
-        $auth->getUser()->setFailedLoginCount(0);
-        $em->persist($auth->getUser());
-        $em->flush();
 
-        // Step 2: Generate JWT
-        $token = $jwtService->createToken([
-            'id' => $auth->getUser()->getId(),
-            'email' => $auth->getEmail()
-        ]);
-        $decodedPayload = $jwtService->verifyToken($token); // decode to get iat
-        $issuedAt = (new \DateTime())->setTimestamp($decodedPayload['iat']);
-        $expiresAt = (new \DateTime())->setTimestamp($decodedPayload['exp']);
         // Step 2: Generate JWT
         $token = $jwtService->createToken([
             'id' => $auth->getUser()->getId(),
@@ -212,16 +164,7 @@ final class AuthController extends AbstractController
         $jwtEntity->setUser($auth->getUser());
         $jwtEntity->setExpiresAt($expiresAt);
         $jwtEntity->setIssuedAt($issuedAt);  // New Field added
-        // Step 3: Track JWT in database
-        $jwtEntity = new JWTSession();
-        $jwtEntity->setUser($auth->getUser());
-        $jwtEntity->setExpiresAt($expiresAt);
-        $jwtEntity->setIssuedAt($issuedAt);  // New Field added
 
-        // 🔧 Update login metadata
-        $user = $auth->getUser();
-        $user->setLastLoginAt(new \DateTime());
-        $user->setAccountStatus('active');
         // 🔧 Update login metadata
         $user = $auth->getUser();
         $user->setLastLoginAt(new \DateTime());
@@ -229,17 +172,7 @@ final class AuthController extends AbstractController
 
         $em->persist($jwtEntity);
         $em->flush();
-        $em->persist($jwtEntity);
-        $em->flush();
 
-        // Step 4: Set JWT as HttpOnly cookie
-        $cookie = Cookie::create('JWT')
-            ->withValue($token)
-            ->withExpires($expiresAt)
-            ->withHttpOnly(true)
-            ->withSecure(false)
-            ->withPath('/')
-            ->withSameSite('Lax');
         // Step 4: Set JWT as HttpOnly cookie
         $cookie = Cookie::create('JWT')
             ->withValue($token)
@@ -263,20 +196,7 @@ final class AuthController extends AbstractController
         AuthRepository $authRepository
     ): Response {
         $jwt = $request->cookies->get('JWT');
-    # For testing purposes, this endpoint will return the user information from the JWT cookie
-    #[Route('/verify-redirect', name: 'login_success')]
-    public function verifyJwtAndRedirect(
-        Request $request, 
-        JwtService $jwtService,
-        UserRepository $userRepository,
-        AuthRepository $authRepository
-    ): Response {
-        $jwt = $request->cookies->get('JWT');
 
-        if (!$jwt) {
-            $this->addFlash('error', 'Please log in first.');
-            return $this->redirectToRoute('auth_login_form');
-        }
         if (!$jwt) {
             $this->addFlash('error', 'Please log in first.');
             return $this->redirectToRoute('auth_login_form');
@@ -587,17 +507,7 @@ final class AuthController extends AbstractController
 
         // Clear session (if used)
         $request->getSession()->clear();
-        // Clear session (if used)
-        $request->getSession()->clear();
 
-        // Expire JWT cookie
-        $expiredCookie = Cookie::create('JWT')
-            ->withValue('')
-            ->withExpires(new \DateTime('-1 day'))
-            ->withPath('/')
-            ->withHttpOnly(true)
-            ->withSecure(false)
-            ->withSameSite('Lax');
         // Expire JWT cookie
         $expiredCookie = Cookie::create('JWT')
             ->withValue('')
@@ -610,11 +520,7 @@ final class AuthController extends AbstractController
         // Redirect and attach the expired cookie
         $response = $this->redirectToRoute('auth_login_form');
         $response->headers->setCookie($expiredCookie);
-        // Redirect and attach the expired cookie
-        $response = $this->redirectToRoute('auth_login_form');
-        $response->headers->setCookie($expiredCookie);
 
-        $this->addFlash('success', 'You have been logged out.');
         $this->addFlash('success', 'You have been logged out.');
 
         return $response;

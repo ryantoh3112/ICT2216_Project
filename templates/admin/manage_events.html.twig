@@ -42,7 +42,8 @@
                 {# Add Modal #}
                 <div class="modal fade" id="addEventModal" tabindex="-1">
                     <div class="modal-dialog modal-lg">
-                        <form method="post" action="{{ path('admin_add_event') }}">
+                        <!-- since we have img upload, need to include enctype="multipart/form-data" -->
+                        <form method="post" enctype="multipart/form-data" action="{{ path('admin_add_event') }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('add_event') }}">
                             <div class="modal-content">
                                 <div class="modal-header">
@@ -88,7 +89,8 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Image Filename</label>
-                                        <input type="text" name="image" class="form-control">
+                                        <!-- <input type="text" name="imagepath" class="form-control"> -->
+                                        <input type="file" name="imagefile" class="form-control mt-2">
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Purchase Start</label>
@@ -139,8 +141,9 @@
                                 <td>{{ event.purchaseEndDate ? event.purchaseEndDate|date('Y-m-d') : '-' }}</td>
                                 <td>{{ event.organiser }}</td>
                                 <td>
-                                    {% if event.image %}
-                                        <img src="{{ asset('uploads/' ~ event.image) }}" alt="Event Image" style="width: 80px; height: auto;">
+                                    <!-- {event.imagepath} -->
+                                    {% if event.imagepath %}
+                                        <img src="{{ asset('uploads/' ~ event.imagepath) }}" alt="Event Image" style="width: 80px; height: auto;">
                                     {% else %}
                                         -
                                     {% endif %}
@@ -158,7 +161,7 @@
                             {# Edit Modal #}
                             <div class="modal fade" id="editEventModal{{ event.id }}" tabindex="-1">
                                 <div class="modal-dialog modal-lg">
-                                    <form method="post" action="{{ path('admin_update_event', {'id': event.id}) }}">
+                                    <form method="post" enctype="multipart/form-data" action="{{ path('admin_update_event', {'id': event.id}) }}">
                                         <input type="hidden" name="_token" value="{{ csrf_token('update_event_' ~ event.id) }}">
                                         <div class="modal-content">
                                             <div class="modal-header">
@@ -184,7 +187,8 @@
                                                 </div>
                                                 <div class="col-md-6">
                                                     <label class="form-label">Image Filename</label>
-                                                    <input type="text" name="image" value="{{ event.image }}" class="form-control">
+                                                    <!-- <input type="text" name="imagepath" value="{{ event.imagepath }}" class="form-control"> -->
+                                                    <input type="file" name="imagefile" class="form-control mt-2">
                                                 </div>
                                                 <div class="col-md-6">
                                                     <label class="form-label">Purchase Start</label>
