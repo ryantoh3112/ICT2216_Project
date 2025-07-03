@@ -95,4 +95,34 @@ class History
 
         return $this;
     }
+
+    
+    // after
+    #[ORM\Column(length: 255)]
+private ?string $sessionId = null;
+
+    #[ORM\Column(length: 20)]
+    private string $status = 'pending'; // pending, completed
+
+    public function getSessionId(): ?string
+    {
+        return $this->sessionId;
+    }
+
+    public function setSessionId(string $sessionId): static
+    {
+        $this->sessionId = $sessionId;
+        return $this;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(string $status): static
+    {
+        $this->status = $status;
+        return $this;
+    }
 }

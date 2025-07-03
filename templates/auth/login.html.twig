@@ -35,7 +35,14 @@
                   <input type="password" id="passwd_login" name="password" class="passwd_login form-control form-control-lg" required />
                   <label class="form-label" for="passwd_login">Password</label>
                 </div>
+                
+                {% if show_captcha is defined and show_captcha %}
+                <div class="recaptcha-wrapper mb-3">
+                  {% include 'components/recaptcha.html.twig' with { recaptcha_site_key: recaptcha_site_key } %}
+                </div>
+                {% endif %}
 
+                
                 <div class="pt-1 mb-4">
                   <button data-mdb-button-init data-mdb-ripple-init class="btn btn-info btn-lg btn-block" id="login_btn" type="submit">Login</button>
                 </div>
