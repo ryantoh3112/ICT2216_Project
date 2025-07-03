@@ -150,11 +150,8 @@ final class AdminController extends AbstractController
             $imagefile->move($this->getParameter('uploads_directory'), $filename);
             // Set the image path in the event entity
             $event->setImagePath($filename);
-        } else {
-            // If no file is uploaded, set a default or null value
-            $event->setImagePath(null);
         }
-
+        
         $em->flush();
 
         $this->addFlash('success', 'Event updated successfully.');
