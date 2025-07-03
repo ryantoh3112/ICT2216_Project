@@ -38,6 +38,8 @@
     <main>
         {% block body %}{% endblock %}
     </main>
+    {% include 'chatbot/chatbot.html.twig' %}
+
 
     {% include 'footer.html.twig' %}
 
@@ -56,6 +58,33 @@
     <script src="{{ asset('js/custom.js') }}"></script>
 
     {% block javascripts %}{% endblock %}
+
+    
+
+
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
+<script>
+let ajaxFailCount = 0;
+const CAPTCHA_THRESHOLD = 3;
+
+function shouldShowCaptcha() {
+  return ajaxFailCount >= CAPTCHA_THRESHOLD;
+}
+
+function incrementFailCount() {
+  ajaxFailCount++;
+  if (shouldShowCaptcha()) {
+    document.querySelectorAll('.recaptcha-wrapper').forEach(el => el.style.display = 'block');
+  }
+}
+
+function resetFailCount() {
+  ajaxFailCount = 0;
+  document.querySelectorAll('.recaptcha-wrapper').forEach(el => el.style.display = 'none');
+}
+</script>
+
 </body>
 
 </html>

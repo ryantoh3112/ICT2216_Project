@@ -18,7 +18,8 @@ use App\Repository\AuthRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
-use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Uid\Uuid; 
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #Conroller-level prefix for all routes in this controller
 #Everything below is part of /auth/...
@@ -94,19 +95,48 @@ final class AuthController extends AbstractController
         ]);
     }
 
-    #[Route('/login', name: 'login_form', methods: ['GET'])]
-    public function loginForm(Request $request): Response
-    {
-        $user = $request->attributes->get('jwt_user');
-        if ($user && $user->getRole() === 'ROLE_ADMIN') {
-            return $this->redirectToRoute('admin_dashboard');
-        } elseif ($user && $user->getRole() === 'ROLE_USER') {
-            return $this->redirectToRoute('user_profile');
-        }
-        else {
-            return $this->render('auth/login.html.twig');
+// #[Route('/login', name: 'login_form', methods: ['GET'])]
+// public function loginForm(Request $request): Response
+// {
+//     $showCaptcha = false;
+
+//     // Check for login fail count cookie
+//     $failCount = $request->cookies->get('login_fail_count');
+//     if ($failCount !== null && (int)$failCount >= 3) {
+//         $showCaptcha = true;
+//     }
+
+//     return $this->render('auth/login.html.twig', [
+//         'show_captcha' => $showCaptcha,
+//         'recaptcha_site_key' => $_ENV['RECAPTCHA_SITE_KEY'], // or use parameter('recaptcha.site_key')
+//     ]);
+// }
+
+
+#[Route('/login', name: 'login_form', methods: ['GET'])]
+public function loginForm(
+    Request $request,
+    AuthRepository $authRepository
+): Response {
+    // get last email from session (or null)
+    $email = $request->getSession()->get('last_login_email');
+
+    $showCaptcha = false;
+    if ($email) {
+        $auth = $authRepository->findOneBy(['email' => $email]);
+        if ($auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3) {
+            $showCaptcha = true;
         }
     }
+
+    return $this->render('auth/login.html.twig', [
+        'show_captcha'      => $showCaptcha,
+        'recaptcha_site_key'=> $_ENV['RECAPTCHA_SITE_KEY'],
+        'last_email'        => $email,
+    ]);
+}
+
+
 
     #[Route('/login', name: 'login', methods: ['POST'])]
     public function login(
@@ -115,14 +145,34 @@ final class AuthController extends AbstractController
         UserPasswordHasherInterface $passwordHasher,
         JwtService $jwtService,
         EmailService $emailService,
-        EntityManagerInterface $em
+        EntityManagerInterface $em,
+    HttpClientInterface $httpClient   
     ): Response {
         $email = $request->request->get('email');
         $password = $request->request->get('password');
 
         // Step 1: Validate credentials
         $auth = $authRepository->findOneBy(['email' => $email]);
-        
+    $needsCaptcha  = $auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3;
+
+     if ($needsCaptcha) {
+            $recaptchaResponse = $request->request->get('g-recaptcha-response', '');
+            $resp = $httpClient->request('POST', 'https://www.google.com/recaptcha/api/siteverify', [
+                'body' => [
+                    'secret'   => $_ENV['RECAPTCHA_SECRET_KEY'],
+                    'response' => $recaptchaResponse,
+                    'remoteip' => $request->server->get('REMOTE_ADDR'),
+                ],
+            ]);
+            $data = $resp->toArray();
+            if (empty($data['success'])) {
+                $this->addFlash('error', 'Please complete the CAPTCHA.');
+                // store the last email in session
+                $request->getSession()->set('last_login_email', $email);
+
+                return $this->redirectToRoute('auth_login_form');            }
+        }
+    
         // Check if account is locked
         if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
             $this->addFlash('error', 'Account is locked. Please contact support.');
@@ -137,16 +187,17 @@ final class AuthController extends AbstractController
                 $user->setFailedLoginCount($current + 1);
 
                 // Lock the account if attempts exceed 10
-                if ($current + 1 >= 10) {
+                if ($current + 1 >= 1000) {
                     $user->setAccountStatus('locked');
                     $user->setLockedAt(new \DateTime());
                 }
                 $em->persist($user);
                 $em->flush();
             }
-            $this->addFlash('error', 'Invalid credentials');
-            return $this->redirectToRoute('auth_login_form'); // Or your login form route name
-        }
+            $this->addFlash('error','Invalid credentials');
+        $request->getSession()->set('last_login_email', $email);
+            return $this->redirectToRoute('auth_login_form');
+    }
 
         # If credentials are valid, reset failed_login_count
         $user = $auth->getUser();
@@ -253,7 +304,7 @@ final class AuthController extends AbstractController
         } 
         
         catch (\Exception $e) {
-            $this->addFlash('error', 'JWT Exception: ' . $e->getMessage());
+            $this->addFlash('error', 'Invalid or expired token');
             #echo 'Message: ' .$e->getMessage();
             return $this->redirectToRoute('auth_login_form');
         }
@@ -262,6 +313,12 @@ final class AuthController extends AbstractController
     #[Route('/forgot_pwd', name: 'forgot_password_form', methods: ['GET'])]
     public function showForgotPasswordForm(Request $request): Response
     {
+        $user = $request->attributes->get('jwt_user');
+
+        if ($user) {
+            // Redirect authenticated users to their user profile page
+            return $this->redirectToRoute('user_profile');
+        }
         $user = $request->attributes->get('jwt_user');
 
         if ($user) {
@@ -578,7 +635,7 @@ final class AuthController extends AbstractController
             'email' => $user->getAuth()->getEmail()
         ]);
     }
-    
+
     # Revoked once User logs out
     #[Route('/logout', name: 'logout')]
     public function logout(
@@ -593,10 +650,7 @@ final class AuthController extends AbstractController
                 // Step 2: Verify and decode the token
                 $payload = $jwtService->verifyToken($jwt);
                 $issuedAt = (new \DateTime())->setTimestamp($payload['iat']);
-                dump([
-                    'payload_iat' => $payload['iat'],
-                    'issuedAt_object' => $issuedAt->format('Y-m-d H:i:s'),
-                ]);
+
                 // Step 3: Find the matching JWT record in DB
                 $repo = $em->getRepository(JWTSession::class);
                 $jwtRecord = $em->getRepository(JWTSession::class)->findOneBy([
@@ -611,7 +665,8 @@ final class AuthController extends AbstractController
                     $em->flush();
                 }
             } catch (\Exception $e) {
-                // Token might already be expired or invalid – ignore and continue
+                $this->addFlash('error', 'Your session has expired or is invalid. Please log in again.');
+                return $this->redirectToRoute('auth_login_form');// Token might already be expired or invalid – ignore and continue
             }
         }
 

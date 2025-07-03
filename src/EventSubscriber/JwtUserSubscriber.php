@@ -1,4 +1,6 @@
 <?php
+# Twig integration to inject JWT user into Twig globals
+
 namespace App\EventSubscriber;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;

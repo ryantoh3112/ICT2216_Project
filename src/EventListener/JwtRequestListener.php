@@ -1,7 +1,8 @@
 <?php
 # EventListener that intercepts incoming requests and perform JWT validation 
 # before the request reaches your controllers.
-# Is like a Middleware 
+# Is like a Middleware. 
+# Those with logger is for debugging purposes, you can remove them if you don't need it.
 namespace App\EventListener;
 
 use App\Entity\User;
@@ -50,6 +51,10 @@ class JwtRequestListener
             $this->logger->warning('❌ User not found for ID: ' . $payload['id']);
             throw new AccessDeniedHttpException('User not found');
         }
+        if (!isset($payload['iat']) || !is_numeric($payload['iat'])) {
+            $this->logger->error('❌ Missing or invalid "iat" in JWT payload.');
+            throw new AccessDeniedHttpException('Token is missing issue time.');
+        }
 
         $issuedAt = (new \DateTime())->setTimestamp($payload['iat']);
         $this->logger->info('🕒 Looking for JWTSession within ±2s of ' . $issuedAt->format('Y-m-d H:i:s'));
@@ -57,6 +62,7 @@ class JwtRequestListener
         $iatStart = (new \DateTime())->setTimestamp($payload['iat'] - 2);
         $iatEnd = (new \DateTime())->setTimestamp($payload['iat'] + 2);
 
+        # Searches for matching JWTSession entity in DB
         $qb = $this->em->getRepository(JWTSession::class)->createQueryBuilder('j');
         $qb->where('j.user = :user')
         ->andWhere('j.revokedAt IS NULL')

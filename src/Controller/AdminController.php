@@ -90,7 +90,7 @@ final class AdminController extends AbstractController
         ]);
     }
 
-    #[Route('/admin/manage_user/update/{id}', name: 'update_user', methods: ['POST'])]
+    #[Route('/manage_user/update/{id}', name: 'update_user', methods: ['POST'])]
     public function updateUser(
         int $id,
         Request $request,
@@ -127,6 +127,20 @@ final class AdminController extends AbstractController
         $em->flush();
 
         $this->addFlash('success', 'User updated successfully.');
+        return $this->redirectToRoute('admin_manage_users');
+    }
+    #[Route('/user/{id}/delete', name: 'delete_user', methods: ['POST'])]
+    public function deleteUser(Request $request, User $user, EntityManagerInterface $em): Response
+    {
+        // CSRF protection
+        if ($this->isCsrfTokenValid('delete_user_' . $user->getId(), $request->request->get('_token'))) {
+            $em->remove($user);
+            $em->flush();
+            $this->addFlash('success', 'User deleted successfully.');
+        } else {
+            $this->addFlash('error', 'Invalid CSRF token.');
+        }
+
         return $this->redirectToRoute('admin_manage_users');
     }
 
