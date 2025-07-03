@@ -563,16 +563,19 @@ public function loginForm(
     //     return $this->redirectToRoute('auth_forgot_password_form');
     // }
 
-        #[Route('/forgot_pwd', name: 'forgot_password_form', methods: ['GET'])]
+       #[Route('/forgot_pwd', name: 'forgot_password_form', methods: ['GET'])]
     public function showForgotPasswordForm(
         Request $request,
-        EntityManagerInterface $em,
         CaptchaRepository $captchaRepo
     ): Response {
+        // if user already logged in, bounce them back
+        if ($request->attributes->get('jwt_user')) {
+            return $this->redirectToRoute('user_profile');
+        }
+
         $ip          = $request->getClientIp();
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
-        // fetch or create Captcha record
         $attempt = $captchaRepo->findOneBy([
             'ipAddress'         => $ip,
             'deviceFingerprint' => $fingerprint,
@@ -586,13 +589,7 @@ public function loginForm(
         ]);
     }
 
-
-
-
-
-    
-
-       #[Route('/forgot_pwd', name: 'forgot_password', methods: ['POST'])]
+    #[Route('/forgot_pwd', name: 'forgot_password', methods: ['POST'])]
     public function forgotPassword(
         Request $request,
         AuthRepository $authRepository,
@@ -601,10 +598,10 @@ public function loginForm(
         HttpClientInterface $httpClient,
         CaptchaRepository $captchaRepo
     ): Response {
+        // step 1: fetch or create our CAPTCHA tracker
         $ip          = $request->getClientIp();
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
-        // 1) fetch-or-create our tracker
         $attempt = $captchaRepo->findOneBy([
             'ipAddress'         => $ip,
             'deviceFingerprint' => $fingerprint,
@@ -613,12 +610,12 @@ public function loginForm(
         $now        = new \DateTimeImmutable();
         $oneHourAgo = $now->sub(new \DateInterval('PT1H'));
 
-        // 2) if the last attempt was more than an hour ago, zero out
+        // step 2: reset count if last attempt > 1h ago
         if ($attempt->getLastAttemptAt() < $oneHourAgo) {
             $attempt->reset();
         }
 
-        // 3) if we've already submitted 3+ times in the last hour, require CAPTCHA
+        // step 3: if ≥ 3 attempts in last hour, enforce reCAPTCHA
         if ($attempt->getAttemptCount() >= 3) {
             $resp = $httpClient->request('POST', 'https://www.google.com/recaptcha/api/siteverify', [
                 'body' => [
@@ -627,8 +624,8 @@ public function loginForm(
                     'remoteip' => $ip,
                 ],
             ]);
+
             if (empty($resp->toArray()['success'])) {
-                // count this failed CAPTCHA attempt
                 $attempt->incrementAttemptCount();
                 $em->persist($attempt);
                 $em->flush();
@@ -638,43 +635,38 @@ public function loginForm(
             }
         }
 
-        // 4) count **every** submission (successful or not) toward the 3-per-hour total
+        // step 4: count this POST (whether valid or not)
         $attempt->incrementAttemptCount();
 
+        // look up the user by email
         $email = $request->request->get('email', '');
         $auth  = $authRepository->findOneBy(['email' => $email]);
         $user  = $auth?->getUser();
 
         if ($user) {
-            // genuine user → generate & send reset link
+            // genuine user → generate token and send reset link
             $token     = Uuid::v4()->toRfc4122();
             $expiresAt = $now->add(new \DateInterval('PT15M'));
 
             $user->setResetToken($token)
                  ->setResetTokenExpiresAt($expiresAt);
+
             $em->flush();
 
-            $emailService->sendResetPasswordLink($email, $user->getName(), $token);
+            $emailService->sendResetPasswordLink(
+                $auth->getEmail(),
+                $user->getName(),
+                $token
+            );
         }
 
-        // 5) persist our updated counter (we never reset it on success)
+        // step 5: persist updated attempt counter
         $em->persist($attempt);
         $em->flush();
 
-        // 6) always show the same privacy-preserving message
+        // step 6: privacy‐preserving flash
         $this->addFlash('success', 'If this email is registered, a reset link has been sent.');
         return $this->redirectToRoute('auth_forgot_password_form');
-    }
-
-    #[Route('/verify-otp', name: 'verify_otp_form', methods: ['GET'])]
-    public function showOtpForm(Request $request): Response
-    {
-        $session = $request->getSession();
-        $isLoginOtp = $session->has('pending_2fa_user_id') && !$session->has('pending_2fa_toggle_state');
-
-        return $this->render('auth/verify_otp.html.twig', [
-            'isLoginOtp' => $isLoginOtp
-        ]);
     }
 
     #[Route('/verify-otp', name: 'verify_otp', methods: ['POST'])]
