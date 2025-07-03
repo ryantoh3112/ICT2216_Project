@@ -12,7 +12,9 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Entity\User;
 use App\Entity\Auth;
+use App\Entity\Captcha;
 use App\Entity\JWTSession;
+use App\Repository\CaptchaRepository;
 use App\Repository\UserRepository;
 use App\Repository\AuthRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,97 +28,187 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 #[Route('/auth', name: 'auth_')]
 final class AuthController extends AbstractController
 {
+    // #[Route('/register', name: 'register', methods: ['GET', 'POST'])]
+    // public function register(
+    //     Request $request,
+    //     EntityManagerInterface $em,
+    //     UserPasswordHasherInterface $passwordHasher,
+    //     AuthRepository $authRepository
+    // ): Response {
+    //     if ($request->isMethod('POST')) {
+    //         $name            = $request->request->get('username');
+    //         $email           = $request->request->get('email');
+    //         $password        = $request->request->get('password');
+    //         $confirmPassword = $request->request->get('confirm_password');
+
+    //         // existing email?
+    //         if ($authRepository->findOneBy(['email' => $email])) {
+    //             $this->addFlash('error', 'Email already registered.');
+    //             return $this->redirectToRoute('auth_register');
+    //         }
+    //         // password match?
+    //         if ($password !== $confirmPassword) {
+    //             $this->addFlash('error', 'Passwords do not match.');
+    //             return $this->redirectToRoute('auth_register');
+    //         }
+
+    //         // create User + Auth...
+    //         $user = new \App\Entity\User();
+    //         $user->setName($name)
+    //              ->setRole('ROLE_USER')
+    //              ->setCreatedAt(new \DateTime())
+    //              ->setAccountStatus('active')
+    //              ->setOtpEnabled(false);
+    //         $em->persist($user);
+    //         $em->flush();
+
+    //         $auth = new Auth();
+    //         $auth->setUser($user)
+    //              ->setEmail($email)
+    //              ->setPassword($passwordHasher->hashPassword($auth, $password));
+    //         $em->persist($auth);
+    //         $em->flush();
+
+    //         $this->addFlash('success', 'Registration successful.');
+    //         return $this->redirectToRoute('auth_login_form');
+    //     }
+
+    //     return $this->render('auth/register.html.twig');
+    // }
     #[Route('/register', name: 'register', methods: ['GET', 'POST'])]
     public function register(
         Request $request,
-        EntityManagerInterface $entityManager,
+        EntityManagerInterface $em,
         UserPasswordHasherInterface $passwordHasher,
-        UserRepository $userRepository,
-        AuthRepository $authRepository
-    ): Response
-    {
-        if ($request->isMethod('POST')) {
-        $name = $request->request->get('username');
-        $email = $request->request->get('email');
-        $password = $request->request->get('password');
-        $confirmPassword = $request->request->get('confirm_password');
-        
-        // Check if there is an existing email in database / email has been registered already
-        $existingAuth = $authRepository->findOneBy(['email' => $email]);
-        if ($existingAuth !== null) {
-            $this->addFlash('error', 'Email has already been registered.');
-            return $this->redirectToRoute('auth_register');
-        }
-
-        // Check if there is an existing username in database / username has been registered already
-        $existingUser = $userRepository->findOneBy(['name' => $name]);
-        if ($existingUser !== null) {
-            $this->addFlash('error', 'Username is already taken.');
-            return $this->redirectToRoute('auth_register');
-        }
-
-        // Check if password and confirm password matches
-        if ($password !== $confirmPassword) {
-            $this->addFlash('error', 'Passwords do not match.');
-            return $this->redirectToRoute('auth_register');
-        }
-
-        // Create User entity
-        $user = new User();
-        $user->setName($name);
-        $user->setRole('ROLE_USER');
-        $user->setCreatedAt(new \DateTime());
-        $user->setAccountStatus("active");
-        $user->setOtpEnabled(0);
-
-        // Persist User first
-        $entityManager->persist($user);
-        $entityManager->flush(); // needed to generate ID for relation
-
-        // Create Auth entity
-        $auth = new Auth();
-        $auth->setUser($user);
-        $auth->setEmail($email);
-        $auth->setPassword(
-            $passwordHasher->hashPassword($auth, $password)
-        );
-
-        // Persist Auth
-        $entityManager->persist($auth);
-        $entityManager->flush();
-
-        $this->addFlash('success', 'Registration successful!');
-        return $this->redirectToRoute('auth_login_form');
-        }
-
-        // Render the registration page (GET)
-        return $this->render('auth/register.html.twig', [
-            'controller_name' => 'AuthController',
-        ]);
-    }
-
-    #[Route('/login', name: 'login_form', methods: ['GET'])]
-    public function loginForm(
-        Request $request,
-        AuthRepository $authRepository
+        AuthRepository $authRepository,
+        CaptchaRepository $captchaRepo,
+        HttpClientInterface $httpClient
     ): Response {
-        // get last email from session (or null)
-        $email = $request->getSession()->get('last_login_email');
+        $ip          = $request->getClientIp();
+        $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
-        $showCaptcha = false;
-        if ($email) {
-            $auth = $authRepository->findOneBy(['email' => $email]);
-            if ($auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3) {
-                $showCaptcha = true;
-            }
+        // 1) fetch-or-create our tracker
+        $attempt = $captchaRepo->findOneBy([
+            'ipAddress'         => $ip,
+            'deviceFingerprint' => $fingerprint,
+        ]) ?? new Captcha($ip, $fingerprint);
+
+        $now        = new \DateTimeImmutable();
+        $oneHourAgo = $now->sub(new \DateInterval('PT1H'));
+
+        // 2) if the last attempt was more than an hour ago, zero out its counter
+        if ($attempt->getLastAttemptAt() < $oneHourAgo) {
+            $attempt->reset();
         }
 
-        return $this->render('auth/login.html.twig', [
-            'show_captcha'      => $showCaptcha,
-            'recaptcha_site_key'=> $_ENV['RECAPTCHA_SITE_KEY'],
-            'last_email'        => $email,
+        $showCaptcha = $attempt->getAttemptCount() >= 3;
+
+        // Handle POST
+        if ($request->isMethod('POST')) {
+            // 3) if we've already submitted 3+ times in the last hour, require CAPTCHA
+            if ($showCaptcha) {
+                $resp = $httpClient->request('POST', 'https://www.google.com/recaptcha/api/siteverify', [
+                    'body' => [
+                        'secret'   => $_ENV['RECAPTCHA_SECRET_KEY'],
+                        'response' => $request->request->get('g-recaptcha-response', ''),
+                        'remoteip' => $ip,
+                    ],
+                ]);
+                if (empty($resp->toArray()['success'])) {
+                    // count this failed CAPTCHA attempt
+                    $attempt->incrementAttemptCount();
+                    $em->persist($attempt);
+                    $em->flush();
+
+                    $this->addFlash('error', 'Please complete the CAPTCHA.');
+                    return $this->redirectToRoute('auth_register');
+                }
+            }
+
+            // 4) count **every** submission toward the 3-per-hour total
+            $attempt->incrementAttemptCount();
+            $em->persist($attempt);
+            $em->flush();
+
+            // now normal registration logic
+            $name            = $request->request->get('username');
+            $email           = $request->request->get('email');
+            $password        = $request->request->get('password');
+            $confirmPassword = $request->request->get('confirm_password');
+
+            // existing email?
+            if ($authRepository->findOneBy(['email' => $email])) {
+                $this->addFlash('error', 'Email already registered.');
+                return $this->redirectToRoute('auth_register');
+            }
+            // password match?
+            if ($password !== $confirmPassword) {
+                $this->addFlash('error', 'Passwords do not match.');
+                return $this->redirectToRoute('auth_register');
+            }
+
+            // create User + Auth
+            $user = new User();
+            $user->setName($name)
+                 ->setRole('ROLE_USER')
+                 ->setCreatedAt(new \DateTime())
+                 ->setAccountStatus('active')
+                 ->setOtpEnabled(false);
+
+            $em->persist($user);
+            $em->flush();
+
+            $auth = new Auth();
+            $auth->setUser($user)
+                 ->setEmail($email)
+                 ->setPassword($passwordHasher->hashPassword($auth, $password));
+
+            $em->persist($auth);
+            $em->flush();
+
+            $this->addFlash('success', 'Registration successful.');
+            // note: we do NOT reset the CAPTCHA counter here; it will auto-reset only after 1h
+            return $this->redirectToRoute('auth_login_form');
+        }
+
+        // GET: render form
+        return $this->render('auth/register.html.twig', [
+            'show_captcha'       => $showCaptcha,
+            'recaptcha_site_key' => $_ENV['RECAPTCHA_SITE_KEY'],
         ]);
     }
+
+    
+
+ #[Route('/login', name: 'login_form', methods: ['GET'])]
+public function loginForm(
+    Request $request,
+    CaptchaRepository $captchaRepo
+): Response {
+    $ip          = $request->getClientIp();
+    $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
+
+    // 1) fetch-or-create tracker
+    $attempt = $captchaRepo->findOneBy([
+        'ipAddress'         => $ip,
+        'deviceFingerprint' => $fingerprint,
+    ]) ?? new Captcha($ip, $fingerprint);
+
+    $now        = new \DateTimeImmutable();
+    $oneHourAgo = $now->sub(new \DateInterval('PT1H'));
+
+    // 2) reset **only** if last attempt was >1h ago
+    if ($attempt->getLastAttemptAt() < $oneHourAgo) {
+        $attempt->reset();
+    }
+
+    $showCaptcha = $attempt->getAttemptCount() >= 3;
+
+    return $this->render('auth/login.html.twig', [
+        'show_captcha'       => $showCaptcha,
+        'recaptcha_site_key' => $_ENV['RECAPTCHA_SITE_KEY'],
+    ]);
+}
 
     #[Route('/login', name: 'login', methods: ['POST'])]
     public function login(
@@ -126,116 +218,249 @@ final class AuthController extends AbstractController
         JwtService $jwtService,
         EmailService $emailService,
         EntityManagerInterface $em,
-    HttpClientInterface $httpClient   
+        CaptchaRepository $captchaRepo,
+        HttpClientInterface $httpClient
     ): Response {
-        $email = $request->request->get('email');
-        $password = $request->request->get('password');
+        $ip          = $request->getClientIp();
+        $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
-        // Step 1: Validate credentials
-        $auth = $authRepository->findOneBy(['email' => $email]);
-        $needsCaptcha  = $auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3;
+        // 1) Fetch-or-create the Captcha tracker
+        $attempt = $captchaRepo->findOneBy([
+            'ipAddress'         => $ip,
+            'deviceFingerprint' => $fingerprint,
+        ]) ?? new Captcha($ip, $fingerprint);
 
-        if ($needsCaptcha) {
-            $recaptchaResponse = $request->request->get('g-recaptcha-response', '');
+        $now        = new \DateTimeImmutable();
+        $oneHourAgo = $now->sub(new \DateInterval('PT1H'));
+
+        // 2) If last attempt >1h ago, reset the counter
+        if ($attempt->getLastAttemptAt() < $oneHourAgo) {
+            $attempt->reset();
+        }
+
+        // 3) If ≥3 attempts in past hour, require CAPTCHA
+        if ($attempt->getAttemptCount() >= 3) {
             $resp = $httpClient->request('POST', 'https://www.google.com/recaptcha/api/siteverify', [
                 'body' => [
                     'secret'   => $_ENV['RECAPTCHA_SECRET_KEY'],
-                    'response' => $recaptchaResponse,
-                    'remoteip' => $request->server->get('REMOTE_ADDR'),
+                    'response' => $request->request->get('g-recaptcha-response', ''),
+                    'remoteip' => $ip,
                 ],
             ]);
-            $data = $resp->toArray();
-            if (empty($data['success'])) {
-                $this->addFlash('error', 'Please complete the CAPTCHA.');
-                // store the last email in session
-                $request->getSession()->set('last_login_email', $email);
-
-                return $this->redirectToRoute('auth_login_form');            
-            }
-        }
-    
-        // Check if account is locked
-        if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
-            $this->addFlash('error', 'Account is locked. Please contact support.');
-            return $this->redirectToRoute('auth_login_form'); // Or your login form route name
-        }
-        
-        if (!$auth || !$passwordHasher->isPasswordValid($auth, $password)) {
-            // Increment failed_login_count if user exists
-            if ($auth) {
-                $user = $auth->getUser();
-                $current = $user->getFailedLoginCount() ?? 0;
-                $user->setFailedLoginCount($current + 1);
-
-                // Lock the account if attempts exceed 10
-                if ($current + 1 >= 1000) {
-                    $user->setAccountStatus('locked');
-                    $user->setLockedAt(new \DateTime());
-                }
-                $em->persist($user);
+            if (empty($resp->toArray()['success'])) {
+                // count this failed CAPTCHA attempt
+                $attempt->incrementAttemptCount();
+                $em->persist($attempt);
                 $em->flush();
+
+                $this->addFlash('error', 'Please complete the CAPTCHA.');
+                return $this->redirectToRoute('auth_login_form');
             }
-            $this->addFlash('error','Invalid credentials');
-            $request->getSession()->set('last_login_email', $email);
+        }
+
+        // 4) Count **every** submission toward the 3/hour total
+        $attempt->incrementAttemptCount();
+        $em->persist($attempt);
+        $em->flush();
+
+        // 5) Now validate credentials
+        $email    = $request->request->get('email', '');
+        $password = $request->request->get('password', '');
+        $auth     = $authRepository->findOneBy(['email' => $email]);
+
+        if (!$auth || ! $passwordHasher->isPasswordValid($auth, $password)) {
+            // Invalid → bump the **User** failedLoginCount too
+            if ($auth) {
+                $user   = $auth->getUser();
+                $fails  = $user->getFailedLoginCount() ?? 0;
+                $user->setFailedLoginCount($fails + 1);
+                // optionally lock at some higher threshold...
+                $em->persist($user);
+            }
+            $em->flush();
+
+            $this->addFlash('error', 'Invalid credentials.');
             return $this->redirectToRoute('auth_login_form');
         }
 
-        # If credentials are valid, reset failed_login_count
+        // 6) Successful login → reset **User** failedLoginCount, but **do not** reset Captcha
         $user = $auth->getUser();
-        $user->setFailedLoginCount(0);
-        $user->setLastLoginAt(new \DateTime());
-        $user->setAccountStatus('active');
-
-        // If 2FA is enabled, delay JWT until OTP is verified
-        if ($user->isOtpEnabled()) {
-            $otp = random_int(100000, 999999);
-            $user->setOtpCode((string) $otp);
-            $user->setOtpExpiresAt(new \DateTimeImmutable('+5 minutes'));
-
-            $em->persist($user);
-            $em->flush();
-
-            // Send OTP email using sendOtp in EmailService
-            $emailService->sendOtp($auth->getEmail(), $user->getName(), $otp);
-
-            // Store user in session for later OTP verification
-            $request->getSession()->set('pending_2fa_user_id', $user->getId());
-
-            return $this->redirectToRoute('auth_verify_otp_form');
-        }
-
-        // If 2FA is not enabled, issue JWT immediately
-        // Step 2: Generate JWT
-        $token = $jwtService->createToken([
-            'id' => $auth->getUser()->getId(),
-            'email' => $auth->getEmail()
-        ]);
-        $decodedPayload = $jwtService->verifyToken($token); // decode to get iat
-        $issuedAt = (new \DateTime())->setTimestamp($decodedPayload['iat']);
-        $expiresAt = (new \DateTime())->setTimestamp($decodedPayload['exp']);
-
-        // Step 3: Track JWT in database
-        $jwtEntity = new JWTSession();
-        $jwtEntity->setUser($auth->getUser());
-        $jwtEntity->setExpiresAt($expiresAt);
-        $jwtEntity->setIssuedAt($issuedAt);  // New Field added
-
-        $em->persist($jwtEntity);
+        $user->setFailedLoginCount(0)
+             ->setLastLoginAt(new \DateTime())
+             ->setAccountStatus('active');
+        $em->persist($user);
         $em->flush();
 
-        // Step 4: Set JWT as HttpOnly cookie
+        // 7) Issue JWT as before
+        $token   = $jwtService->createToken([
+            'id'    => $user->getId(),
+            'email' => $auth->getEmail(),
+        ]);
+        $payload = $jwtService->verifyToken($token);
+        $issued  = (new \DateTime())->setTimestamp($payload['iat']);
+        $expires = (new \DateTime())->setTimestamp($payload['exp']);
+
+        $jwtSession = (new JWTSession())
+            ->setUser($user)
+            ->setIssuedAt($issued)
+            ->setExpiresAt($expires);
+        $em->persist($jwtSession);
+        $em->flush();
+
         $cookie = Cookie::create('JWT')
             ->withValue($token)
-            ->withExpires($expiresAt)
+            ->withExpires($expires)
             ->withHttpOnly(true)
-            ->withSecure(false)
             ->withPath('/')
             ->withSameSite('Lax');
 
-        $response = new RedirectResponse($this->generateUrl('auth_login_success')); // or another route
+        $response = new RedirectResponse($this->generateUrl('user_profile'));
         $response->headers->setCookie($cookie);
         return $response;
     }
+
+
+    // #[Route('/login', name: 'login_form', methods: ['GET'])]
+    // public function loginForm(
+    //     Request $request,
+    //     AuthRepository $authRepository
+    // ): Response {
+    //     // get last email from session (or null)
+    //     $email = $request->getSession()->get('last_login_email');
+
+    //     $showCaptcha = false;
+    //     if ($email) {
+    //         $auth = $authRepository->findOneBy(['email' => $email]);
+    //         if ($auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3) {
+    //             $showCaptcha = true;
+    //         }
+    //     }
+
+    //     return $this->render('auth/login.html.twig', [
+    //         'show_captcha'      => $showCaptcha,
+    //         'recaptcha_site_key'=> $_ENV['RECAPTCHA_SITE_KEY'],
+    //         'last_email'        => $email,
+    //     ]);
+    // }
+
+    // #[Route('/login', name: 'login', methods: ['POST'])]
+    // public function login(
+    //     Request $request,
+    //     AuthRepository $authRepository,
+    //     UserPasswordHasherInterface $passwordHasher,
+    //     JwtService $jwtService,
+    //     EmailService $emailService,
+    //     EntityManagerInterface $em,
+    // HttpClientInterface $httpClient   
+    // ): Response {
+    //     $email = $request->request->get('email');
+    //     $password = $request->request->get('password');
+
+    //     // Step 1: Validate credentials
+    //     $auth = $authRepository->findOneBy(['email' => $email]);
+    //     $needsCaptcha  = $auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3;
+
+    //     if ($needsCaptcha) {
+    //         $recaptchaResponse = $request->request->get('g-recaptcha-response', '');
+    //         $resp = $httpClient->request('POST', 'https://www.google.com/recaptcha/api/siteverify', [
+    //             'body' => [
+    //                 'secret'   => $_ENV['RECAPTCHA_SECRET_KEY'],
+    //                 'response' => $recaptchaResponse,
+    //                 'remoteip' => $request->server->get('REMOTE_ADDR'),
+    //             ],
+    //         ]);
+    //         $data = $resp->toArray();
+    //         if (empty($data['success'])) {
+    //             $this->addFlash('error', 'Please complete the CAPTCHA.');
+    //             // store the last email in session
+    //             $request->getSession()->set('last_login_email', $email);
+
+    //             return $this->redirectToRoute('auth_login_form');            
+    //         }
+    //     }
+    
+    //     // Check if account is locked
+    //     if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
+    //         $this->addFlash('error', 'Account is locked. Please contact support.');
+    //         return $this->redirectToRoute('auth_login_form'); // Or your login form route name
+    //     }
+        
+    //     if (!$auth || !$passwordHasher->isPasswordValid($auth, $password)) {
+    //         // Increment failed_login_count if user exists
+    //         if ($auth) {
+    //             $user = $auth->getUser();
+    //             $current = $user->getFailedLoginCount() ?? 0;
+    //             $user->setFailedLoginCount($current + 1);
+
+    //             // Lock the account if attempts exceed 10
+    //             if ($current + 1 >= 1000) {
+    //                 $user->setAccountStatus('locked');
+    //                 $user->setLockedAt(new \DateTime());
+    //             }
+    //             $em->persist($user);
+    //             $em->flush();
+    //         }
+    //         $this->addFlash('error','Invalid credentials');
+    //         $request->getSession()->set('last_login_email', $email);
+    //         return $this->redirectToRoute('auth_login_form');
+    //     }
+
+    //     # If credentials are valid, reset failed_login_count
+    //     $user = $auth->getUser();
+    //     $user->setFailedLoginCount(0);
+    //     $user->setLastLoginAt(new \DateTime());
+    //     $user->setAccountStatus('active');
+
+    //     // If 2FA is enabled, delay JWT until OTP is verified
+    //     if ($user->isOtpEnabled()) {
+    //         $otp = random_int(100000, 999999);
+    //         $user->setOtpCode((string) $otp);
+    //         $user->setOtpExpiresAt(new \DateTimeImmutable('+5 minutes'));
+
+    //         $em->persist($user);
+    //         $em->flush();
+
+    //         // Send OTP email using sendOtp in EmailService
+    //         $emailService->sendOtp($auth->getEmail(), $user->getName(), $otp);
+
+    //         // Store user in session for later OTP verification
+    //         $request->getSession()->set('pending_2fa_user_id', $user->getId());
+
+    //         return $this->redirectToRoute('auth_verify_otp_form');
+    //     }
+
+    //     // If 2FA is not enabled, issue JWT immediately
+    //     // Step 2: Generate JWT
+    //     $token = $jwtService->createToken([
+    //         'id' => $auth->getUser()->getId(),
+    //         'email' => $auth->getEmail()
+    //     ]);
+    //     $decodedPayload = $jwtService->verifyToken($token); // decode to get iat
+    //     $issuedAt = (new \DateTime())->setTimestamp($decodedPayload['iat']);
+    //     $expiresAt = (new \DateTime())->setTimestamp($decodedPayload['exp']);
+
+    //     // Step 3: Track JWT in database
+    //     $jwtEntity = new JWTSession();
+    //     $jwtEntity->setUser($auth->getUser());
+    //     $jwtEntity->setExpiresAt($expiresAt);
+    //     $jwtEntity->setIssuedAt($issuedAt);  // New Field added
+
+    //     $em->persist($jwtEntity);
+    //     $em->flush();
+
+    //     // Step 4: Set JWT as HttpOnly cookie
+    //     $cookie = Cookie::create('JWT')
+    //         ->withValue($token)
+    //         ->withExpires($expiresAt)
+    //         ->withHttpOnly(true)
+    //         ->withSecure(false)
+    //         ->withPath('/')
+    //         ->withSameSite('Lax');
+
+    //     $response = new RedirectResponse($this->generateUrl('auth_login_success')); // or another route
+    //     $response->headers->setCookie($cookie);
+    //     return $response;
+    // }
 
     # For testing purposes, this endpoint will return the user information from the JWT cookie
     #[Route('/verify-redirect', name: 'login_success')]
@@ -291,50 +516,153 @@ final class AuthController extends AbstractController
         }
     }
     
-    #[Route('/forgot_pwd', name: 'forgot_password_form', methods: ['GET'])]
-    public function showForgotPasswordForm(Request $request): Response
-    {
-        $user = $request->attributes->get('jwt_user');
+    // #[Route('/forgot_pwd', name: 'forgot_password_form', methods: ['GET'])]
+    // public function showForgotPasswordForm(Request $request): Response
+    // {
+    //     $user = $request->attributes->get('jwt_user');
 
-        if ($user) {
-            // Redirect authenticated users to their user profile page
-            return $this->redirectToRoute('user_profile');
-        }
-        $user = $request->attributes->get('jwt_user');
+    //     if ($user) {
+    //         // Redirect authenticated users to their user profile page
+    //         return $this->redirectToRoute('user_profile');
+    //     }
+    //     $user = $request->attributes->get('jwt_user');
 
-        if ($user) {
-            // Redirect authenticated users to their user profile page
-            return $this->redirectToRoute('user_profile');
-        }
-        return $this->render('auth/forgot_pwd.html.twig');
-    }
+    //     if ($user) {
+    //         // Redirect authenticated users to their user profile page
+    //         return $this->redirectToRoute('user_profile');
+    //     }
+    //     return $this->render('auth/forgot_pwd.html.twig');
+    // }
     
-    #[Route('/forgot_pwd', name: 'forgot_password', methods: ['POST'])]
+    // #[Route('/forgot_pwd', name: 'forgot_password', methods: ['POST'])]
+    // public function forgotPassword(
+    //     Request $request,
+    //     AuthRepository $authRepository,
+    //     EntityManagerInterface $em,
+    //     EmailService $emailService
+    // ): Response {
+    //     $email = $request->request->get('email');
+    //     $auth = $authRepository->findOneBy(['email' => $email]);
+    //     $user = $auth?->getUser();
+
+    //     if ($user) {
+    //         $token = Uuid::v4()->toRfc4122(); // Generate secure unique token
+    //         $expiresAt = new \DateTimeImmutable('+15 minutes');
+
+    //         $user->setResetToken($token);
+    //         $user->setResetTokenExpiresAt($expiresAt);
+    //         $em->flush();
+
+    //         // Send email with token link
+    //         $emailService->sendResetPasswordLink($auth->getEmail(), $user->getName(), $token);
+    //     }
+
+    //     // Flash message (same response for both cases to protect privacy)
+    //     $this->addFlash('success', 'If this email is registered, a reset link has been sent.');
+
+    //     return $this->redirectToRoute('auth_forgot_password_form');
+    // }
+
+        #[Route('/forgot_pwd', name: 'forgot_password_form', methods: ['GET'])]
+    public function showForgotPasswordForm(
+        Request $request,
+        EntityManagerInterface $em,
+        CaptchaRepository $captchaRepo
+    ): Response {
+        $ip          = $request->getClientIp();
+        $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
+
+        // fetch or create Captcha record
+        $attempt = $captchaRepo->findOneBy([
+            'ipAddress'         => $ip,
+            'deviceFingerprint' => $fingerprint,
+        ]) ?? new Captcha($ip, $fingerprint);
+
+        $showCaptcha = $attempt->getAttemptCount() >= 3;
+
+        return $this->render('auth/forgot_pwd.html.twig', [
+            'show_captcha'       => $showCaptcha,
+            'recaptcha_site_key' => $_ENV['RECAPTCHA_SITE_KEY'],
+        ]);
+    }
+
+
+
+
+
+    
+
+       #[Route('/forgot_pwd', name: 'forgot_password', methods: ['POST'])]
     public function forgotPassword(
         Request $request,
         AuthRepository $authRepository,
         EntityManagerInterface $em,
-        EmailService $emailService
+        EmailService $emailService,
+        HttpClientInterface $httpClient,
+        CaptchaRepository $captchaRepo
     ): Response {
-        $email = $request->request->get('email');
-        $auth = $authRepository->findOneBy(['email' => $email]);
-        $user = $auth?->getUser();
+        $ip          = $request->getClientIp();
+        $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
-        if ($user) {
-            $token = Uuid::v4()->toRfc4122(); // Generate secure unique token
-            $expiresAt = new \DateTimeImmutable('+15 minutes');
+        // 1) fetch-or-create our tracker
+        $attempt = $captchaRepo->findOneBy([
+            'ipAddress'         => $ip,
+            'deviceFingerprint' => $fingerprint,
+        ]) ?? new Captcha($ip, $fingerprint);
 
-            $user->setResetToken($token);
-            $user->setResetTokenExpiresAt($expiresAt);
-            $em->flush();
+        $now        = new \DateTimeImmutable();
+        $oneHourAgo = $now->sub(new \DateInterval('PT1H'));
 
-            // Send email with token link
-            $emailService->sendResetPasswordLink($auth->getEmail(), $user->getName(), $token);
+        // 2) if the last attempt was more than an hour ago, zero out
+        if ($attempt->getLastAttemptAt() < $oneHourAgo) {
+            $attempt->reset();
         }
 
-        // Flash message (same response for both cases to protect privacy)
-        $this->addFlash('success', 'If this email is registered, a reset link has been sent.');
+        // 3) if we've already submitted 3+ times in the last hour, require CAPTCHA
+        if ($attempt->getAttemptCount() >= 3) {
+            $resp = $httpClient->request('POST', 'https://www.google.com/recaptcha/api/siteverify', [
+                'body' => [
+                    'secret'   => $_ENV['RECAPTCHA_SECRET_KEY'],
+                    'response' => $request->request->get('g-recaptcha-response', ''),
+                    'remoteip' => $ip,
+                ],
+            ]);
+            if (empty($resp->toArray()['success'])) {
+                // count this failed CAPTCHA attempt
+                $attempt->incrementAttemptCount();
+                $em->persist($attempt);
+                $em->flush();
 
+                $this->addFlash('error', 'Please complete the CAPTCHA.');
+                return $this->redirectToRoute('auth_forgot_password_form');
+            }
+        }
+
+        // 4) count **every** submission (successful or not) toward the 3-per-hour total
+        $attempt->incrementAttemptCount();
+
+        $email = $request->request->get('email', '');
+        $auth  = $authRepository->findOneBy(['email' => $email]);
+        $user  = $auth?->getUser();
+
+        if ($user) {
+            // genuine user → generate & send reset link
+            $token     = Uuid::v4()->toRfc4122();
+            $expiresAt = $now->add(new \DateInterval('PT15M'));
+
+            $user->setResetToken($token)
+                 ->setResetTokenExpiresAt($expiresAt);
+            $em->flush();
+
+            $emailService->sendResetPasswordLink($email, $user->getName(), $token);
+        }
+
+        // 5) persist our updated counter (we never reset it on success)
+        $em->persist($attempt);
+        $em->flush();
+
+        // 6) always show the same privacy-preserving message
+        $this->addFlash('success', 'If this email is registered, a reset link has been sent.');
         return $this->redirectToRoute('auth_forgot_password_form');
     }
 
