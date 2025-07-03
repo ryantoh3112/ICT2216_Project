@@ -95,48 +95,28 @@ final class AuthController extends AbstractController
         ]);
     }
 
-// #[Route('/login', name: 'login_form', methods: ['GET'])]
-// public function loginForm(Request $request): Response
-// {
-//     $showCaptcha = false;
+    #[Route('/login', name: 'login_form', methods: ['GET'])]
+    public function loginForm(
+        Request $request,
+        AuthRepository $authRepository
+    ): Response {
+        // get last email from session (or null)
+        $email = $request->getSession()->get('last_login_email');
 
-//     // Check for login fail count cookie
-//     $failCount = $request->cookies->get('login_fail_count');
-//     if ($failCount !== null && (int)$failCount >= 3) {
-//         $showCaptcha = true;
-//     }
-
-//     return $this->render('auth/login.html.twig', [
-//         'show_captcha' => $showCaptcha,
-//         'recaptcha_site_key' => $_ENV['RECAPTCHA_SITE_KEY'], // or use parameter('recaptcha.site_key')
-//     ]);
-// }
-
-
-#[Route('/login', name: 'login_form', methods: ['GET'])]
-public function loginForm(
-    Request $request,
-    AuthRepository $authRepository
-): Response {
-    // get last email from session (or null)
-    $email = $request->getSession()->get('last_login_email');
-
-    $showCaptcha = false;
-    if ($email) {
-        $auth = $authRepository->findOneBy(['email' => $email]);
-        if ($auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3) {
-            $showCaptcha = true;
+        $showCaptcha = false;
+        if ($email) {
+            $auth = $authRepository->findOneBy(['email' => $email]);
+            if ($auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3) {
+                $showCaptcha = true;
+            }
         }
+
+        return $this->render('auth/login.html.twig', [
+            'show_captcha'      => $showCaptcha,
+            'recaptcha_site_key'=> $_ENV['RECAPTCHA_SITE_KEY'],
+            'last_email'        => $email,
+        ]);
     }
-
-    return $this->render('auth/login.html.twig', [
-        'show_captcha'      => $showCaptcha,
-        'recaptcha_site_key'=> $_ENV['RECAPTCHA_SITE_KEY'],
-        'last_email'        => $email,
-    ]);
-}
-
-
 
     #[Route('/login', name: 'login', methods: ['POST'])]
     public function login(
@@ -153,9 +133,9 @@ public function loginForm(
 
         // Step 1: Validate credentials
         $auth = $authRepository->findOneBy(['email' => $email]);
-    $needsCaptcha  = $auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3;
+        $needsCaptcha  = $auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3;
 
-     if ($needsCaptcha) {
+        if ($needsCaptcha) {
             $recaptchaResponse = $request->request->get('g-recaptcha-response', '');
             $resp = $httpClient->request('POST', 'https://www.google.com/recaptcha/api/siteverify', [
                 'body' => [
@@ -170,7 +150,8 @@ public function loginForm(
                 // store the last email in session
                 $request->getSession()->set('last_login_email', $email);
 
-                return $this->redirectToRoute('auth_login_form');            }
+                return $this->redirectToRoute('auth_login_form');            
+            }
         }
     
         // Check if account is locked
@@ -195,9 +176,9 @@ public function loginForm(
                 $em->flush();
             }
             $this->addFlash('error','Invalid credentials');
-        $request->getSession()->set('last_login_email', $email);
+            $request->getSession()->set('last_login_email', $email);
             return $this->redirectToRoute('auth_login_form');
-    }
+        }
 
         # If credentials are valid, reset failed_login_count
         $user = $auth->getUser();
@@ -340,21 +321,6 @@ public function loginForm(
         $user = $auth?->getUser();
 
         if ($user) {
-            // // 1. Generate OTP
-            // $otp = random_int(100000, 999999);
-            // $user->setOtpCode((string) $otp);
-            // $user->setOtpExpiresAt(new \DateTimeImmutable('+10 minutes'));
-
-            // // 2. Save to DB
-            // $em->flush();
-
-            // // 3. Send email using Auth's email, and User's name
-            // $emailOtpService->sendOtp(
-            //     $auth->getEmail(),
-            //     $user->getName(), // or getUsername() if that's your naming
-            //     $otp
-            // );
-
             $token = Uuid::v4()->toRfc4122(); // Generate secure unique token
             $expiresAt = new \DateTimeImmutable('+15 minutes');
 
@@ -366,10 +332,7 @@ public function loginForm(
             $emailService->sendResetPasswordLink($auth->getEmail(), $user->getName(), $token);
         }
 
-        // // Save to session for verify_otp page
-        // $request->getSession()->set('otp_email', $email);
-
-        // 4. Flash message (same response for both cases to protect privacy)
+        // Flash message (same response for both cases to protect privacy)
         $this->addFlash('success', 'If this email is registered, a reset link has been sent.');
 
         return $this->redirectToRoute('auth_forgot_password_form');
@@ -529,45 +492,6 @@ public function loginForm(
         EntityManagerInterface $em,
         UserPasswordHasherInterface $hasher
     ): Response {
-        // $session = $request->getSession();
-        // $email = $session->get('verified_email');
-        // $otpVerified = $session->get('otp_verified');
-
-        // if (!$email || !$otpVerified) {
-        //     $this->addFlash('error', 'You must verify your email and OTP first.');
-        //     return $this->redirectToRoute('auth_forgot_password_form');
-        // }
-
-        // $auth = $authRepository->findOneBy(['email' => $email]);
-        // if (!$auth) {
-        //     $this->addFlash('error', 'Invalid session state. Try again.');
-        //     return $this->redirectToRoute('auth_forgot_password_form');
-        // }
-
-        // if ($request->isMethod('POST')) {
-        //     $newPassword = $request->request->get('new_password');
-        //     $confirm = $request->request->get('confirm_password');
-
-        //     if ($newPassword !== $confirm) {
-        //         $this->addFlash('error', 'Passwords do not match.');
-        //         return $this->redirectToRoute('auth_reset_password');
-        //     }
-
-        //     $auth->setPassword($hasher->hashPassword($auth, $newPassword));
-        //     $auth->getUser()->setOtpCode(null);
-        //     $auth->getUser()->setOtpExpiresAt(null);
-        //     $em->flush();
-
-        //     // Clear session
-        //     $session->remove('verified_email');
-        //     $session->remove('otp_verified');
-
-        //     $this->addFlash('success', 'Password has been reset! You can now log in.');
-        //     return $this->redirectToRoute('auth_login_form');
-        // }
-
-        // return $this->render('auth/reset_pwd.html.twig');
-        
         $token = $request->query->get('token') ?? $request->request->get('token');
 
         if (!$token) {

@@ -243,19 +243,6 @@
     tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-
-    // Confirmation on toggle
-    const form = document.getElementById('twofa-form');
-    form.addEventListener('submit', function (e) {
-      const isChecked = document.getElementById('enable2FA').checked;
-      const confirmMsg = isChecked
-          ? 'Are you sure you want to ENABLE 2FA for your account?'
-          : 'Are you sure you want to DISABLE 2FA for your account?';
-
-      if (!confirm(confirmMsg)) {
-        e.preventDefault();
-      }
-    });
   });
 </script>
 
