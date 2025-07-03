@@ -669,6 +669,17 @@ public function loginForm(
         return $this->redirectToRoute('auth_forgot_password_form');
     }
 
+        #[Route('/verify-otp', name: 'verify_otp_form', methods: ['GET'])]
+    public function showOtpForm(Request $request): Response
+    {
+        $session = $request->getSession();
+        $isLoginOtp = $session->has('pending_2fa_user_id') && !$session->has('pending_2fa_toggle_state');
+
+        return $this->render('auth/verify_otp.html.twig', [
+            'isLoginOtp' => $isLoginOtp
+        ]);
+    }
+
     #[Route('/verify-otp', name: 'verify_otp', methods: ['POST'])]
     public function verifyOtp(
         Request $request,
