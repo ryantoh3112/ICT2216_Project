@@ -1,4 +1,4 @@
-Figure out what is that main_deauth_profile (It seems ok to use this with JWT Tokens)
+Figure out what is that main_deauth_profile (It seems ok to use this with JWT Tokens) ✅
 Optimize the code if possible bec there is a repository for jwtblacklist
 but not used. 
 Consider changing the table name to JWTSession

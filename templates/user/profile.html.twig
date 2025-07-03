@@ -89,7 +89,7 @@
                                     <dd class="col-sm-8">{{ email }}</dd>
 
                                     <dt class="col-sm-4">Joined On</dt>
-                                    <dd class="col-sm-8">{{ user.createdAt|date('F j, Y') }}</dd>
+                                    <dd class="col-sm-8">{{ user.createdAt|date('F j, Y, g:i A', 'Asia/Singapore') }}</dd>
                                 </dl>
                             </form>
                         </div>

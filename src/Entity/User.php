@@ -72,10 +72,16 @@ class User
     private ?\DateTime $lockedAt = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $otpReset = null;
+    private ?string $otpCode = null;
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $otpExpiresAt = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $resetToken = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $resetTokenExpiresAt = null;
 
     public function __construct()
     {
@@ -300,14 +306,15 @@ class User
         return $this;
     }
 
-    public function getOtpReset(): ?string
+    public function getOtpCode(): ?string
     {
-        return $this->otpReset;
+        return $this->otpCode;
     }
 
-    public function setOtpReset(?string $otpReset): static
+    public function setOtpCode(?string $otpCode): static
     {
-        $this->otpReset = $otpReset;
+        $this->otpCode = $otpCode;
+
         return $this;
     }
 
@@ -319,6 +326,30 @@ class User
     public function setOtpExpiresAt(?\DateTimeImmutable $otpExpiresAt): static
     {
         $this->otpExpiresAt = $otpExpiresAt;
+        return $this;
+    }
+
+    public function getResetToken(): ?string
+    {
+        return $this->resetToken;
+    }
+
+    public function setResetToken(?string $resetToken): static
+    {
+        $this->resetToken = $resetToken;
+
+        return $this;
+    }
+
+    public function getResetTokenExpiresAt(): ?\DateTimeImmutable
+    {
+        return $this->resetTokenExpiresAt;
+    }
+
+    public function setResetTokenExpiresAt(?\DateTimeImmutable $resetTokenExpiresAt): static
+    {
+        $this->resetTokenExpiresAt = $resetTokenExpiresAt;
+
         return $this;
     }
 }
