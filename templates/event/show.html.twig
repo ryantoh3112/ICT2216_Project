@@ -7,8 +7,8 @@
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body mb-3 position-relative">
             <h1 class="card-title display-5 fw-bold mb-3">{{ event.name }}</h1>
-            {% if event.image %}
-            <img src="{{ asset(event.image) }}" alt="{{ event.name }} image" class="img-fluid rounded mb-3">
+            {% if event.imagepath %}
+            <img src="{{ asset(event.imagepath) }}" alt="{{ event.name }} image" class="img-fluid rounded mb-3">
             {% endif %}
             <p><strong>Organiser: </strong>{{ event.organiser|default('N/A') }}</p>
             <p><strong>Ticketing Period: </strong>{{ event.purchaseStartDate|date('d M Y (D)') }} ~ {{ event.purchaseEndDate|date('d M Y (D)') }}</p>
