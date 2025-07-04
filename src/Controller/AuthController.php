@@ -332,7 +332,7 @@ public function login(
         ->withPath('/')
         ->withSameSite('Lax');
 
-    $response = new RedirectResponse($this->generateUrl('user_profile'));
+    $response = new RedirectResponse($this->generateUrl('auth_login_success'));
     $response->headers->setCookie($cookie);
     return $response;
 }
