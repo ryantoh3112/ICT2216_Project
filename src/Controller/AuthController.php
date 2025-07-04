@@ -210,114 +210,132 @@ public function loginForm(
     ]);
 }
 
-    #[Route('/login', name: 'login', methods: ['POST'])]
-    public function login(
-        Request $request,
-        AuthRepository $authRepository,
-        UserPasswordHasherInterface $passwordHasher,
-        JwtService $jwtService,
-        EmailService $emailService,
-        EntityManagerInterface $em,
-        CaptchaRepository $captchaRepo,
-        HttpClientInterface $httpClient
-    ): Response {
-        $ip          = $request->getClientIp();
-        $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
+   #[Route('/login', name: 'login', methods: ['POST'])]
+public function login(
+    Request $request,
+    AuthRepository $authRepository,
+    UserPasswordHasherInterface $passwordHasher,
+    JwtService $jwtService,
+    EmailService $emailService,
+    EntityManagerInterface $em,
+    CaptchaRepository $captchaRepo,
+    HttpClientInterface $httpClient
+): Response {
+    $ip          = $request->getClientIp();
+    $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
-        // 1) Fetch-or-create the Captcha tracker
-        $attempt = $captchaRepo->findOneBy([
-            'ipAddress'         => $ip,
-            'deviceFingerprint' => $fingerprint,
-        ]) ?? new Captcha($ip, $fingerprint);
+    // 1) Fetch-or-create the Captcha tracker
+    $attempt = $captchaRepo->findOneBy([
+        'ipAddress'         => $ip,
+        'deviceFingerprint' => $fingerprint,
+    ]) ?? new Captcha($ip, $fingerprint);
 
-        $now        = new \DateTimeImmutable();
-        $oneHourAgo = $now->sub(new \DateInterval('PT1H'));
+    $now        = new \DateTimeImmutable();
+    $oneHourAgo = $now->sub(new \DateInterval('PT1H'));
 
-        // 2) If last attempt >1h ago, reset the counter
-        if ($attempt->getLastAttemptAt() < $oneHourAgo) {
-            $attempt->reset();
-        }
+    // 2) If last attempt >1h ago, reset the counter
+    if ($attempt->getLastAttemptAt() < $oneHourAgo) {
+        $attempt->reset();
+    }
 
-        // 3) If ≥3 attempts in past hour, require CAPTCHA
-        if ($attempt->getAttemptCount() >= 3) {
-            $resp = $httpClient->request('POST', 'https://www.google.com/recaptcha/api/siteverify', [
-                'body' => [
-                    'secret'   => $_ENV['RECAPTCHA_SECRET_KEY'],
-                    'response' => $request->request->get('g-recaptcha-response', ''),
-                    'remoteip' => $ip,
-                ],
-            ]);
-            if (empty($resp->toArray()['success'])) {
-                // count this failed CAPTCHA attempt
-                $attempt->incrementAttemptCount();
-                $em->persist($attempt);
-                $em->flush();
-
-                $this->addFlash('error', 'Please complete the CAPTCHA.');
-                return $this->redirectToRoute('auth_login_form');
-            }
-        }
-
-        // 4) Count **every** submission toward the 3/hour total
-        $attempt->incrementAttemptCount();
-        $em->persist($attempt);
-        $em->flush();
-
-        // 5) Now validate credentials
-        $email    = $request->request->get('email', '');
-        $password = $request->request->get('password', '');
-        $auth     = $authRepository->findOneBy(['email' => $email]);
-
-        if (!$auth || ! $passwordHasher->isPasswordValid($auth, $password)) {
-            // Invalid → bump the **User** failedLoginCount too
-            if ($auth) {
-                $user   = $auth->getUser();
-                $fails  = $user->getFailedLoginCount() ?? 0;
-                $user->setFailedLoginCount($fails + 1);
-                // optionally lock at some higher threshold...
-                $em->persist($user);
-            }
+    // 3) If ≥3 attempts in past hour, require CAPTCHA
+    if ($attempt->getAttemptCount() >= 3) {
+        $resp = $httpClient->request('POST', 'https://www.google.com/recaptcha/api/siteverify', [
+            'body' => [
+                'secret'   => $_ENV['RECAPTCHA_SECRET_KEY'],
+                'response' => $request->request->get('g-recaptcha-response', ''),
+                'remoteip' => $ip,
+            ],
+        ]);
+        if (empty($resp->toArray()['success'])) {
+            // count this failed CAPTCHA attempt
+            $attempt->incrementAttemptCount();
+            $em->persist($attempt);
             $em->flush();
 
-            $this->addFlash('error', 'Invalid credentials.');
+            $this->addFlash('error', 'Please complete the CAPTCHA.');
             return $this->redirectToRoute('auth_login_form');
         }
+    }
 
-        // 6) Successful login → reset **User** failedLoginCount, but **do not** reset Captcha
-        $user = $auth->getUser();
-        $user->setFailedLoginCount(0)
-             ->setLastLoginAt(new \DateTime())
-             ->setAccountStatus('active');
+    // 4) Count **every** submission toward the 3/hour total
+    $attempt->incrementAttemptCount();
+    $em->persist($attempt);
+    $em->flush();
+
+    // 5) Now validate credentials
+    $email    = $request->request->get('email', '');
+    $password = $request->request->get('password', '');
+    $auth     = $authRepository->findOneBy(['email' => $email]);
+
+    if (!$auth || ! $passwordHasher->isPasswordValid($auth, $password)) {
+        // Invalid → bump the **User** failedLoginCount too
+        if ($auth) {
+            $user   = $auth->getUser();
+            $fails  = $user->getFailedLoginCount() ?? 0;
+            $user->setFailedLoginCount($fails + 1);
+            // optionally lock at some higher threshold...
+            $em->persist($user);
+        }
+        $em->flush();
+
+        $this->addFlash('error', 'Invalid credentials.');
+        return $this->redirectToRoute('auth_login_form');
+    }
+
+    // 6) Successful login → reset **User** failedLoginCount, but **do not** reset Captcha
+    $user = $auth->getUser();
+    $user->setFailedLoginCount(0)
+         ->setLastLoginAt(new \DateTime())
+         ->setAccountStatus('active');
+    $em->persist($user);
+    $em->flush();
+
+    // 2FA: if enabled, send OTP and redirect to verification
+    if ($user->isOtpEnabled()) {
+        // generate 6-digit code
+        $otp = random_int(100000, 999999);
+        $user->setOtpCode((string) $otp)
+             ->setOtpExpiresAt(new \DateTimeImmutable('+5 minutes'));
         $em->persist($user);
         $em->flush();
 
-        // 7) Issue JWT as before
-        $token   = $jwtService->createToken([
-            'id'    => $user->getId(),
-            'email' => $auth->getEmail(),
-        ]);
-        $payload = $jwtService->verifyToken($token);
-        $issued  = (new \DateTime())->setTimestamp($payload['iat']);
-        $expires = (new \DateTime())->setTimestamp($payload['exp']);
+        // send via EmailService
+        $emailService->sendOtp($auth->getEmail(), $user->getName(), $otp);
 
-        $jwtSession = (new JWTSession())
-            ->setUser($user)
-            ->setIssuedAt($issued)
-            ->setExpiresAt($expires);
-        $em->persist($jwtSession);
-        $em->flush();
+        // store pending user id for verification
+        $request->getSession()->set('pending_2fa_user_id', $user->getId());
 
-        $cookie = Cookie::create('JWT')
-            ->withValue($token)
-            ->withExpires($expires)
-            ->withHttpOnly(true)
-            ->withPath('/')
-            ->withSameSite('Lax');
-
-        $response = new RedirectResponse($this->generateUrl('user_profile'));
-        $response->headers->setCookie($cookie);
-        return $response;
+        return $this->redirectToRoute('auth_verify_otp_form');
     }
+
+    // 7) Issue JWT as before
+    $token   = $jwtService->createToken([
+        'id'    => $user->getId(),
+        'email' => $auth->getEmail(),
+    ]);
+    $payload = $jwtService->verifyToken($token);
+    $issued  = (new \DateTime())->setTimestamp($payload['iat']);
+    $expires = (new \DateTime())->setTimestamp($payload['exp']);
+
+    $jwtSession = (new JWTSession())
+        ->setUser($user)
+        ->setIssuedAt($issued)
+        ->setExpiresAt($expires);
+    $em->persist($jwtSession);
+    $em->flush();
+
+    $cookie = Cookie::create('JWT')
+        ->withValue($token)
+        ->withExpires($expires)
+        ->withHttpOnly(true)
+        ->withPath('/')
+        ->withSameSite('Lax');
+
+    $response = new RedirectResponse($this->generateUrl('user_profile'));
+    $response->headers->setCookie($cookie);
+    return $response;
+}
 
 
     // #[Route('/login', name: 'login_form', methods: ['GET'])]
