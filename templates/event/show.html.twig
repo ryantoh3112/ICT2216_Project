@@ -15,7 +15,7 @@
             <p><strong>Venue: </strong>{{ event.venue.name }}</p>
             <p><strong>Capacity: </strong>{{ event.capacity }}</p>
 
-            <a href="#" class="btn btn-success position-absolute" style="width:20%; bottom: 0; right: 0;">
+            <a href="{{ path('event_select_ticket', { id: event.id }) }}" class="btn btn-success position-absolute" style="width:20%; bottom: 0; right: 0;">
                 Purchase Tickets
             </a>
         </div>

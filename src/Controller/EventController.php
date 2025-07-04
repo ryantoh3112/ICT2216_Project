@@ -49,4 +49,34 @@ final class EventController extends AbstractController
         ]);
     }
 
+    #Route for puchasing tickets
+    #[Route('/{id}/tickets', name: 'select_ticket', requirements:['id' => '\d+'])]
+    public function selectTickets(Request $request, int $id, EventRepository $eventRepository): Response
+    {
+        $user = $request->attributes->get('jwt_user');
+        if (!$user) {
+            $this->addFlash('error', 'Please log in first.');
+            $request->getSession()->set('_redirect_after_login', $request->getUri());
+            return $this->redirectToRoute('auth_login');
+        }
+
+        $event = $eventRepository->find($id);
+
+        if(!$event){
+            throw $this->createNotFoundException('Event not found.');
+        }
+
+        $ticketType = [];
+        foreach ($event->getTicket() as $ticket) {
+            $ticketType[] = $ticket->getTicketType();
+        }
+        $ticketType = array_unique($ticketType, SORT_REGULAR);
+
+        return $this->render('event/select_ticket.html.twig', [
+            'event' => $event,
+            'ticketType' => $ticketType,
+            'user' => $user,
+        ]);
+    }
+
 }
