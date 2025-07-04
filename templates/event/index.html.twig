@@ -1,48 +1,86 @@
 {% extends 'base.html.twig' %}
 
 {% block body %}
-<section class="food_section layout_padding-bottom">
-  <div class="container">
-    <br>
-    <div class="heading_container heading_center">
-      <h2>Our Events</h2>
-    </div>
-
-    <div class="row">
-      {% set items = [
-        {'id': 1, 'name': 'Delicious Pizza', 'price': 20, 'image': 'f1.png'},
-        {'id': 2, 'name': 'Tasty Burger', 'price': 15, 'image': 'f2.png'},
-        {'id': 3, 'name': 'Creamy Pasta', 'price': 18, 'image': 'f3.png'}
-      ] %}
-
-      {% for item in items %}
-      <div class="col-sm-6 col-lg-4">
-        <div class="box">
-          <div class="img-box">
-            <img src="{{ asset('images/' ~ item.image) }}" alt="{{ item.name }}">
-          </div>
-          <div class="detail-box">
-            <h5>{{ item.name }}</h5>
-            <p>Delicious event item. Perfect for your appetite.</p>
-            <div class="options d-flex justify-content-between align-items-center">
-              <h6>${{ item.price }}</h6>
-              <button
-                class="btn btn-warning add-to-cart"
-                data-id="{{ item.id }}"
-                data-name="{{ item.name }}"
-                data-price="{{ item.price }}"
-                data-image="{{ asset('images/' ~ item.image) }}"
-              >
-                <i class="fas fa-shopping-cart"></i>
-              </button>
+    <!-- events section -->
+    <section class="event_section layout_padding">
+        <div class="container">
+            <div class="heading_container heading_center mb-4">
+                <h2>Our Events</h2>
             </div>
-          </div>
+
+            <div class="row">
+                {% for event in events %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="box flex-fill">
+                            <div class="img-box mb-2" style="height: 250px; overflow: hidden;">
+                                <img src="{{ asset(event.image ?: 'images/events.jpg')}}" 
+                                    alt="Event Image" class="img-fluid rounded w-100 h-100 object-fit-cover">
+                            </div>
+                            <div class="detail-box">
+                                <h5 class="fw-bold">
+                                    {{ event.name }}
+                                </h5>
+                               
+                                {% if event.purchaseStartDate and event.purchaseEndDate %}
+                                    <p class="text-muted small">
+                                        {{ event.purchaseStartDate|date('d M Y (D)') }}
+                                        {% if event.purchaseStartDate != event.purchaseEndDate %}
+                                            ~ {{ event.purchaseEndDate|date('d M Y (D)') }}
+                                        {% endif %}
+                                    </p>
+                                {% endif %}
+
+                                <a href="{{ path('event_show', { id: event.id }) }}" class="btn btn-outline-primary ">View More</a>
+                        
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <p>No events found.</p>
+                {% endfor %}
+            </div>
         </div>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-</section>
+
+        <!--Pagination-->
+        {% if totalPages > 1 %}
+        <nav aria-label="Page navigation" class="d-flex justify-content-center mt-3">
+            <ul class="pagination pagination-md">
+                {# Previous button #}
+                {% if currentPage > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ path('event_list', {'page': currentPage - 1}) }}" aria-label="Previous">
+                            &lsaquo;
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&lsaquo;</span>
+                    </li>
+                {% endif %}
+                
+                {# Page numbers #}
+                {% for i in 1..totalPages %}
+                    <li class="page-item {{ i == currentPage ? 'active' : ''}}">
+                         <a class="page-link" href="{{ path('event_list', { page: i }) }}">{{ i }}</a>
+                    </li>
+                {% endfor %}
+
+                {# Next button #}
+                {% if currentPage < totalPages %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ path('event_list', {'page': currentPage + 1}) }}" aria-label="Next">
+                            &rsaquo;
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&rsaquo;</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </section>
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
