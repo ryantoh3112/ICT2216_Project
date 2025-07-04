@@ -1,0 +1,72 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ event.name }} | Event Details{% endblock %}
+
+{% block body %}
+<div class="container py-5">
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body mb-3 position-relative">
+            <h1 class="card-title display-5 fw-bold mb-3">{{ event.name }}</h1>
+            {% if event.imagepath %}
+            <img src="{{ asset(event.imagepath) }}" alt="{{ event.name }} image" class="img-fluid rounded mb-3">
+            {% endif %}
+            <p><strong>Organiser: </strong>{{ event.organiser|default('N/A') }}</p>
+            <p><strong>Ticketing Period: </strong>{{ event.purchaseStartDate|date('d M Y (D)') }} ~ {{ event.purchaseEndDate|date('d M Y (D)') }}</p>
+            <p><strong>Venue: </strong>{{ event.venue.name }}</p>
+            <p><strong>Capacity: </strong>{{ event.capacity }}</p>
+
+            <a href="#" class="btn btn-success position-absolute" style="width:20%; bottom: 0; right: 0;">
+                Purchase Tickets
+            </a>
+        </div>
+    </div>
+
+    <div class="row gy-4">
+        <div class="col-12">    
+            <div class="card border border-dark border-2 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title text-dark">Description</h4>
+                    <p class="card-text">{{ event.description|default('No description available.') }}</p>
+                </div>
+            </div>
+        </div>  
+    </div>
+
+    <div class="col-12">
+        <div class="card border border-secondary border-2 shadow-sm">
+            <div class="card-body">
+                <h4 class="card-title text-secondary">Ticket Pricing</h4>
+                <p class="card-text text-muted fst-italic">Coming soon...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card border border-dark border-2 shadow-sm">
+            <div class="card-body">
+                <h4 class="card-title text-dark">Exchange & Refund Policy</h4>
+                <p class="card-text text-muted fst-italic">Coming soon...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card border border-secondary border-2 shadow-sm">
+            <div class="card-body">
+                <h4 class="card-title text-secondary">Admission Policy</h4>
+                <p class="card-text">All patrons need a valid ticket.  Printed/electronic tickets must be produced for admission. 
+                Individuals and children aged 4 years old and above will be required to purchase a ticket for admission. Children aged 12 years old and 
+                below must always be accompanied by an adult ticketholder.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-5 d-flex justify-content-between align-items-center">
+        <a href="{{ path('event_list') }}" class="btn btn-outline-secondary mt-4">
+        ← Back to Events</a>
+
+        {# Later Add to cart button #}
+    </div>
+</div>
+
+{% endblock %}

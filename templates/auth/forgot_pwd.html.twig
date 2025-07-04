@@ -106,6 +106,15 @@
                 <input type="email" id="email_register" name="email" class="form-control" required />
                 <div class="invalid-feedback">Please enter a valid email.</div>
               </div>
+
+                {# <-- new CAPTCHA block --> #}
+    {% if show_captcha %}
+      <div class="mb-3">
+        {% include 'components/recaptcha.html.twig' with { recaptcha_site_key: recaptcha_site_key } %}
+      </div>
+    {% endif %}
+
+    
               <div>
                 <button class="btn btn-info btn-lg btn-block w-100" type="submit">Submit</button>
               </div>

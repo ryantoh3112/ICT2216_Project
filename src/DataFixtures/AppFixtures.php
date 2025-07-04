@@ -188,6 +188,178 @@ class AppFixtures extends Fixture
         $manager->persist($venue8);
         $manager->persist($venue9);
 
+        //Create Event
+        $event1 = new Event();
+        $event1->setVenue($venue9);
+        $event1->setCategory($category1);
+        $event1->setName('BLACKPINK Encore Tour');
+        $event1->setCapacity(55000);
+        $event1->setPurchaseStartDate(new \DateTime('2025-08-15'));
+        $event1->setPurchaseEndDate(new \DateTime('2025-11-07'));
+        $event1->setOrganiser('YG Entertainment');
+        $event1->setDescription
+        ("K-pop’s biggest girl group lights up the stage again with new choreography and fan-favourite songs.");
+        $event1->setImagePath('images/events/blackpink.jpg');
+        $manager->persist($event1);
+
+        $event2 = new Event();
+        $event2->setVenue($venue4);
+        $event2->setCategory($category3);
+        $event2->setName('Harry Potter: Visions of Magic');
+        $event2->setCapacity(5000);
+        $event2->setPurchaseStartDate(new \DateTime('2025-01-15'));
+        $event2->setPurchaseEndDate(new \DateTime('2025-04-09'));
+        $event2->setOrganiser('Neon and Warner Bros. Themed Entertainment');
+        $event2->setDescription
+        ("Step into the wizarding world in this immersive multimedia exhibition, featuring magical environments, iconic scenes, and spellbinding visual storytelling. 
+        Explore the mysteries of the Ministry of Magic, the Room of Requirement, and more.");
+        $event2->setImagePath('images/events/harry_potter.jpg');
+        $manager->persist($event2);
+
+        $event3 = new Event();
+        $event3->setVenue($venue9);
+        $event3->setCategory($category1);
+        $event3->setName('Coldplay: Music of the Spheres Tour');
+        $event3->setCapacity(50000);
+        $event3->setPurchaseStartDate(new \DateTime('2025-07-10'));
+        $event3->setPurchaseEndDate(new \DateTime('2025-09-01'));
+        $event3->setOrganiser('Live Nation');
+        $event3->setDescription
+        ("Coldplay brings their Music of the Spheres tour to Singapore.");
+        $event3->setImagePath('images/events/coldplay.jpg');
+        $manager->persist($event3);
+
+        $event4 = new Event();
+        $event4->setVenue($venue1);
+        $event4->setCategory($category2);
+        $event4->setName('F1 Singapore Grand Prix 2025');
+        $event4->setCapacity(70000);
+        $event4->setPurchaseStartDate(new \DateTime('2025-06-01'));
+        $event4->setPurchaseEndDate(new \DateTime('2025-09-15'));
+        $event4->setOrganiser('Singapore GP Pte Ltd');
+        $event4->setDescription
+        ("The electrifying night race returns to the heart of the city. Feel the adrenaline at the iconic 
+        night race through Marina Bay’s cityscape.");
+        $event4->setImagePath('images/events/f1singapore.jpg');
+        $manager->persist($event4);
+
+        $event5 = new Event();
+        $event5->setVenue($venue2);
+        $event5->setCategory($category1);
+        $event5->setName('JJ Lin: Sanctuary World Tour');
+        $event5->setCapacity(45000);
+        $event5->setPurchaseStartDate(new \DateTime('2025-06-20'));
+        $event5->setPurchaseEndDate(new \DateTime('2025-08-10'));
+        $event5->setOrganiser('Warner Music');
+        $event5->setDescription
+        ("Singapore’s Mandopop king returns home with his signature sound and heartfelt ballads to a stunning stage production.");
+        $event5->setImagePath('images/events/jjlin_worldtour.jpg');
+        $manager->persist($event5);
+
+        $event6 = new Event();
+        $event6->setVenue($venue3);
+        $event6->setCategory($category3);
+        $event6->setName('The Lion King Musical');
+        $event6->setCapacity(3000);
+        $event6->setPurchaseStartDate(new \DateTime('2025-06-15'));
+        $event6->setPurchaseEndDate(new \DateTime('2025-08-20'));
+        $event6->setOrganiser('Base Entertainment');
+        $event6->setDescription
+        ("Disney’s iconic Broadway show returns to MBS Theatre");
+        $event6->setImagePath('images/events/lionking_musical.jpg');
+        $manager->persist($event6);
+
+        $event7 = new Event();
+        $event7->setVenue($venue2);
+        $event7->setCategory($category2);
+        $event7->setName('ONE Championship: Singapore Fight Night');
+        $event7->setCapacity(12000);
+        $event7->setPurchaseStartDate(new \DateTime('2025-03-15'));
+        $event7->setPurchaseEndDate(new \DateTime('2025-06-14'));
+        $event7->setOrganiser('ONE Championship');
+        $event7->setDescription
+        ("Asia’s biggest MMA fighters clash in a thrilling night of knockouts, submissions, and drama.");
+        $event7->setImagePath('images/events/one_championship.jpg');
+        $manager->persist($event7);
+
+        $event8 = new Event();
+        $event8->setVenue($venue7);
+        $event8->setCategory($category1);
+        $event8->setName('Singapore Jazz Festival');
+        $event8->setCapacity(5000);
+        $event8->setPurchaseStartDate(new \DateTime('2025-07-15'));
+        $event8->setPurchaseEndDate(new \DateTime('2025-08-15'));
+        $event8->setOrganiser('Sing Jazz Pte Ltd');
+        $event8->setDescription
+        ("A weekend of smooth and soulful jazz by international and local artists at a scenic waterfront venue.");
+        $event8->setImagePath('images/events/jazz_singapore.jpg');
+        $manager->persist($event8);
+
+        $event9 = new Event();
+        $event9->setVenue($venue2);
+        $event9->setCategory($category2);
+        $event9->setName('Singapore vs Thailand Football Friendly');
+        $event9->setCapacity(6000);
+        $event9->setPurchaseStartDate(new \DateTime('2025-08-01'));
+        $event9->setPurchaseEndDate(new \DateTime('2025-10-10'));
+        $event9->setOrganiser('Football Association of Singapore');
+        $event9->setDescription
+        ("A competitive face-off between regional football giants in an electrifying match.");
+        $event9->setImagePath('images/events/football.jpg');
+        $manager->persist($event9);
+
+        $event10 = new Event();
+        $event10->setVenue($venue6);
+        $event10->setCategory($category3);
+        $event10->setName('Crazy Rich Asians: The Musical');
+        $event10->setCapacity(1600);
+        $event10->setPurchaseStartDate(new \DateTime('2025-05-15'));
+        $event10->setPurchaseEndDate(new \DateTime('2025-08-13'));
+        $event10->setOrganiser('Marina Bay Sands Theatre Co.');
+        $event10->setDescription
+        ("A glitzy stage adaptation of the beloved novel with laughs, drama and glamour set in Singapore.");
+        $event10->setImagePath('images/events/crazy_rich_asians.jpg');
+        $manager->persist($event10);
+
+        $event11 = new Event();
+        $event11->setVenue($venue1);
+        $event11->setCategory($category2);
+        $event11->setName('Standard Chartered Singapore Marathon');
+        $event11->setCapacity(25000);
+        $event11->setPurchaseStartDate(new \DateTime('2025-07-01'));
+        $event11->setPurchaseEndDate(new \DateTime('2025-09-05'));
+        $event11->setOrganiser('Ironman Asia');
+        $event11->setDescription
+        ("Join thousands of runners in Singapore’s premier marathon event. Categories include full, half, and 10km");
+        $event11->setImagePath('images/events/stand_chart_run.jpg');
+        $manager->persist($event11);
+
+        $event12 = new Event();
+        $event12->setVenue($venue9);
+        $event12->setCategory($category1);
+        $event12->setName('Taylor Swift The Eras Tour');
+        $event12->setCapacity(50000);
+        $event12->setPurchaseStartDate(new \DateTime('2025-07-05'));
+        $event12->setPurchaseEndDate(new \DateTime('2025-08-05'));
+        $event12->setOrganiser('AEG Presents');
+        $event12->setDescription
+        ("Global pop icon Taylor Swift takes you on a journey through her musical eras in this dazzling multi-night show.");
+        $event12->setImagePath('images/events/taylor_swift.jpg');
+        $manager->persist($event12);
+
+        $event13 = new Event();
+        $event13->setVenue($venue8);
+        $event13->setCategory($category3);
+        $event13->setName('The Phantom of the Opera');
+        $event13->setCapacity(3000);
+        $event13->setPurchaseStartDate(new \DateTime('2025-01-01'));
+        $event13->setPurchaseEndDate(new \DateTime('2025-03-10'));
+        $event13->setOrganiser('Base Entertainment Asia');
+        $event13->setDescription
+        ("The haunting love story unfolds with breathtaking music and iconic stage design. A global Broadway favourite.");
+        $event13->setImagePath('images/events/phantom_of_the_opera.jpg');
+        $manager->persist($event13);
+
         // // Create Event
         // $event = new Event();
         // $event->setName('Jazz Night');
