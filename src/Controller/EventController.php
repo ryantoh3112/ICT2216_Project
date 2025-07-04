@@ -27,7 +27,7 @@ final class EventController extends AbstractController
         //calculate total pages
         $totalPages = ceil($totalEvents/$limit);
 
-        return $this->render('event/events.html.twig', [
+        return $this->render('event/index.html.twig', [
             'events' => $events,
             'currentPage' => $page,
             'totalPages' => $totalPages
