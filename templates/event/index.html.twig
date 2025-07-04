@@ -12,8 +12,9 @@
                 {% for event in events %}
                     <div class="col-md-6 col-lg-4 mb-4">
                         <div class="box flex-fill">
-                            <div class="img-box mb-2">
-                                <img src="{{ asset(event.image ?: 'images/events.jpg')}}" alt="Event Image" class="img-fluid rounded" >
+                            <div class="img-box mb-2" style="height: 250px; overflow: hidden;">
+                                <img src="{{ asset(event.image ?: 'images/events.jpg')}}" 
+                                    alt="Event Image" class="img-fluid rounded w-100 h-100 object-fit-cover">
                             </div>
                             <div class="detail-box">
                                 <h5 class="fw-bold">
