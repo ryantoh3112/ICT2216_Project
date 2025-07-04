@@ -1,0 +1,56 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<div class="container mt-5 mb-5" style="min-height: 70vh;">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="shadow-sm p-4" style="background-color: #f9f9f9; border-radius: 10px;">
+
+                <h2 class="text-center mb-3">❌ Payment Canceled</h2>
+                <hr>
+
+                {% if cartItems|length > 0 %}
+                    {# Show the cart summary just like on checkout #}
+                    {% set subtotal = 0 %}
+                    {% set booking_fee = 3 %}
+                    {% for item in cartItems %}
+                        {% set line_total = item.price * item.quantity %}
+                        {% set subtotal = subtotal + line_total %}
+
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>{{ item.getName() }} (x{{ item.getQuantity() }})</span>
+                            <span>${{ line_total|number_format(2, '.', ',') }}</span>
+                        </div>
+                    {% endfor %}
+
+                    {% set total_fee = booking_fee * cartItems|length %}
+                    {% set total = subtotal + total_fee %}
+
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <span><strong>Subtotal:</strong></span>
+                        <span>${{ subtotal|number_format(2, '.', ',') }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span><strong>Booking Fee:</strong></span>
+                        <span>${{ total_fee|number_format(2, '.', ',') }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span><strong>Total:</strong></span>
+                        <span><strong>${{ total|number_format(2, '.', ',') }}</strong></span>
+                    </div>
+                {% else %}
+                    <p class="text-center text-muted">Your cart is empty.</p>
+                {% endif %}
+
+                <div class="text-center mt-4">
+                    <a href="{{ path('event_list') }}" class="btn btn-outline-secondary">
+                        ← Back to Events
+                    </a>
+                <a href="{{ path('checkout_page') }}" class="btn btn-warning mx-2">Try Again</a>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,4 +1,4 @@
 framework:
     mailer:
-        dsn: '%env(MAILER_DSN)%'
-        message_bus: false
+        dsn: '%env(MAILER_DSN)%' # Reads DSN for your mail transport from environment variable
+        message_bus: false 

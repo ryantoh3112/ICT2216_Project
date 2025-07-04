@@ -8,10 +8,8 @@
             {# Sidebar - Left column (fixed width) #}
             <nav class="col-2 bg-dark text-white min-vh-100 p-3">
                 <ul class="nav flex-column mt-4">
-                    <li class="nav-item"><a href="{{ path('admin_dashboard') }}" class="nav-link text-white">Dashboard</a></li>
                     <li class="nav-item"><a href="{{ path('admin_manage_events') }}" class="nav-link text-white">Manage Events</a></li>
                     <li class="nav-item"><a href="{{ path('admin_manage_users') }}" class="nav-link text-white">Manage Users</a></li>
-                    <li class="nav-item"><a href="#" class="nav-link text-white">Reports</a></li>
                 </ul>
             </nav>
     
@@ -57,8 +55,8 @@
                                 <td>{{ user.createdAt ? user.createdAt|date('Y-m-d H:i') : '-' }}</td>
                                 <td>{{ user.lastLoginAt ? user.lastLoginAt|date('Y-m-d H:i') : '-' }}</td>
                                 <td>{{ user.updatedAt ? user.updatedAt|date('Y-m-d H:i') : '-' }}</td>
-                                <td>{{ user.failedLoginCount }}</td>
-                                <td>{{ user.accountStatus }}</td>
+                                <td>{{ user.failedLoginCount is not null ? user.failedLoginCount : '-' }}</td>
+                                <td>{{ user.accountStatus is not null ? user.accountStatus : '-'  }}</td>
                                 <td>{{ user.lockedAt ? user.lockedAt|date('Y-m-d H:i') : '-' }}</td>
                                 <td>
                                     <a href="#" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editUserModal{{ user.id }}">Edit</a>

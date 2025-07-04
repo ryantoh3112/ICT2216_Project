@@ -1,0 +1,8 @@
+# config/packages/rate_limiter.yaml
+framework:
+    rate_limiter:
+        chat_api:
+            policy:   'token_bucket'
+            limit:    5       # max 5 tokens in bucket
+            rate:     { interval: '10 seconds', amount: 5 }
+            # ↳ refills 5 tokens every 1 minute
