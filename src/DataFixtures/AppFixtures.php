@@ -199,7 +199,7 @@ class AppFixtures extends Fixture
         $event1->setOrganiser('YG Entertainment');
         $event1->setDescription
         ("K-pop’s biggest girl group lights up the stage again with new choreography and fan-favourite songs.");
-        $event1->setImage('images/events/blackpink.jpg');
+        $event1->setImagePath('images/events/blackpink.jpg');
         $manager->persist($event1);
 
         $event2 = new Event();
@@ -213,7 +213,7 @@ class AppFixtures extends Fixture
         $event2->setDescription
         ("Step into the wizarding world in this immersive multimedia exhibition, featuring magical environments, iconic scenes, and spellbinding visual storytelling. 
         Explore the mysteries of the Ministry of Magic, the Room of Requirement, and more.");
-        $event2->setImage('images/events/harry_potter.jpg');
+        $event2->setImagePath('images/events/harry_potter.jpg');
         $manager->persist($event2);
 
         $event3 = new Event();
@@ -226,7 +226,7 @@ class AppFixtures extends Fixture
         $event3->setOrganiser('Live Nation');
         $event3->setDescription
         ("Coldplay brings their Music of the Spheres tour to Singapore.");
-        $event3->setImage('images/events/coldplay.jpg');
+        $event3->setImagePath('images/events/coldplay.jpg');
         $manager->persist($event3);
 
         $event4 = new Event();
@@ -240,7 +240,7 @@ class AppFixtures extends Fixture
         $event4->setDescription
         ("The electrifying night race returns to the heart of the city. Feel the adrenaline at the iconic 
         night race through Marina Bay’s cityscape.");
-        $event4->setImage('images/events/f1singapore.jpg');
+        $event4->setImagePath('images/events/f1singapore.jpg');
         $manager->persist($event4);
 
         $event5 = new Event();
@@ -253,7 +253,7 @@ class AppFixtures extends Fixture
         $event5->setOrganiser('Warner Music');
         $event5->setDescription
         ("Singapore’s Mandopop king returns home with his signature sound and heartfelt ballads to a stunning stage production.");
-        $event5->setImage('images/events/jjlin_worldtour.jpg');
+        $event5->setImagePath('images/events/jjlin_worldtour.jpg');
         $manager->persist($event5);
 
         $event6 = new Event();
@@ -266,7 +266,7 @@ class AppFixtures extends Fixture
         $event6->setOrganiser('Base Entertainment');
         $event6->setDescription
         ("Disney’s iconic Broadway show returns to MBS Theatre");
-        $event6->setImage('images/events/lionking_musical.jpg');
+        $event6->setImagePath('images/events/lionking_musical.jpg');
         $manager->persist($event6);
 
         $event7 = new Event();
@@ -279,7 +279,7 @@ class AppFixtures extends Fixture
         $event7->setOrganiser('ONE Championship');
         $event7->setDescription
         ("Asia’s biggest MMA fighters clash in a thrilling night of knockouts, submissions, and drama.");
-        $event7->setImage('images/events/one_championship.jpg');
+        $event7->setImagePath('images/events/one_championship.jpg');
         $manager->persist($event7);
 
         $event8 = new Event();
@@ -292,7 +292,7 @@ class AppFixtures extends Fixture
         $event8->setOrganiser('Sing Jazz Pte Ltd');
         $event8->setDescription
         ("A weekend of smooth and soulful jazz by international and local artists at a scenic waterfront venue.");
-        $event8->setImage('images/events/jazz_singapore.jpg');
+        $event8->setImagePath('images/events/jazz_singapore.jpg');
         $manager->persist($event8);
 
         $event9 = new Event();
@@ -305,7 +305,7 @@ class AppFixtures extends Fixture
         $event9->setOrganiser('Football Association of Singapore');
         $event9->setDescription
         ("A competitive face-off between regional football giants in an electrifying match.");
-        $event9->setImage('images/events/football.jpg');
+        $event9->setImagePath('images/events/football.jpg');
         $manager->persist($event9);
 
         $event10 = new Event();
@@ -318,7 +318,7 @@ class AppFixtures extends Fixture
         $event10->setOrganiser('Marina Bay Sands Theatre Co.');
         $event10->setDescription
         ("A glitzy stage adaptation of the beloved novel with laughs, drama and glamour set in Singapore.");
-        $event10->setImage('images/events/crazy_rich_asians.jpg');
+        $event10->setImagePath('images/events/crazy_rich_asians.jpg');
         $manager->persist($event10);
 
         $event11 = new Event();
@@ -331,7 +331,7 @@ class AppFixtures extends Fixture
         $event11->setOrganiser('Ironman Asia');
         $event11->setDescription
         ("Join thousands of runners in Singapore’s premier marathon event. Categories include full, half, and 10km");
-        $event11->setImage('images/events/stand_chart_run.jpg');
+        $event11->setImagePath('images/events/stand_chart_run.jpg');
         $manager->persist($event11);
 
         $event12 = new Event();
@@ -344,7 +344,7 @@ class AppFixtures extends Fixture
         $event12->setOrganiser('AEG Presents');
         $event12->setDescription
         ("Global pop icon Taylor Swift takes you on a journey through her musical eras in this dazzling multi-night show.");
-        $event12->setImage('images/events/taylor_swift.jpg');
+        $event12->setImagePath('images/events/taylor_swift.jpg');
         $manager->persist($event12);
 
         $event13 = new Event();
@@ -357,7 +357,7 @@ class AppFixtures extends Fixture
         $event13->setOrganiser('Base Entertainment Asia');
         $event13->setDescription
         ("The haunting love story unfolds with breathtaking music and iconic stage design. A global Broadway favourite.");
-        $event13->setImage('images/events/phantom_of_the_opera.jpg');
+        $event13->setImagePath('images/events/phantom_of_the_opera.jpg');
         $manager->persist($event13);
 
         // // Create Event

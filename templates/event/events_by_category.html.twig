@@ -1,20 +1,55 @@
 {% extends 'base.html.twig' %}
 
 {% block body %}
+<style>
+    .banner-img {
+        height: 350px;
+        object-fit: cover;
+        filter: brightness(60%);
+    }
+
+    .banner-overlay {
+        z-index: 2;
+        color: white;
+    }
+
+    @media (max-width: 768px) {
+        .banner-img {
+            height: 250px;
+        }
+
+        .banner-overlay h1 {
+            font-size: 1.75rem;
+        }
+
+        .banner-overlay p {
+            font-size: 1rem;
+        }
+    }
+</style>
+
     <!-- events section -->
     <section class="event_section layout_padding">
         <div class="container">
-            <div class="heading_container heading_center mb-4">
-                <h2>Our Events</h2>
+            <div class="category-banner position-relative text-white mb-5">
+                <img src="{{ asset(category.image) }}" 
+                    alt="{{ category.name }}" 
+                    class="img-fluid w-100 banner-img">
+
+                <div class="banner-overlay position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center text-center px-3">
+                    <h1 class="display-4 fw-bold">{{ category.name }}</h1>
+                    <p class="lead">{{ category.description }}</p>
+                </div>
             </div>
 
             <div class="row">
                 {% for event in events %}
                     <div class="col-md-6 col-lg-4 mb-4">
                         <div class="box flex-fill">
-                            <div class="img-box mb-2" style="height: 250px; overflow: hidden;">
-                                <img src="{{ asset(event.imagepath ?: 'images/events.jpg')}}" 
-                                    alt="Event Image" class="img-fluid rounded w-100 h-100 object-fit-cover">
+                            <div class="img-box mb-2 ratio ratio-4x3 overflow-hidden rounded">
+                                <img src="{{ asset(event.imagepath ?: 'images/events.jpg') }}"
+                                    alt="Event Image"
+                                    class="img-fluid w-100 h-100 object-fit-cover">
                             </div>
                             <div class="detail-box">
                                 <h5 class="fw-bold">
@@ -36,7 +71,10 @@
                         </div>
                     </div>
                 {% else %}
-                    <p>No events found.</p>
+                    <div class="col-12 text-center">
+                        <p class="lead mt-4">There are currently no events available in the "{{ category.name }}" category.</p>
+                        <a href="{{ path('event_list') }}" class="btn btn-outline-secondary mt-2">Browse All Events</a>
+                    </div>
                 {% endfor %}
             </div>
         </div>
