@@ -131,6 +131,19 @@
                 <input type="password" class="form-control" id="validationConfirmPassword" name="confirm_password" placeholder="Confirm Password" required>
                 <div class="invalid-feedback">Passwords do not match.</div>
               </div>
+
+                {% if show_captcha %}
+    <div class="form-group mb-3">
+      <div class="g-recaptcha" data-sitekey="{{ recaptcha_site_key }}"></div>
+      <div class="invalid-feedback">
+        Please complete the CAPTCHA.
+      </div>
+    </div>
+    {# Load the recaptcha script once per page #}
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  {% endif %}
+
+  
               <div>
                 <button class="btn btn-info btn-lg btn-block w-100" type="submit">Register</button>
               </div>

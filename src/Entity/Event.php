@@ -44,8 +44,8 @@ class Event
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $organiser = null;
 
-    #[ORM\Column(type: 'string', length: 255, nullable: true)]
-    private ?string $image = null;
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $imagepath = null;
 
     #[ORM\ManyToOne(inversedBy: 'event')]
     #[ORM\JoinColumn(nullable: true)]
@@ -175,15 +175,25 @@ class Event
         return $this;
     }
 
-    public function getImage(): ?string
+    // public function getImage(): ?string
+    // {
+    //     return $this->image;
+    // }
+
+    // public function setImage(?string $image): static
+    // {
+    //     $this->image = $image;
+
+    //     return $this;
+    // }
+    public function getImagePath(): ?string
     {
-        return $this->image;
+        return $this->imagepath;
     }
 
-    public function setImage(?string $image): self
+    public function setImagePath(?string $imagepath): self
     {
-        $this->image = $image;
-
+        $this->imagepath = $imagepath;
         return $this;
     }
 
