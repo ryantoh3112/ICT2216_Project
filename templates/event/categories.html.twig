@@ -6,7 +6,8 @@
         <div class="row">
             {% for category in categories %}
                 <div class="col-md-6 col-lg-4 mb-4">
-                    {# <a href="{{ path('event_category', {'category': category.name|lower|replace({' ': '-', ',': '', '&': 'and'})}) }}" class="category-link text-decoration-none"> #}
+                    {# <a href="{{ path('category_events_by_name', {'name': category.name|lower|replace({' ': '-', ',': '', '&': 'and'})}) }}" class="category-link text-decoration-none"> #}
+                    <a href="{{ path('category_events_by_name', { name: category.name }) }}">
                         <div class="category-card position-relative overflow-hidden shadow-sm rounded-4">
                             <img src="{{ asset(category.image) }}" class="img-fluid category-img w-100" alt="{{ category.name }}">
                             
@@ -18,7 +19,7 @@
                                 <p class="category-description mb-0">{{ category.description }}</p>
                             </div>
                         </div>
-                    {# </a> #}
+                    </a>
                 </div>
             {% endfor %}
         </div>
