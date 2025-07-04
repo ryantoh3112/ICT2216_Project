@@ -81,4 +81,37 @@
         {% endif %}
     </section>
 
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const buttons = document.querySelectorAll('.add-to-cart');
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const data = {
+          name: btn.dataset.name,
+          price: parseFloat(btn.dataset.price),
+          image: btn.dataset.image
+        };
+
+        fetch('/sync-cart', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (res.success) {
+            alert(`${data.name} added to cart!`);
+          } else {
+            alert('Error: ' + (res.error || 'Could not add item.'));
+          }
+        })
+        .catch(() => alert('Something went wrong while syncing cart.'));
+      });
+    });
+  });
+</script>
 {% endblock %}

@@ -1,4 +1,6 @@
 <?php
+# Twig integration to inject JWT user into Twig globals
+
 namespace App\EventSubscriber;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -15,6 +17,7 @@ class JwtUserSubscriber implements EventSubscriberInterface
         $this->twig = $twig;
     }
 
+    # Checks for the 'jwt_user' attribute in the request and injects jwt_user into Twig globals
     public function onKernelController(ControllerEvent $event): void
     {
         $request = $event->getRequest();
@@ -23,6 +26,7 @@ class JwtUserSubscriber implements EventSubscriberInterface
         }
     }
 
+    # Listens for the CONTROLLER event
     public static function getSubscribedEvents(): array
     {
         return [

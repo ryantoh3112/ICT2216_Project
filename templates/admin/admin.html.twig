@@ -1,0 +1,22 @@
+{# templates/admin/admin.html.twig #}
+
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <div class="container-fluid">
+        <div class="row">
+            {# Sidebar - Left column (fixed width) #}
+            <nav class="col-2 bg-dark text-white min-vh-100 p-3">
+                <ul class="nav flex-column mt-4">
+                    <li class="nav-item"><a href="{{ path('admin_manage_events') }}" class="nav-link text-white">Manage Events</a></li>
+                    <li class="nav-item"><a href="{{ path('admin_manage_users') }}" class="nav-link text-white">Manage Users</a></li>
+                </ul>
+            </nav>
+    
+            <main class="col-10 p-4">
+                <h1>Welcome Admin</h1>
+                <p>This is your main content.</p>
+            </main>    
+        </div>   
+    </div> 
+{% endblock %}

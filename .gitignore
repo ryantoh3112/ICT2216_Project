@@ -33,3 +33,14 @@ docker/nginx/conf.d/default.conf
 gotix_appdb.sql
 
 letsencrypt/
+
+## db setup (for migration to instance vm)
+gotix_appdb.sql
+
+letsencrypt/
+/public/build/
+node_modules
+
+captcha_log.json
+debug_result.json
+debug_token.txt

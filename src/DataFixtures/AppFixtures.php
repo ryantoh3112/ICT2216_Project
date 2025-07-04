@@ -11,7 +11,7 @@ use App\Entity\Payment;
 use App\Entity\Ticket;
 use App\Entity\TicketType;
 use App\Entity\History;
-use App\Entity\JWTBlacklist;
+use App\Entity\JWTSession;
 
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
