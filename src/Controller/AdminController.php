@@ -159,9 +159,7 @@ final class AdminController extends AbstractController
         $event->setVenue($venue);
         $event->setCategory($category);
 
-
-        // $event->setImagePath($request->request->get('imagepath'));
-         //get img file from imagefile input
+        // Handle image file upload
         $imagefile = $request->files->get('imagefile');
         if ($imagefile && $imagefile->isValid()) {
             $allowedImgTypes = ['image/jpg', 'image/jpeg', 'image/png'];
@@ -204,8 +202,9 @@ final class AdminController extends AbstractController
         }
 
         $ticketTypes = $ticketTypeRepo->findAll();
+        $seatCounter = $maxSeatNum + 1; 
 
-        // Now for each new ticket, generate sequential seat numbers
+        // Handle adding more tickets to existing ticket types
         foreach ($ticketTypes as $ticketType) {
             $inputName = 'ticket_type_' . $ticketType->getId();
             $quantityToAdd = (int) $request->request->get($inputName);
@@ -216,17 +215,51 @@ final class AdminController extends AbstractController
                     $ticket->setEvent($event);
                     $ticket->setTicketType($ticketType);
                     
-                    $maxSeatNum++;
-                    $seatNumber = 'S' . str_pad($maxSeatNum, 3, '0', STR_PAD_LEFT);
+                    $seatNumber = 'S' . str_pad($seatCounter, 3, '0', STR_PAD_LEFT);
                     $ticket->setSeatNumber($seatNumber);
+                    $seatCounter++;
 
-                    $ticket->setPayment(null); // Optional: leave null if not needed
+                    $ticket->setPayment(null);
                     $em->persist($ticket);
                 }
             }
         }
 
-        
+        // Handle NEW ticket types being added
+        $newTicketTypes = $request->request->all('new_ticket_types');
+        if ($newTicketTypes) {
+            foreach ($newTicketTypes as $typeData) {
+                $name = trim($typeData['name']);
+                $description = trim($typeData['description']);
+                $price = (float) $typeData['price'];
+                $quantity = (int) $typeData['quantity'];
+
+                // Skip if any required field is empty or invalid
+                if (empty($name) || $price <= 0 || $quantity <= 0) {
+                    continue;
+                }
+
+                // Create and save the new TicketType
+                $ticketType = new TicketType();
+                $ticketType->setName($name);
+                $ticketType->setDescription($description);
+                $ticketType->setPrice($price);
+                $em->persist($ticketType);
+                $em->flush(); // flush to get ID
+
+                // Add the specified number of tickets for this new type
+                for ($i = 0; $i < $quantity; $i++) {
+                    $ticket = new Ticket();
+                    $ticket->setEvent($event);
+                    $ticket->setTicketType($ticketType);
+                    $ticket->setSeatNumber("S" . str_pad($seatCounter, 3, '0', STR_PAD_LEFT));
+                    $seatCounter++;
+                    $ticket->setPayment(null);
+                    $em->persist($ticket);
+                }
+            }
+        }
+
         $em->flush();
 
         $this->addFlash('success', 'Event updated successfully.');
