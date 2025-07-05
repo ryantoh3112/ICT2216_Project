@@ -4,39 +4,100 @@
 
 {% block body %}
 <div class="container py-5">
+    {# Determine first ticket type (if any) #}
+    {% set firstTicket = event.ticket|first %}
+    {% set firstTT = firstTicket ? firstTicket.ticketType : null %}
+
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body mb-3 position-relative">
             <h1 class="card-title display-5 fw-bold mb-3">{{ event.name }}</h1>
             {% if event.imagepath %}
-            <img src="{{ asset(event.imagepath) }}" alt="{{ event.name }} image" class="img-fluid rounded mb-3">
+                <img src="{{ asset(event.imagepath) }}" alt="{{ event.name }} image" class="img-fluid rounded mb-3">
             {% endif %}
             <p><strong>Organiser: </strong>{{ event.organiser|default('N/A') }}</p>
             <p><strong>Ticketing Period: </strong>{{ event.purchaseStartDate|date('d M Y (D)') }} ~ {{ event.purchaseEndDate|date('d M Y (D)') }}</p>
             <p><strong>Venue: </strong>{{ event.venue.name }}</p>
             <p><strong>Capacity: </strong>{{ event.capacity }}</p>
 
-            <a href="#" class="btn btn-success position-absolute" style="width:20%; bottom: 0; right: 0;">
+            {# Always show Purchase Tickets button; disabled styling and tooltip if no ticket #}
+            <button
+                id="purchase-btn"
+                type="button"
+                class="btn btn-success position-absolute {{ firstTT is not defined or not firstTT ? 'disabled opacity-50' }}"
+                style="width:20%; bottom: 0; right: 0;"
+                {% if firstTT %}
+                    data-name="{{ event.name ~ ' – ' ~ firstTT.name }}"
+                    data-price="{{ firstTT.price }}"
+                    data-image="{{ asset(event.imagepath ?: 'images/events.jpg') }}"
+                {% endif %}
+                {% if not firstTT %} disabled {% endif %}
+            >
                 Purchase Tickets
-            </a>
+            </button>
+            {# Show reason when disabled #}
+            {% if not firstTT %}
+                <div class="mt-2 text-danger small">No tickets available for purchase</div>
+            {% endif %}
         </div>
     </div>
 
     <div class="row gy-4">
-        <div class="col-12">    
+        <div class="col-12">
             <div class="card border border-dark border-2 shadow-sm">
                 <div class="card-body">
                     <h4 class="card-title text-dark">Description</h4>
                     <p class="card-text">{{ event.description|default('No description available.') }}</p>
                 </div>
             </div>
-        </div>  
+        </div>
     </div>
 
-    <div class="col-12">
+    <div id="ticket-pricing-section" class="col-12">
         <div class="card border border-secondary border-2 shadow-sm">
             <div class="card-body">
                 <h4 class="card-title text-secondary">Ticket Pricing</h4>
-                <p class="card-text text-muted fst-italic">Coming soon...</p>
+                <div class="row">
+                    {% for ticket in event.ticket %}
+                        {% set tt = ticket.ticketType %}
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">{{ tt.name }}</h5>
+                                    {% if tt.description %}
+                                        <p class="card-text">{{ tt.description }}</p>
+                                    {% endif %}
+                                    <p class="card-text">
+                                        Price: ${{ tt.price|number_format(2, '.', ',') }}
+                                    </p>
+
+                                    <div class="mb-3">
+                                        <label for="qty-{{ ticket.id }}">Quantity</label>
+                                        <input
+                                          type="number"
+                                          id="qty-{{ ticket.id }}"
+                                          class="form-control"
+                                          value="1"
+                                          min="1"
+                                          max="{{ event.capacity }}"
+                                        />
+                                    </div>
+
+                                    <button
+                                      class="btn btn-primary mt-auto add-to-cart"
+                                      data-name="{{ event.name ~ ' – ' ~ tt.name }}"
+                                      data-price="{{ tt.price }}"
+                                      data-image="{{ asset(event.imagepath ?: 'images/events.jpg') }}"
+                                      data-quantity-input="qty-{{ ticket.id }}"
+                                    >
+                                        Add to Cart
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p>No tickets available for this event.</p>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>
@@ -54,8 +115,8 @@
         <div class="card border border-secondary border-2 shadow-sm">
             <div class="card-body">
                 <h4 class="card-title text-secondary">Admission Policy</h4>
-                <p class="card-text">All patrons need a valid ticket.  Printed/electronic tickets must be produced for admission. 
-                Individuals and children aged 4 years old and above will be required to purchase a ticket for admission. Children aged 12 years old and 
+                <p class="card-text">All patrons need a valid ticket. Printed/electronic tickets must be produced for admission.
+                Individuals and children aged 4 years old and above will be required to purchase a ticket for admission. Children aged 12 years old and
                 below must always be accompanied by an adult ticketholder.</p>
             </div>
         </div>
@@ -63,10 +124,59 @@
 
     <div class="mt-5 d-flex justify-content-between align-items-center">
         <a href="{{ path('event_list') }}" class="btn btn-outline-secondary mt-4">
-        ← Back to Events</a>
-
-        {# Later Add to cart button #}
+            ← Back to Events
+        </a>
     </div>
 </div>
 
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const purchaseBtn = document.getElementById('purchase-btn');
+    if (purchaseBtn && !purchaseBtn.disabled) {
+      purchaseBtn.addEventListener('click', () => {
+        const name     = purchaseBtn.dataset.name;
+        const price    = parseFloat(purchaseBtn.dataset.price);
+        const image    = purchaseBtn.dataset.image;
+        fetch('/sync-cart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          body: JSON.stringify({ name, price, image, quantity: 1 })
+        })
+        .then(res => res.json())
+        .then(json => {
+          if (json.success) {
+            alert(`1 × ${name} added to cart!`);
+          } else {
+            alert('Error: ' + (json.error || 'Could not add to cart.'));
+          }
+        })
+        .catch(() => alert('Network error while adding to cart'));
+      });
+    }
+
+    document.querySelectorAll('.add-to-cart').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const name     = btn.dataset.name;
+        const price    = parseFloat(btn.dataset.price);
+        const image    = btn.dataset.image;
+        const qtyInput = document.getElementById(btn.dataset.quantityInput);
+        const quantity = parseInt(qtyInput.value, 10) || 1;
+        fetch('/sync-cart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          body: JSON.stringify({ name, price, image, quantity })
+        })
+        .then(res => res.json())
+        .then(json => {
+          if (json.success) {
+            alert(`${quantity} × ${name} added to cart!`);
+          } else {
+            alert('Error: ' + (json.error || 'Could not add to cart.'));
+          }
+        })
+        .catch(() => alert('Network error while adding to cart'));
+      });
+    });
+  });
+</script>
 {% endblock %}

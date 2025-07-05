@@ -36,6 +36,9 @@ class CartController extends AbstractController
         $item->setQuantity($data['quantity'] ?? 1);
         $item->setUser($user); // ✅ Set user from JWT
 
+        // <-- new line to store ticketTypeId -->
+        $item->setTicketTypeId($data['tickettypeId'] ?? null);     
+         
         $em->persist($item);
         $em->flush();
 
