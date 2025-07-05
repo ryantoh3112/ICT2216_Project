@@ -19,19 +19,7 @@
             <p><strong>Venue: </strong>{{ event.venue.name }}</p>
             <p><strong>Capacity: </strong>{{ event.capacity }}</p>
 
-            {# Always show Purchase Tickets button; disabled styling and tooltip if no ticket #}
-            <button
-                id="purchase-btn"
-                type="button"
-                class="btn btn-success position-absolute {{ firstTT is not defined or not firstTT ? 'disabled opacity-50' }}"
-                style="width:20%; bottom: 0; right: 0;"
-                {% if firstTT %}
-                    data-name="{{ event.name ~ ' – ' ~ firstTT.name }}"
-                    data-price="{{ firstTT.price }}"
-                    data-image="{{ asset(event.imagepath ?: 'images/events.jpg') }}"
-                {% endif %}
-                {% if not firstTT %} disabled {% endif %}
-            >
+            <a href="{{ path('event_select_ticket', { id: event.id }) }}" class="btn btn-success position-absolute" style="width:20%; bottom: 0; right: 0;">
                 Purchase Tickets
             </button>
             {# Show reason when disabled #}
