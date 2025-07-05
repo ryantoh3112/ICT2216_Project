@@ -14,6 +14,8 @@ use App\Repository\AuthRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use App\Service\EmailService;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 #[Route('/user', name: 'user_')]
 final class UserController extends AbstractController
@@ -151,5 +153,59 @@ final class UserController extends AbstractController
 
         $this->addFlash('success', 'A verification code has been sent to your email.');
         return $this->redirectToRoute('auth_verify_otp_form');
+    }
+
+    #[Route('/profile/change-password', name: 'change_password', methods: ['POST'])]
+    public function changePassword(
+        Request $request,
+        UserPasswordHasherInterface $passwordHasher,
+        EntityManagerInterface $entityManager
+    ): RedirectResponse {
+        $user = $request->attributes->get('jwt_user');
+        if (!$user) {
+            $this->addFlash('error', 'Please log in first.');
+            return $this->redirectToRoute('auth_login');
+        }
+
+        $currentPassword = $request->request->get('current_password');
+        $newPassword = $request->request->get('new_password');
+        $confirmPassword = $request->request->get('confirm_password');
+
+        if (!$passwordHasher->isPasswordValid($user->getAuth(), $currentPassword)) {
+            $this->addFlash('password_error', 'Current password is incorrect.');
+            return $this->redirectToRoute('user_profile');
+        }
+
+        if ($newPassword !== $confirmPassword) {
+            $this->addFlash('password_error', 'New passwords do not match.');
+            return $this->redirectToRoute('user_profile');
+        }
+
+        if (strlen($newPassword) < 8) {
+            $this->addFlash('password_error', 'Password must be at least 8 characters.');
+            return $this->redirectToRoute('user_profile');
+        }
+
+        if ($passwordHasher->isPasswordValid($user->getAuth(), $newPassword)) {
+            $this->addFlash('password_error', 'New password must be different from your current password.');
+            return $this->redirectToRoute('user_profile');
+        }
+
+        if (
+            !preg_match('/[A-Z]/', $newPassword) || // Uppercase
+            !preg_match('/[a-z]/', $newPassword) || // Lowercase
+            !preg_match('/\d/', $newPassword) ||    // Digit
+            !preg_match('/[^A-Za-z0-9]/', $newPassword) // Special char
+        ) {
+            $this->addFlash('password_error', 'Password must contain uppercase, lowercase, number, and special character.');
+            return $this->redirectToRoute('user_profile');
+        }
+
+        $hashedPassword = $passwordHasher->hashPassword($user->getAuth(), $newPassword);
+        $user->getAuth()->setPassword($hashedPassword);
+        $entityManager->flush();
+
+        $this->addFlash('success', 'Password changed successfully.');
+        return $this->redirectToRoute('user_profile', ['tab' => 'change-password']);
     }
 }

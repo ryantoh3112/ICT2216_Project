@@ -214,36 +214,136 @@
                     </div>
                 </div>
 
-                {# Change Password #}
-                <div class="tab-pane fade" id="change_password" role="tabpanel">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <h4>Change Password</h4>
-                            {# your existing change-password form goes here #}
-                    </div>
-                </div>
-
                 <!-- Change Password Tab -->
                 <div class="tab-pane fade" id="change-password">
                     <div class="card profile-card shadow-sm p-4">
                         <h4 class="mb-3">Change Password</h4>
-                        <p class="text-muted">Coming soon or handled via separate flow.</p>
+
+                        {% for label, messages in app.flashes('password_error') %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ label == 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endfor %}
+
+                        <form method="POST" action="{{ path('user_change_password') }}">
+                            <div class="mb-3">
+                                <label for="currentPassword" class="form-label">Current Password</label>
+                                <input type="password" name="current_password" id="currentPassword" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="newPassword" class="form-label">New Password</label>
+                                <input type="password" name="new_password" id="newPassword" class="form-control" required>
+                                <div id="passwordStrength" class="mt-1 small text-muted">Enter a password</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                                <input type="password" name="confirm_password" id="confirmPassword" class="form-control" required>
+                            </div>
+                            <div id="samePasswordMsg" class="text-danger small d-none mt-1">
+                                New password must be different from the current password.
+                            </div>
+                            <div class="text-end">
+                                <button type="submit" class="btn btn-primary" id="submitChangePasswordBtn" disabled>Change Password</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
 </div>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    // Initialize tooltip
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize tooltip for 2FA description
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // document elements for entire profile
+        const passwordInput = document.getElementById('newPassword');
+        const confirmInput = document.getElementById('confirmPassword');
+        const submitBtn = document.getElementById('submitChangePasswordBtn');
+        const strengthText = document.getElementById('passwordStrength');
+
+        function validatePasswordStrength(pwd) {
+        return pwd.length >= 8 &&
+               /[A-Z]/.test(pwd) &&
+               /[a-z]/.test(pwd) &&
+               /\d/.test(pwd) &&
+               /[^A-Za-z0-9]/.test(pwd);
+        }
+
+        const updateStrength = () => {
+            const pwd = passwordInput.value;
+            let strength = 0;
+
+            if (pwd.length >= 8) strength++;
+            if (/[A-Z]/.test(pwd)) strength++;
+            if (/[a-z]/.test(pwd)) strength++;
+            if (/\d/.test(pwd)) strength++;
+            if (/[^A-Za-z0-9]/.test(pwd)) strength++;
+
+            let text = '';
+            let color = '';
+
+            if (pwd.length === 0) {
+                text = 'Ensure your new password contains a minimum of 8 characters, 1 number, 1 lowercase, 1 uppercase, and 1 special character.';
+                color = 'text-muted';
+            } else if (strength <= 2) {
+                text = 'Weak. Ensure your new password contains a minimum of 8 characters, 1 number, 1 lowercase, 1 uppercase, and 1 special character.';
+                color = 'text-danger';
+            } else if (strength === 3 || strength === 4) {
+                text = 'Moderate. Ensure your new password contains a minimum of 8 characters, 1 number, 1 lowercase, 1 uppercase, and 1 special character.';
+                color = 'text-warning';
+            } else {
+                text = 'Strong password.';
+                color = 'text-success';
+            }
+
+            strengthText.textContent = `${text}`;
+            strengthText.className = `mt-1 small ${color}`;
+        };
+
+        // check if the new password entered by user is the same as the current password
+        function isSameAsCurrentPassword() {
+            const current = document.getElementById('currentPassword')?.value;
+            const newPwd = passwordInput.value;
+            return current && newPwd && current === newPwd;
+        }
+
+        // covers all checks/validations for password: strength, new and confirm must match, identicality of new and current
+        function checkFormValidity() {
+            const pwd = passwordInput.value;
+            const confirmPwd = confirmInput.value;
+
+            const isStrong = validatePasswordStrength(pwd);
+            const isMatch = pwd === confirmPwd && pwd !== '';
+            const isSame = isSameAsCurrentPassword();
+
+            // error message for same new password as current password
+            const errorMsg = document.getElementById('samePasswordMsg');
+            if (isSame) {
+                errorMsg.classList.remove('d-none');
+            } else {
+                errorMsg.classList.add('d-none');
+            }
+
+            confirmInput.setCustomValidity(isMatch ? '' : 'Passwords do not match');
+            submitBtn.disabled = !(isStrong && isMatch) || isSame;
+        }
+
+        passwordInput.addEventListener('input', () => {
+            updateStrength();
+            checkFormValidity();
+        });
+
+        confirmInput.addEventListener('input', checkFormValidity);
     });
-  });
 </script>
 
 {% endblock %}
