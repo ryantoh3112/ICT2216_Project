@@ -65,9 +65,9 @@
                                         <label class="form-label">Venue</label>
                                     </div>
                                     <div>
-                                        <select name="venue" class="form-select">
+                                        <select name="venue">
                                             {% for venue in venues %}
-                                                <option value="{{ venue.id }}">{{ venue.name }}</option>
+                                                <option value="{{ venue.id }}">{{ venue.name }}, Max capacity: {{ venue.capacity }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -75,16 +75,28 @@
                                         <label class="form-label">Category</label>
                                     </div>
                                     <div >
-                                        <select name="category" class="form-select">
+                                        <select name="category">
                                             {% for category in categories %}
                                                 <option value="{{ category.id }}">{{ category.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div>
                                         <label class="form-label">Capacity</label>
                                         <input type="number" name="capacity" class="form-control">
                                     </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Tickets</label>
+                                    </div>
+                                    <div id="ticket-types-container">
+                                        <div class="ticket-type-group mb-3 border rounded p-3">
+                                            <input type="text" name="ticket_types[0][name]" class="form-control mb-2" placeholder="Ticket Type (e.g. VIP)">
+                                            <input type="text" name="ticket_types[0][description]" class="form-control mb-2" placeholder="Description">
+                                            <input type="number" name="ticket_types[0][price]" class="form-control mb-2" placeholder="Price">
+                                            <input type="number" name="ticket_types[0][quantity]" class="form-control mb-2" placeholder="Quantity">
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-secondary" id="add-ticket-type">+ Add Ticket Type</button>
                                     <div class="col-md-6">
                                         <label class="form-label">Image Filename</label>
                                         <!-- <input type="text" name="imagepath" class="form-control"> -->
@@ -180,9 +192,71 @@
                                                     <textarea name="description" class="form-control">{{ event.description }}</textarea>
                                                 </div>
                                                 <div class="col-md-6">
+                                                    <label class="form-label">Venue</label>
+                                                </div>
+                                                <div>
+                                                    <select name="venue">
+                                                        {% for venue in venues %}
+                                                            <option value="{{ venue.id }}">{{ venue.name }}, Max capacity: {{ venue.capacity }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Category</label>
+                                                </div>
+                                                <div >
+                                                    <select name="category">
+                                                        {% for category in categories %}
+                                                            <option value="{{ category.id }}">{{ category.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
                                                     <label class="form-label">Capacity</label>
                                                     <input type="number" name="capacity" value="{{ event.capacity }}" class="form-control">
                                                 </div>
+
+                                                <h5 class="mt-3">Ticket Types</h5>
+                                                <div id="edit-ticket-types-container-{{ event.id }}">
+                                                    {% set usedTypes = [] %}
+
+                                                    {# First, collect the ticket types used by this event #}
+                                                    {% for ticket in event.getTicket() %}
+                                                        {% if ticket.getTicketType() and ticket.getTicketType().id not in usedTypes %}
+                                                            {% set usedTypes = usedTypes|merge([ticket.getTicketType().id]) %}
+                                                        {% endif %}
+                                                    {% endfor %}
+
+                                                    {# Now loop through only those used ticket types #}
+                                                    {% for ticketType in ticketTypes %}
+                                                        {% if ticketType.id in usedTypes %}
+                                                            {% set ticketCount = 0 %}
+                                                            {% set soldCount = 0 %}
+                                                            {% for ticket in event.getTicket() %}
+                                                                {% if ticket.getTicketType().id == ticketType.id %}
+                                                                    {% set ticketCount = ticketCount + 1 %}
+                                                                    {% if ticket.getPayment() %}
+                                                                        {% set soldCount = soldCount + 1 %}
+                                                                    {% endif %}
+                                                                {% endif %}
+                                                            {% endfor %}
+
+                                                            <div class="row mb-2">
+                                                                <div class="col-md-6">
+                                                                    <label>
+                                                                        {{ ticketType.name }} ({{ ticketType.price }} SGD)<br>
+                                                                        <small>Sold: {{ soldCount }} / {{ ticketCount }}</small>
+                                                                    </label>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <input type="number" name="ticket_type_{{ ticketType.id }}" min="0" class="form-control" placeholder="Add more">
+                                                                </div>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+
+
                                                 <div class="col-md-6">
                                                     <label class="form-label">Image Filename</label>
                                                     <!-- <input type="text" name="imagepath" value="{{ event.imagepath }}" class="form-control"> -->
@@ -212,3 +286,27 @@
         </div>   
     </div> 
 {% endblock %}
+
+{% block javascripts %}
+<script>
+    let ticketIndex = 1;
+
+    document.getElementById('add-ticket-type').addEventListener('click', function () {
+        const container = document.getElementById('ticket-types-container');
+
+        const newGroup = document.createElement('div');
+        newGroup.classList.add('ticket-type-group', 'mb-3', 'border', 'rounded', 'p-3');
+
+        newGroup.innerHTML = `
+            <input type="text" name="ticket_types[${ticketIndex}][name]" class="form-control mb-2" placeholder="Ticket Type (e.g. VIP)">
+            <input type="text" name="ticket_types[${ticketIndex}][description]" class="form-control mb-2" placeholder="Description">
+            <input type="number" name="ticket_types[${ticketIndex}][price]" class="form-control mb-2" placeholder="Price">
+            <input type="number" name="ticket_types[${ticketIndex}][quantity]" class="form-control mb-2" placeholder="Quantity">
+        `;
+
+        container.appendChild(newGroup);
+        ticketIndex++;
+    });
+</script>
+{% endblock %}
+

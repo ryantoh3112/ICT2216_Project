@@ -7,6 +7,8 @@ use App\Entity\User;
 use App\Entity\Event;
 use App\Entity\Venue;
 use App\Entity\EventCategory;
+use App\Entity\Ticket;
+use App\Entity\TicketType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,6 +17,7 @@ use App\Repository\UserRepository;
 use App\Repository\EventRepository;
 use App\Repository\VenueRepository;
 use App\Repository\EventCategoryRepository;
+use App\Repository\TicketTypeRepository;
 use App\Repository\AuthRepository;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -67,7 +70,8 @@ final class AdminController extends AbstractController
         Request $request, 
         AuthRepository $authRepository,
         VenueRepository $venueRepo,
-        EventCategoryRepository $categoryRepo
+        EventCategoryRepository $categoryRepo,
+        TicketTypeRepository $ticketTypeRepo,
     ): Response
     {
         //check if admin
@@ -83,11 +87,13 @@ final class AdminController extends AbstractController
         $events = $entityManager->getRepository(Event::class)->findAll();
         $venues = $venueRepo->findAll();
         $categories = $categoryRepo->findAll();
+        $ticketTypes = $ticketTypeRepo->findAll();
 
         return $this->render('admin/manage_events.html.twig',[
             'events' => $events,
             'venues' => $venues,
-            'categories' => $categories
+            'categories' => $categories,
+            'ticketTypes' => $ticketTypes,
         ]);
     }
 
@@ -97,7 +103,10 @@ final class AdminController extends AbstractController
         int $id,
         Request $request,
         EntityManagerInterface $em,
-        EventRepository $eventRepo
+        EventRepository $eventRepo,
+        VenueRepository $venueRepo,
+        EventCategoryRepository $categoryRepo,
+        TicketTypeRepository $ticketTypeRepo
     ): Response {
         $event = $eventRepo->find($id);
 
@@ -112,13 +121,33 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('admin_manage_events');
         }
 
+        // Ticket sales date validation
         $startDate = new \DateTime($request->request->get('purchase_start_date'));
         $endDate = new \DateTime($request->request->get('purchase_end_date'));
-
         if ($startDate >= $endDate) {
             $this->addFlash('error', 'Purchase start date must be before the end date.');
             return $this->redirectToRoute('admin_manage_events');
         }   
+
+        // Venue and category validation
+        $venue = $venueRepo->find((int) $request->request->get('venue'));
+        $category = $categoryRepo->find((int) $request->request->get('category'));
+
+        if (!$venue || !$category) {
+            $this->addFlash('error', 'Venue or category not found.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        // Venue capacity validation
+        $capacity = (int) $request->request->get('capacity');
+        if ($capacity <= 0) {
+            $this->addFlash('error', 'Capacity must be greater than 0.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+        if ($capacity > $venue->getCapacity()) {
+            $this->addFlash('error', 'Capacity cannot exceed the venue\'s maximum capacity of ' . $venue->getCapacity() . '.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
 
         // Update fields
         $event->setName($request->request->get('name'));
@@ -127,6 +156,8 @@ final class AdminController extends AbstractController
         $event->setPurchaseStartDate($startDate);
         $event->setPurchaseEndDate($endDate);
         $event->setOrganiser($request->request->get('organiser'));
+        $event->setVenue($venue);
+        $event->setCategory($category);
 
 
         // $event->setImagePath($request->request->get('imagepath'));
@@ -151,6 +182,50 @@ final class AdminController extends AbstractController
             // Set the image path in the event entity
             $event->setImagePath($filename);
         }
+
+        // adding tickets 
+        // Get existing tickets for the event
+        $existingTickets = $event->getTicket();
+        $existingSeatNumbers = [];
+
+        foreach ($existingTickets as $ticket) {
+            $existingSeatNumbers[] = $ticket->getSeatNumber();
+        }
+
+        // Find max seat number
+        $maxSeatNum = 0;
+        foreach ($existingSeatNumbers as $seat) {
+            if (preg_match('/S(\d{3})/', $seat, $matches)) {
+                $num = (int) $matches[1];
+                if ($num > $maxSeatNum) {
+                    $maxSeatNum = $num;
+                }
+            }
+        }
+
+        $ticketTypes = $ticketTypeRepo->findAll();
+
+        // Now for each new ticket, generate sequential seat numbers
+        foreach ($ticketTypes as $ticketType) {
+            $inputName = 'ticket_type_' . $ticketType->getId();
+            $quantityToAdd = (int) $request->request->get($inputName);
+
+            if ($quantityToAdd > 0) {
+                for ($i = 1; $i <= $quantityToAdd; $i++) {
+                    $ticket = new Ticket();
+                    $ticket->setEvent($event);
+                    $ticket->setTicketType($ticketType);
+                    
+                    $maxSeatNum++;
+                    $seatNumber = 'S' . str_pad($maxSeatNum, 3, '0', STR_PAD_LEFT);
+                    $ticket->setSeatNumber($seatNumber);
+
+                    $ticket->setPayment(null); // Optional: leave null if not needed
+                    $em->persist($ticket);
+                }
+            }
+        }
+
         
         $em->flush();
 
@@ -174,6 +249,8 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('admin_manage_events');
         }
 
+
+        // Ticket sales date validation
         $startDate = new \DateTime($request->request->get('purchase_start_date'));
         $endDate = new \DateTime($request->request->get('purchase_end_date'));
 
@@ -182,11 +259,30 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('admin_manage_events');
         }
 
-        $event = new Event();
+        // Venue and category validation
+        $venue = $venueRepo->find((int) $request->request->get('venue'));
+        $category = $categoryRepo->find((int) $request->request->get('category'));
 
+        if (!$venue || !$category) {
+            $this->addFlash('error', 'Venue or category not found.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        // Venue capacity validation
+        $capacity = (int) $request->request->get('capacity');
+        if ($capacity <= 0) {
+            $this->addFlash('error', 'Capacity must be greater than 0.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+        if ($capacity > $venue->getCapacity()) {
+            $this->addFlash('error', 'Capacity cannot exceed the venue\'s maximum capacity of ' . $venue->getCapacity() . '.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        $event = new Event();
         $event->setName($request->request->get('name'));
         $event->setDescription($request->request->get('description'));
-        $event->setCapacity((int)$request->request->get('capacity'));
+        $event->setCapacity($capacity);
         $event->setOrganiser($request->request->get('organiser'));
 
         //get img file from imagefile input
@@ -219,21 +315,46 @@ final class AdminController extends AbstractController
 
         $event->setPurchaseStartDate($startDate);
         $event->setPurchaseEndDate($endDate);
+        $event->setVenue($venue);
+        $event->setCategory($category);
+        $em->persist($event);
+        $em->flush(); // flush early to get event ID
 
-        // Get related venue and category
-        $venue = $venueRepo->find((int) $request->request->get('venue'));
-        $category = $categoryRepo->find((int) $request->request->get('category'));
+        // Process ticket types
+        $ticketTypes = $request->request->all('ticket_types'); // gets array from form
+        $seatCounter = 1;
 
-        if ($venue && $category) {
-            $event->setVenue($venue);
-            $event->setCategory($category);
-            $em->persist($event);
+        foreach ($ticketTypes as $typeData) {
+            $name = trim($typeData['name']);
+            $description = $typeData['description'];
+            $price = (float) $typeData['price'];
+            $quantity = (int) $typeData['quantity'];
+
+            if (!$name || $price <= 0 || $quantity <= 0) {
+                continue; // skip invalid entries
+            }
+
+            // Create new TicketType
+            $ticketType = new TicketType();
+            $ticketType->setName($name);
+            $ticketType->setDescription($description);
+            $ticketType->setPrice($price);
+            $em->persist($ticketType);
             $em->flush();
-            $this->addFlash('success', 'Event created successfully.');
-        } else {
-            $this->addFlash('error', 'Venue or category not found.');
+
+            // Create individual Ticket records
+            for ($i = 0; $i < $quantity; $i++) {
+                $ticket = new Ticket();
+                $ticket->setEvent($event);
+                $ticket->setTicketType($ticketType);
+                $ticket->setSeatNumber("S" . str_pad($seatCounter++, 3, '0', STR_PAD_LEFT));
+                $em->persist($ticket);
+            }
         }
 
+        $em->flush();
+
+        $this->addFlash('success', 'Event created successfully.');
         return $this->redirectToRoute('admin_manage_events');
     }
 
@@ -243,7 +364,8 @@ final class AdminController extends AbstractController
         int $id,
         Request $request,
         EntityManagerInterface $em,
-        EventRepository $eventRepo
+        EventRepository $eventRepo,
+        TicketTypeRepository $ticketTypeRepo
     ): Response {
         $event = $eventRepo->find($id);
 
@@ -258,6 +380,26 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('admin_manage_events');
         }
 
+        // First delete all tickets linked to this event
+        foreach ($event->getTicket() as $ticket) {
+            $em->remove($ticket);
+        }
+        // Find and delete TicketTypes related to this event
+        $ticketTypes = $ticketTypeRepo->findAll();
+        foreach ($ticketTypes as $ticketType) {
+            $hasTickets = false;
+            foreach ($ticketType->getTicket() as $ticket) {
+                if ($ticket->getEvent()->getId() === $event->getId()) {
+                    $hasTickets = true;
+                    break;
+                }
+            }
+            if ($hasTickets) {
+                $em->remove($ticketType);
+            }
+        }
+
+        // Then delete the event
         $em->remove($event);
         $em->flush();
 
