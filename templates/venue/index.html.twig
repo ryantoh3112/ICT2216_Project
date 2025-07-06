@@ -16,10 +16,10 @@
             {# Category filters - you can customize these based on venue types #}
             <ul class="filters_menu">
                 <li class="active" data-filter="*">All</li>
-                <li data-filter=".theater">Theater</li>
-                <li data-filter=".conference">Conference</li>
-                <li data-filter=".outdoor">Outdoor</li>
+                <li data-filter=".theatre">Theatre</li>
                 <li data-filter=".hall">Hall</li>
+                <li data-filter=".stadium">Stadium</li>
+                <li data-filter=".others">Others</li>
             </ul>
 
             <div class="filters-content">
@@ -30,10 +30,12 @@
                         </div>
                     {% else %}
                         {% for venue in venues %}
-                            <div class="col-sm-6 col-lg-4 all 
-                                {# Add venue type classes based on your categorization logic #}
-                                {% if venue.capacity > 1000 %}conference{% endif %}
-                                {% if venue.capacity < 500 %}theater{% endif %}
+                            {% set name_lower = venue.name|lower %}
+                            <div class="col-sm-6 col-lg-4 all
+                                {% if 'theatre' in name_lower %} theatre{% endif %}
+                                {% if 'hall' in name_lower %} hall{% endif %}
+                                {% if 'stadium' in name_lower %} stadium{% endif %}
+                                {% if 'theatre' not in name_lower and 'hall' not in name_lower and 'stadium' not in name_lower %} others{% endif %}
                             ">
                             <a href="{{ path('venue_details', {'id': venue.id}) }}">
                                 <div class="box">
@@ -51,11 +53,6 @@
                                             </h5>
                                             <p>
                                                 {{ venue.address }}
-                                                {# {% if venue.description %}
-                                                    {{ venue.description|slice(0, 100) }}{% if venue.description|length > 100 %}...{% endif %}
-                                                {% else %}
-                                                    {{ venue.address ? venue.address : 'Premium venue location perfect for your events' }}
-                                                {% endif %} #}
                                             </p>
                                             <div class="options">
                                                 <h6>
@@ -75,12 +72,6 @@
                     {% endif %}
                 </div>
             </div>
-            
-            {# <div class="btn-box">
-                <a href="{{ path('app_venue_index') }}">
-                    View More
-                </a>
-            </div> #}
         </div>
     </section>
 {% endblock %}

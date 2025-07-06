@@ -4,7 +4,6 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
-    ticketmaster.api_key: '%env(TICKETMASTER_API_KEY)%'
     # added this for image upload directory
     uploads_directory: '%kernel.project_dir%/public/uploads'
     stripe_public_key: '%env(STRIPE_PUBLIC_KEY)%'
@@ -16,7 +15,6 @@ services:
         autowire: true      # Automatically injects dependencies in your services.
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
         bind:
-            $apiKey: '%ticketmaster.api_key%'
             $stripe_public_key: '%stripe_public_key%'
 
 
