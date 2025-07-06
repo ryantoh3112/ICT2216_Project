@@ -268,13 +268,23 @@ public function login(
     $password = $request->request->get('password', '');
     $auth     = $authRepository->findOneBy(['email' => $email]);
 
+    #guo dong
+       if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
+        $this->addFlash('error', 'Account is locked. Please contact support.');
+        return $this->redirectToRoute('auth_login_form');
+    }
+
     if (!$auth || ! $passwordHasher->isPasswordValid($auth, $password)) {
         // Invalid → bump the **User** failedLoginCount too
         if ($auth) {
             $user   = $auth->getUser();
             $fails  = $user->getFailedLoginCount() ?? 0;
             $user->setFailedLoginCount($fails + 1);
-            // optionally lock at some higher threshold...
+            // guodong
+             if ($fails >= 10) {  // ← your lock threshold
+                $user->setAccountStatus('locked');
+                $user->setLockedAt(new \DateTime());
+            }
             $em->persist($user);
         }
         $em->flush();
