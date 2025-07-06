@@ -121,6 +121,44 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('admin_manage_events');
         }
 
+        // Validation to check if required fields are filled in 
+        $name = strip_tags(trim($request->request->get('name')));
+        $description = strip_tags(trim($request->request->get('description')));
+        $organiser = strip_tags(trim($request->request->get('organiser')));
+        $purchaseStartDateRaw = $request->request->get('purchase_start_date');
+        $purchaseEndDateRaw = $request->request->get('purchase_end_date');
+        $venueId = (int) $request->request->get('venue');
+        $categoryId = (int) $request->request->get('category');
+        $capacity = (int) $request->request->get('capacity');
+
+        if (!$name) {
+            $this->addFlash('error', 'Event name is required.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        if (!$description) {
+            $this->addFlash('error', 'Event description is required.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        if (!$organiser) {
+            $this->addFlash('error', 'Organiser is required.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        if (!$purchaseStartDateRaw || !$purchaseEndDateRaw) {
+            $this->addFlash('error', 'Purchase start and end dates are required.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        try {
+            $startDate = new \DateTime($purchaseStartDateRaw);
+            $endDate = new \DateTime($purchaseEndDateRaw);
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'Invalid date format.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
         // Ticket sales date validation
         $startDate = new \DateTime($request->request->get('purchase_start_date'));
         $endDate = new \DateTime($request->request->get('purchase_end_date'));
@@ -159,9 +197,7 @@ final class AdminController extends AbstractController
         $event->setVenue($venue);
         $event->setCategory($category);
 
-
-        // $event->setImagePath($request->request->get('imagepath'));
-         //get img file from imagefile input
+        // Handle image file upload
         $imagefile = $request->files->get('imagefile');
         if ($imagefile && $imagefile->isValid()) {
             $allowedImgTypes = ['image/jpg', 'image/jpeg', 'image/png'];
@@ -204,8 +240,9 @@ final class AdminController extends AbstractController
         }
 
         $ticketTypes = $ticketTypeRepo->findAll();
+        $seatCounter = $maxSeatNum + 1; 
 
-        // Now for each new ticket, generate sequential seat numbers
+        // Handle adding more tickets to existing ticket types
         foreach ($ticketTypes as $ticketType) {
             $inputName = 'ticket_type_' . $ticketType->getId();
             $quantityToAdd = (int) $request->request->get($inputName);
@@ -216,17 +253,51 @@ final class AdminController extends AbstractController
                     $ticket->setEvent($event);
                     $ticket->setTicketType($ticketType);
                     
-                    $maxSeatNum++;
-                    $seatNumber = 'S' . str_pad($maxSeatNum, 3, '0', STR_PAD_LEFT);
+                    $seatNumber = 'S' . str_pad($seatCounter, 3, '0', STR_PAD_LEFT);
                     $ticket->setSeatNumber($seatNumber);
+                    $seatCounter++;
 
-                    $ticket->setPayment(null); // Optional: leave null if not needed
+                    $ticket->setPayment(null);
                     $em->persist($ticket);
                 }
             }
         }
 
-        
+        // Handle NEW ticket types being added
+        $newTicketTypes = $request->request->all('new_ticket_types');
+        if ($newTicketTypes) {
+            foreach ($newTicketTypes as $typeData) {
+                $name = strip_tags(trim($typeData['name']));
+                $description = strip_tags(trim($typeData['description']));
+                $price = (float) $typeData['price'];
+                $quantity = (int) $typeData['quantity'];
+
+                // Skip if any required field is empty or invalid
+                if (empty($name) || $price <= 0 || $quantity <= 0) {
+                    continue;
+                }
+
+                // Create and save the new TicketType
+                $ticketType = new TicketType();
+                $ticketType->setName($name);
+                $ticketType->setDescription($description);
+                $ticketType->setPrice($price);
+                $em->persist($ticketType);
+                $em->flush(); // flush to get ID
+
+                // Add the specified number of tickets for this new type
+                for ($i = 0; $i < $quantity; $i++) {
+                    $ticket = new Ticket();
+                    $ticket->setEvent($event);
+                    $ticket->setTicketType($ticketType);
+                    $ticket->setSeatNumber("S" . str_pad($seatCounter, 3, '0', STR_PAD_LEFT));
+                    $seatCounter++;
+                    $ticket->setPayment(null);
+                    $em->persist($ticket);
+                }
+            }
+        }
+
         $em->flush();
 
         $this->addFlash('success', 'Event updated successfully.');
@@ -246,6 +317,44 @@ final class AdminController extends AbstractController
 
         if (!$this->isCsrfTokenValid('add_event', $submittedToken)) {
             $this->addFlash('error', 'Invalid CSRF token.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        // Validation to check if required fields are filled in 
+        $name = strip_tags(trim($request->request->get('name')));
+        $description = strip_tags(trim($request->request->get('description')));
+        $organiser = strip_tags(trim($request->request->get('organiser')));
+        $purchaseStartDateRaw = $request->request->get('purchase_start_date');
+        $purchaseEndDateRaw = $request->request->get('purchase_end_date');
+        $venueId = (int) $request->request->get('venue');
+        $categoryId = (int) $request->request->get('category');
+        $capacity = (int) $request->request->get('capacity');
+
+        if (!$name) {
+            $this->addFlash('error', 'Event name is required.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        if (!$description) {
+            $this->addFlash('error', 'Event description is required.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        if (!$organiser) {
+            $this->addFlash('error', 'Organiser is required.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        if (!$purchaseStartDateRaw || !$purchaseEndDateRaw) {
+            $this->addFlash('error', 'Purchase start and end dates are required.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        try {
+            $startDate = new \DateTime($purchaseStartDateRaw);
+            $endDate = new \DateTime($purchaseEndDateRaw);
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'Invalid date format.');
             return $this->redirectToRoute('admin_manage_events');
         }
 
@@ -320,13 +429,24 @@ final class AdminController extends AbstractController
         $em->persist($event);
         $em->flush(); // flush early to get event ID
 
-        // Process ticket types
+        // Ensure ticket field not empty 
         $ticketTypes = $request->request->all('ticket_types'); // gets array from form
+
+        // Check that the first ticket type exists and is fully filled
+        if (empty($ticketTypes[0]['name']) || 
+            !isset($ticketTypes[0]['price']) || $ticketTypes[0]['price'] <= 0 || 
+            !isset($ticketTypes[0]['quantity']) || $ticketTypes[0]['quantity'] <= 0) {
+
+            $this->addFlash('error', 'You must provide at least one complete ticket type (name, price, and quantity).');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        // Process ticket types
         $seatCounter = 1;
 
         foreach ($ticketTypes as $typeData) {
-            $name = trim($typeData['name']);
-            $description = $typeData['description'];
+            $name = strip_tags(trim($typeData['name']));
+            $description = strip_tags(trim($typeData['description']));
             $price = (float) $typeData['price'];
             $quantity = (int) $typeData['quantity'];
 
@@ -452,9 +572,17 @@ final class AdminController extends AbstractController
             throw $this->createNotFoundException('User not found.');
         }
 
-        $newName = trim($request->request->get('name'));
+        // validate if username is empty
+        $name = strip_tags(trim($request->request->get('name')));
+        if (!$name) {
+            $this->addFlash('error', 'Username is required.');
+            return $this->redirectToRoute('admin_manage_users');
+        }
+
+        $newName = (strip_tags(trim($request->request->get('name'))));
         $newRole = $request->request->get('role');
         $newStatus = $request->request->get('accountStatus');
+        $newOtp = $request->request->get('otpEnabled');
 
         // Check if the username field is empty
         if (empty($newName)) {
@@ -469,9 +597,11 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('admin_manage_users');
         }
 
-        $user->setName($newName);
+        $user->setName($newName)
+             ->setUpdatedAt(new \DateTime());
         $user->setRole($newRole);
         $user->setAccountStatus($newStatus);
+        $user->setOtpEnabled($newOtp);
 
         $em->flush();
 
