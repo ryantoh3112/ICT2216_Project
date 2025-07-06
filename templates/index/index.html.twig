@@ -123,11 +123,19 @@
                                     align-items: center;
                                     justify-content: center;
                                 ">
-                                    <img src="{{ asset(event.imagePath) }}" alt="{{ event.name }}" style="
-                                        width: 100%;
-                                        height: 100%;
-                                        object-fit: cover;
-                                    ">
+                              {% if event.imagePath %}
+  <div style="…">
+    <img 
+      src="{{ asset(event.imagePath) }}" 
+      alt="{{ event.name }}" 
+      style="width:100%;height:100%;object-fit:cover"
+    >
+  </div>
+{% else %}
+  <div class="no-image-placeholder" style="…">
+    <p>Soon</p>
+  </div>
+{% endif %}
                                 </div>
                                 <div class="detail-box" style="flex: 1 1 50%; min-width: 250px;">
                                     <h5>{{ event.name }}</h5>

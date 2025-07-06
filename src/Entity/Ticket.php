@@ -23,7 +23,7 @@ class Ticket
     private ?Event $event = null;
 
     #[ORM\ManyToOne(inversedBy: 'ticket')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?Payment $payment = null;
 
     /**
