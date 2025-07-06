@@ -45,8 +45,12 @@ final class VenueController extends AbstractController
             throw $this->createNotFoundException('Venue not found.');
         }
 
+        // Fetch related events
+        $events = $entityManager->getRepository(\App\Entity\Event::class)->findBy(['venue' => $venue]);
+
         return $this->render('venue/details.html.twig', [
             'venue' => $venue,
+            'events' => $events,
         ]);
     }
 }

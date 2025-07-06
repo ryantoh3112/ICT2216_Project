@@ -24,6 +24,9 @@ class Event
 
     #[ORM\Column]
     private ?int $capacity = null;
+    
+    #[ORM\Column]
+    private ?\DateTime $eventDate = null;
 
     #[ORM\Column]
     private ?\DateTime $purchaseStartDate = null;
@@ -93,6 +96,18 @@ class Event
     public function setCapacity(int $capacity): static
     {
         $this->capacity = $capacity;
+
+        return $this;
+    }
+    
+    public function getEventDate(): ?\DateTime
+    {
+        return $this->eventDate;
+    }
+
+    public function setEventDate(\DateTime $eventDate): static
+    {
+        $this->eventDate = $eventDate;
 
         return $this;
     }
@@ -175,17 +190,6 @@ class Event
         return $this;
     }
 
-    // public function getImage(): ?string
-    // {
-    //     return $this->image;
-    // }
-
-    // public function setImage(?string $image): static
-    // {
-    //     $this->image = $image;
-
-    //     return $this;
-    // }
     public function getImagePath(): ?string
     {
         return $this->imagepath;
