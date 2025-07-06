@@ -263,11 +263,125 @@ final class PaymentController extends AbstractController
     //     return $this->json(['id' => $session->id]);
     // }
 
-       #[Route('/create-checkout-session', name: 'create_checkout_session', methods: ['POST'])]
+    //    #[Route('/create-checkout-session', name: 'create_checkout_session', methods: ['POST'])]
+    // public function createCheckoutSession(
+    //     Request $request,
+    //     EntityManagerInterface $em,
+    //     CartItemRepository $cartRepo
+    // ): JsonResponse {
+    //     // 1) Configure Stripe
+    //     Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY']);
+
+    //     // 2) Ensure user is authenticated
+    //     $user = $request->attributes->get('jwt_user');
+    //     if (!$user) {
+    //         return $this->json(['error' => 'User not authenticated.'], 403);
+    //     }
+
+    //     // 3) Load raw CartItems
+    //     /** @var CartItem[] $rawItems */
+    //     $rawItems = $cartRepo->findBy(['user' => $user]);
+    //     if (empty($rawItems)) {
+    //         return $this->json(['error' => 'Cart is empty.'], 400);
+    //     }
+
+    //     // 4) Group by ticketType and sum quantities
+    //     $grouped = [];
+    //     foreach ($rawItems as $item) {
+    //         $tt  = $item->getTicketType();
+    //         $tid = $tt->getId();
+    //         if (!isset($grouped[$tid])) {
+    //             $grouped[$tid] = [
+    //                 'name'     => $item->getName(),
+    //                 'price'    => $item->getPrice(),
+    //                 'quantity' => 0,
+    //             ];
+    //         }
+    //         $grouped[$tid]['quantity'] += $item->getQuantity();
+    //     }
+
+    //     // 5) Build Stripe line_items from grouped data
+    //     $lineItems  = [];
+    //     $subtotal   = 0;
+    //     foreach ($grouped as $info) {
+    //         $qty       = $info['quantity'];
+    //         $unitAmt   = (int) round($info['price'] * 100);
+    //         $lineTotal = $info['price'] * $qty;
+    //         $subtotal += $lineTotal;
+
+    //         $lineItems[] = [
+    //             'price_data' => [
+    //                 'currency'     => 'usd',
+    //                 'product_data'=> ['name' => $info['name']],
+    //                 'unit_amount' => $unitAmt,
+    //             ],
+    //             'quantity'   => $qty,
+    //         ];
+    //     }
+
+    //     // 6) Add booking fee as single line
+    //     $bookingFee = 3.00 * count($grouped);
+    //     if ($bookingFee > 0) {
+    //         $lineItems[] = [
+    //             'price_data' => [
+    //                 'currency'     => 'usd',
+    //                 'product_data'=> ['name' => 'Booking Fee'],
+    //                 'unit_amount' => (int) round($bookingFee * 100),
+    //             ],
+    //             'quantity'   => 1,
+    //         ];
+    //     }
+
+    //     // 7) Create Stripe session
+    //     $session = StripeSession::create([
+    //         'payment_method_types' => ['card'],
+    //         'line_items'           => $lineItems,
+    //         'mode'                 => 'payment',
+    //         'success_url'          => $this->generateUrl(
+    //                                       'checkout_success',
+    //                                       [],
+    //                                       UrlGeneratorInterface::ABSOLUTE_URL
+    //                                   ) . '?session_id={CHECKOUT_SESSION_ID}',
+    //         'cancel_url'           => $this->generateUrl(
+    //                                       'checkout_cancel',
+    //                                       [],
+    //                                       UrlGeneratorInterface::ABSOLUTE_URL
+    //                                   ),
+    //     ]);
+
+    //     // 8) Persist Payment & History (unchanged)
+    //     $total = $subtotal + $bookingFee;
+    //     $payment = (new Payment())
+    //         ->setUser($user)
+    //         ->setTotalPrice($total)
+    //         ->setPaymentMethod('stripe')
+    //         ->setPaymentDateTime(new \DateTime())
+    //         ->setSessionId($session->id)
+    //         ->setStatus('pending');
+    //     $em->persist($payment);
+    //     $em->flush();
+
+    //     $history = (new History())
+    //         ->setUser($user)
+    //         ->setPayment($payment)
+    //         ->setAction('Checkout session created')
+    //         ->setTimestamp(new \DateTime())
+    //         ->setSessionId($session->id)
+    //         ->setStatus('pending');
+    //     $em->persist($history);
+    //     $em->flush();
+
+    //     // 9) Store last payment and return session ID
+    //     $request->getSession()->set('last_payment_id', $payment->getId());
+    //     return $this->json(['id' => $session->id]);
+    // }
+
+  #[Route('/create-checkout-session', name: 'create_checkout_session', methods: ['POST'])]
     public function createCheckoutSession(
         Request $request,
         EntityManagerInterface $em,
-        CartItemRepository $cartRepo
+        CartItemRepository $cartRepo,
+        UrlGeneratorInterface $urlGenerator
     ): JsonResponse {
         // 1) Configure Stripe
         Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY']);
@@ -278,35 +392,33 @@ final class PaymentController extends AbstractController
             return $this->json(['error' => 'User not authenticated.'], 403);
         }
 
-        // 3) Load raw CartItems
-        /** @var CartItem[] $rawItems */
+        // 3) Load & group cart items
         $rawItems = $cartRepo->findBy(['user' => $user]);
         if (empty($rawItems)) {
             return $this->json(['error' => 'Cart is empty.'], 400);
         }
 
-        // 4) Group by ticketType and sum quantities
-        $grouped = [];
+        $grouped  = [];
+        $subtotal = 0;
         foreach ($rawItems as $item) {
-            $tt  = $item->getTicketType();
-            $tid = $tt->getId();
+            $tid      = $item->getTicketType()->getId();
+            $price    = $item->getPrice();
+            $quantity = $item->getQuantity();
+
             if (!isset($grouped[$tid])) {
                 $grouped[$tid] = [
                     'name'     => $item->getName(),
-                    'price'    => $item->getPrice(),
+                    'price'    => $price,
                     'quantity' => 0,
                 ];
             }
-            $grouped[$tid]['quantity'] += $item->getQuantity();
+            $grouped[$tid]['quantity'] += $quantity;
         }
 
-        // 5) Build Stripe line_items from grouped data
-        $lineItems  = [];
-        $subtotal   = 0;
+        $lineItems = [];
         foreach ($grouped as $info) {
-            $qty       = $info['quantity'];
             $unitAmt   = (int) round($info['price'] * 100);
-            $lineTotal = $info['price'] * $qty;
+            $lineTotal = $info['price'] * $info['quantity'];
             $subtotal += $lineTotal;
 
             $lineItems[] = [
@@ -315,11 +427,11 @@ final class PaymentController extends AbstractController
                     'product_data'=> ['name' => $info['name']],
                     'unit_amount' => $unitAmt,
                 ],
-                'quantity'   => $qty,
+                'quantity'   => $info['quantity'],
             ];
         }
 
-        // 6) Add booking fee as single line
+        // 4) Add booking fee
         $bookingFee = 3.00 * count($grouped);
         if ($bookingFee > 0) {
             $lineItems[] = [
@@ -332,51 +444,54 @@ final class PaymentController extends AbstractController
             ];
         }
 
-        // 7) Create Stripe session
-        $session = StripeSession::create([
-            'payment_method_types' => ['card'],
-            'line_items'           => $lineItems,
-            'mode'                 => 'payment',
-            'success_url'          => $this->generateUrl(
-                                          'checkout_success',
-                                          [],
-                                          UrlGeneratorInterface::ABSOLUTE_URL
-                                      ) . '?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url'           => $this->generateUrl(
-                                          'checkout_cancel',
-                                          [],
-                                          UrlGeneratorInterface::ABSOLUTE_URL
-                                      ),
-        ]);
+        // 5) Create Stripe session with 30-minute minimum expiry
+        try {
+            $session = StripeSession::create([
+                'payment_method_types' => ['card'],
+                'line_items'           => $lineItems,
+                'mode'                 => 'payment',
+                'expires_at'           => time() + 1800, // 30 minutes
+                'success_url'          => $urlGenerator->generate(
+                                              'checkout_success',
+                                              [],
+                                              UrlGeneratorInterface::ABSOLUTE_URL
+                                          ) . '?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url'           => $urlGenerator->generate(
+                                              'checkout_cancel',
+                                              [],
+                                              UrlGeneratorInterface::ABSOLUTE_URL
+                                          ) . '?session_id={CHECKOUT_SESSION_ID}',
+            ]);
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            return $this->json(['error' => $e->getMessage()], 400);
+        }
 
-        // 8) Persist Payment & History (unchanged)
-        $total = $subtotal + $bookingFee;
+        // 6) Persist Payment + History
+        $total   = $subtotal + $bookingFee;
         $payment = (new Payment())
             ->setUser($user)
             ->setTotalPrice($total)
             ->setPaymentMethod('stripe')
-            ->setPaymentDateTime(new \DateTime())
             ->setSessionId($session->id)
-            ->setStatus('pending');
+            ->setStatus('pending')
+            ->setPaymentDateTime(new \DateTime())
+        ;
         $em->persist($payment);
-        $em->flush();
 
-        $history = (new History())
+        $hist = (new History())
             ->setUser($user)
             ->setPayment($payment)
             ->setAction('Checkout session created')
-            ->setTimestamp(new \DateTime())
             ->setSessionId($session->id)
-            ->setStatus('pending');
-        $em->persist($history);
+            ->setStatus('pending')
+            ->setTimestamp(new \DateTime())
+        ;
+        $em->persist($hist);
         $em->flush();
 
-        // 9) Store last payment and return session ID
-        $request->getSession()->set('last_payment_id', $payment->getId());
-        return $this->json(['id' => $session->id]);
+        // 7) Return the sessionId for the client-side redirect
+        return $this->json(['sessionId' => $session->id]);
     }
-
-
 
 
 // #[Route('/success', name: 'checkout_success')]
@@ -514,92 +629,250 @@ final class PaymentController extends AbstractController
     //     ]);
     // }
 
-    #[Route('/cancel', name: 'checkout_cancel')]
-    public function cancel(Request $request, EntityManagerInterface $em): Response
-    {
-        $user = $request->attributes->get('jwt_user');
-        if (!$user) {
-            return $this->redirectToRoute('auth_login_form');
-        }
+    // #[Route('/cancel', name: 'checkout_cancel')]
+    // public function cancel(Request $request, EntityManagerInterface $em): Response
+    // {
+    //     $user = $request->attributes->get('jwt_user');
+    //     if (!$user) {
+    //         return $this->redirectToRoute('auth_login_form');
+    //     }
 
-        $cartItems = $em->getRepository(CartItem::class)
-                       ->findBy(['user' => $user]);
+    //     $cartItems = $em->getRepository(CartItem::class)
+    //                    ->findBy(['user' => $user]);
 
-        return $this->render('payment/cancel.html.twig', [
-            'cartItems'          => $cartItems,
-            'stripe_public_key'  => $_ENV['STRIPE_PUBLIC_KEY'],
-        ]);
-    }
+    //     return $this->render('payment/cancel.html.twig', [
+    //         'cartItems'          => $cartItems,
+    //         'stripe_public_key'  => $_ENV['STRIPE_PUBLIC_KEY'],
+    //     ]);
+    // }
 
-    #[Route('/success', name: 'checkout_success')]
-public function success(
+    //   #[Route('/checkout_cancel', name: 'checkout_cancel')]
+    // public function cancel(
+    //     Request $request,
+    //     EntityManagerInterface $em,
+    //     CartItemRepository $cartRepo
+    // ): Response {
+    //     // 1) Auth
+    //     $user = $request->attributes->get('jwt_user');
+    //     if (!$user) {
+    //         return $this->redirectToRoute('auth_login_form');
+    //     }
+
+    //     // 2) If we have a session_id, mark that payment cancelled
+    //     if ($sessionId = $request->query->get('session_id')) {
+    //         $payment = $em->getRepository(Payment::class)
+    //                       ->findOneBy(['sessionId' => $sessionId]);
+    //         if ($payment && $payment->getStatus() === 'pending') {
+    //             $payment->setStatus('cancelled');
+    //             // $em->flush();
+    //                $history = (new History())
+    //             ->setUser($user)
+    //             ->setPayment($payment)
+    //             ->setAction('Checkout session cancelled by user')
+    //             ->setSessionId($sessionId)
+    //             ->setTimestamp(new \DateTime())
+    //             ->setStatus('cancelled')
+    //         ;
+    //         $em->persist($history);
+    //         $em->flush();
+    //         }
+    //     }
+
+    //     // 3) Re-group the cart for display
+    //     $rawItems = $cartRepo->findBy(['user' => $user]);
+    //     $grouped   = [];
+    //     foreach ($rawItems as $item) {
+    //         $tid = $item->getTicketType()->getId();
+    //         if (!isset($grouped[$tid])) {
+    //             $grouped[$tid] = [
+    //                 'name'     => $item->getName(),
+    //                 'price'    => $item->getPrice(),
+    //                 'quantity' => 0,
+    //             ];
+    //         }
+    //         $grouped[$tid]['quantity'] += $item->getQuantity();
+    //     }
+
+    //     return $this->render('payment/cancel.html.twig', [
+    //         'grouped' => $grouped,
+    //         'cartItems' => $rawItems,      // <— add this
+
+    //     ]);
+    // }
+    #[Route('/checkout_cancel', name: 'checkout_cancel')]
+public function cancel(
     Request $request,
     EntityManagerInterface $em,
-    PaymentRepository $payments
+    CartItemRepository $cartRepo
 ): Response {
-    // — AUTH & PAYMENT lookup (unchanged) —
     $user = $request->attributes->get('jwt_user');
     if (!$user) {
         return $this->redirectToRoute('auth_login_form');
     }
-    $paymentId = $request->getSession()->get('last_payment_id');
-    if (!$paymentId) {
-        return $this->redirectToRoute('checkout_page');
-    }
-    $payment = $payments->find($paymentId);
-    if (
-        !$payment ||
-        $payment->getUser() !== $user ||
-        $payment->getStatus() !== 'completed'
-    ) {
-        return $this->redirectToRoute('checkout_page');
-    }
 
-    // — LOAD PURCHASED ITEMS from PurchaseHistory —
-    /** @var PurchaseHistory[] $records */
-    $records = $em->getRepository(PurchaseHistory::class)
-                  ->findBy(['payment' => $payment]);
+    if ($sessionId = $request->query->get('session_id')) {
+        /** @var Payment|null $payment */
+        $payment = $em->getRepository(Payment::class)
+                      ->findOneBy(['sessionId' => $sessionId]);
 
-    // — GROUP by product name and sum quantity & compute line totals —
-    $grouped = [];
-    foreach ($records as $rec) {
-        $name  = $rec->getProductName();
-        $unit  = $rec->getUnitPrice();
-        $qty   = $rec->getQuantity();
-        if (!isset($grouped[$name])) {
-            $grouped[$name] = [
-                'productName' => $name,
-                'unitPrice'   => $unit,
-                'quantity'    => 0,
-            ];
+        if ($payment && $payment->getStatus() === 'pending') {
+            // 1) mark payment cancelled
+            $payment->setStatus('cancelled');
+            $em->persist($payment);
+
+            // 2) log a matching History row
+            $hist = new History();
+            $hist
+              ->setUser($user)
+              ->setPayment($payment)
+              ->setAction('Checkout session cancelled by user')
+              ->setSessionId($sessionId)
+              ->setTimestamp(new \DateTime())
+              ->setStatus('cancelled')
+            ;
+            $em->persist($hist);
+
+            $em->flush();
         }
-        $grouped[$name]['quantity'] += $qty;
     }
 
-    // — BUILD final ‘bought’ array & compute subtotal —
-    $bought   = [];
-    $subtotal = 0;
-    foreach ($grouped as $info) {
-        $line = $info['unitPrice'] * $info['quantity'];
-        $bought[] = [
-            'productName' => $info['productName'],
-            'quantity'    => $info['quantity'],
-            'unitPrice'   => $info['unitPrice'],
-            'line'        => $line,
-        ];
-        $subtotal += $line;
-    }
+    // …then re-group cartItems for display…
+    $rawItems = $cartRepo->findBy(['user' => $user]);
 
-    // — DERIVE BOOKING FEE & TOTAL —
-    $total      = $payment->getTotalPrice();
-    $bookingFee = max(0, $total - $subtotal);
-
-    return $this->render('payment/success.html.twig', [
-        'bought'     => $bought,
-        'subtotal'   => number_format($subtotal, 2),
-        'bookingFee' => number_format($bookingFee, 2),
-        'total'      => number_format($total, 2),
+    return $this->render('payment/cancel.html.twig', [
+        'cartItems' => $rawItems,
     ]);
 }
+
+//     #[Route('/success', name: 'checkout_success')]
+// public function success(
+//     Request $request,
+//     EntityManagerInterface $em,
+//     PaymentRepository $payments
+// ): Response {
+//     // — AUTH & PAYMENT lookup (unchanged) —
+//     $user = $request->attributes->get('jwt_user');
+//     if (!$user) {
+//         return $this->redirectToRoute('auth_login_form');
+//     }
+//     $paymentId = $request->getSession()->get('last_payment_id');
+//     if (!$paymentId) {
+//         return $this->redirectToRoute('checkout_page');
+//     }
+//     $payment = $payments->find($paymentId);
+//     if (
+//         !$payment ||
+//         $payment->getUser() !== $user ||
+//         $payment->getStatus() !== 'completed'
+//     ) {
+//         return $this->redirectToRoute('checkout_page');
+//     }
+
+//     // — LOAD PURCHASED ITEMS from PurchaseHistory —
+//     /** @var PurchaseHistory[] $records */
+//     $records = $em->getRepository(PurchaseHistory::class)
+//                   ->findBy(['payment' => $payment]);
+
+//     // — GROUP by product name and sum quantity & compute line totals —
+//     $grouped = [];
+//     foreach ($records as $rec) {
+//         $name  = $rec->getProductName();
+//         $unit  = $rec->getUnitPrice();
+//         $qty   = $rec->getQuantity();
+//         if (!isset($grouped[$name])) {
+//             $grouped[$name] = [
+//                 'productName' => $name,
+//                 'unitPrice'   => $unit,
+//                 'quantity'    => 0,
+//             ];
+//         }
+//         $grouped[$name]['quantity'] += $qty;
+//     }
+
+//     // — BUILD final ‘bought’ array & compute subtotal —
+//     $bought   = [];
+//     $subtotal = 0;
+//     foreach ($grouped as $info) {
+//         $line = $info['unitPrice'] * $info['quantity'];
+//         $bought[] = [
+//             'productName' => $info['productName'],
+//             'quantity'    => $info['quantity'],
+//             'unitPrice'   => $info['unitPrice'],
+//             'line'        => $line,
+//         ];
+//         $subtotal += $line;
+//     }
+
+//     // — DERIVE BOOKING FEE & TOTAL —
+//     $total      = $payment->getTotalPrice();
+//     $bookingFee = max(0, $total - $subtotal);
+
+//     return $this->render('payment/success.html.twig', [
+//         'bought'     => $bought,
+//         'subtotal'   => number_format($subtotal, 2),
+//         'bookingFee' => number_format($bookingFee, 2),
+//         'total'      => number_format($total, 2),
+//     ]);
+// }
+
+
+ #[Route('/checkout_success', name: 'checkout_success')]
+    public function success(
+        Request $request,
+        EntityManagerInterface $em,
+        PaymentRepository $payments
+    ): Response {
+        // 1) Auth & lookup by session_id
+        $user      = $request->attributes->get('jwt_user');
+        $sessionId = $request->query->get('session_id');
+        if (!$user || !$sessionId) {
+            return $this->redirectToRoute('checkout_page');
+        }
+
+        $payment = $payments->findOneBy(['sessionId' => $sessionId]);
+        if (!$payment || $payment->getUser() !== $user || $payment->getStatus() !== 'completed') {
+            return $this->redirectToRoute('checkout_page');
+        }
+
+        // 2) Load & group purchase history
+        $records = $em->getRepository(PurchaseHistory::class)
+                      ->findBy(['payment' => $payment]);
+
+        $grouped  = [];
+        $subtotal = 0;
+        foreach ($records as $rec) {
+            $name = $rec->getProductName();
+            if (!isset($grouped[$name])) {
+                $grouped[$name] = [
+                    'productName' => $name,
+                    'unitPrice'   => $rec->getUnitPrice(),
+                    'quantity'    => 0,
+                ];
+            }
+            $grouped[$name]['quantity'] += $rec->getQuantity();
+        }
+
+        $bought = [];
+        foreach ($grouped as $info) {
+            $line     = $info['unitPrice'] * $info['quantity'];
+            $subtotal += $line;
+            $bought[] = [
+                'productName' => $info['productName'],
+                'unitPrice'   => $info['unitPrice'],
+                'quantity'    => $info['quantity'],
+                'line'        => $line,
+            ];
+        }
+
+        $total      = $payment->getTotalPrice();
+        $bookingFee = max(0, $total - $subtotal);
+
+        return $this->render('payment/success.html.twig', [
+            'bought'     => $bought,
+            'subtotal'   => number_format($subtotal, 2),
+            'bookingFee' => number_format($bookingFee, 2),
+            'total'      => number_format($total, 2),
+        ]);
+    }
 
 }

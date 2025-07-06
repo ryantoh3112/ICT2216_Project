@@ -67,19 +67,41 @@
     {% endif %}
   </div>
 
-  {% if items is not empty %}
-    <script src="https://js.stripe.com/v3/"></script>
-    <script>
-      const stripe = Stripe('{{ stripe_public_key }}');
-      document.getElementById('checkout-button').addEventListener('click', () => {
-        fetch("{{ path('create_checkout_session') }}", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" }
-        })
-        .then(r => r.json())
-        .then(d => stripe.redirectToCheckout({ sessionId: d.id }))
-        .catch(e => alert(e));
-      });
-    </script>
-  {% endif %}
+ {% if items is not empty %}
+      <script src="https://js.stripe.com/v3/"></script>
+      <script>
+        const stripe = Stripe('{{ stripe_public_key }}');
+        const btn    = document.getElementById('checkout-button');
+
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          try {
+            const res = await fetch("{{ path('create_checkout_session') }}", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({})              // no payload needed
+            });
+
+            const d = await res.json();
+            if (d.error) {
+              alert(d.error);
+              btn.disabled = false;
+              return;
+            }
+
+            const { error } = await stripe.redirectToCheckout({
+              sessionId: d.sessionId        // <-- use sessionId, not id
+            });
+
+            if (error) {
+              alert(error.message);
+              btn.disabled = false;
+            }
+          } catch (e) {
+            alert("Oops—could not start payment: " + e.message);
+            btn.disabled = false;
+          }
+        });
+      </script>
+    {% endif %}
 {% endblock %}
