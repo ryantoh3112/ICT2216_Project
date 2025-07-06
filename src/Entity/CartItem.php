@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Entity\User;
+use App\Entity\TicketType;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
@@ -26,10 +27,13 @@ class CartItem
     #[ORM\Column(type: 'integer', options: ['default' => 1])]
     private int $quantity = 1;
 
-
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'cartItems')]
-    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?User $user = null;
+
+    #[ORM\ManyToOne(targetEntity: TicketType::class)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    private TicketType $ticketType;
 
     public function getId(): ?int
     {
@@ -80,13 +84,6 @@ class CartItem
         return $this;
     }
 
- 
-    public function setTicketTypeId(?int $ticketTypeId): static
-    {
-        $this->ticketTypeId = $ticketTypeId;
-        return $this;
-    }
-
     public function getUser(): ?User
     {
         return $this->user;
@@ -95,6 +92,17 @@ class CartItem
     public function setUser(?User $user): static
     {
         $this->user = $user;
+        return $this;
+    }
+
+    public function getTicketType(): TicketType
+    {
+        return $this->ticketType;
+    }
+
+    public function setTicketType(TicketType $ticketType): static
+    {
+        $this->ticketType = $ticketType;
         return $this;
     }
 }

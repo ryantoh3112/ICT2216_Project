@@ -1,81 +1,100 @@
+{# templates/payment/checkout.html.twig #}
 {% extends 'base.html.twig' %}
 
 {% block body %}
-<div class="container mt-5 mb-5" style="min-height: 70vh;">
-  <div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-      <div class="shadow-sm p-4" style="background-color: #f9f9f9; border-radius: 10px;">
+<div class="container mt-5 mb-5" style="min-height:70vh">
+  <h2 class="text-center mb-4">🛒 Your Cart</h2>
 
-        <h2 class="text-center mb-3">🛒 Your Cart</h2>
-        <hr>
-
+  {% if items is empty %}
+    <p class="text-center text-muted">Your cart is empty.</p>
+  {% else %}
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Unit Price</th>
+          <th style="width:140px">Quantity</th>
+          <th>Line Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
         {% set subtotal = 0 %}
-        {% set booking_fee = 3 %}
+        {% for item in items %}
+          {% set avail = availability[item.id]|default(0) %}
+          {% set line = item.price * item.quantity %}
+          {% set subtotal = subtotal + line %}
 
-        {% if groupedCartItems is empty %}
-          <p class="text-center text-muted">Your cart is empty.</p>
-        {% else %}
-          {# List each grouped item #}
-          {% for key, item in groupedCartItems %}
-            {% set line_total = item.price * item.quantity %}
-            {% set subtotal = subtotal + line_total %}
+          <tr>
+            <td>{{ item.name }}</td>
+            <td>${{ item.price|number_format(2, '.', ',') }}</td>
+            <td>
+              <form action="{{ path('cart_update', { id: item.id }) }}" method="POST">
+                <select
+                  name="quantity"
+                  onchange="this.form.submit()"
+                  {% if avail < 1 %}disabled{% endif %}
+                >
+                  {% for i in 1..avail %}
+                    <option value="{{ i }}" {{ i == item.quantity ? 'selected' }}>
+                      {{ i }}
+                    </option>
+                  {% endfor %}
+                </select>
+                {% if avail < 1 %}
+                  <div class="text-danger small mt-1">Sold out</div>
+                {% endif %}
+              </form>
+            </td>
+            <td>${{ line|number_format(2, '.', ',') }}</td>
+            <td>
+              <form action="{{ path('cart_remove', { id: item.id }) }}"
+                    method="POST"
+                    onsubmit="return confirm('Remove this item?');">
+                <button class="btn btn-sm btn-outline-danger">Remove</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
 
-            <div class="d-flex justify-content-between mb-2">
-              <span>{{ item.name }} (x{{ item.quantity }})</span>
-              <span>${{ line_total|number_format(2, '.', ',') }}</span>
-            </div>
-          {% endfor %}
+        {# Totals #}
+        {% set booking_fee = 3 * (items|length) %}
+        {% set total = subtotal + booking_fee %}
 
-          {# Totals #}
-          {% set total_fee = booking_fee * (groupedCartItems|length) %}
-          {% set total     = subtotal + total_fee %}
+        <tr>
+          <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
+          <td colspan="2">${{ subtotal|number_format(2, '.', ',') }}</td>
+        </tr>
+        <tr>
+          <td colspan="3" class="text-end"><strong>Booking Fee:</strong></td>
+          <td colspan="2">${{ booking_fee|number_format(2, '.', ',') }}</td>
+        </tr>
+        <tr>
+          <td colspan="3" class="text-end"><strong>Total:</strong></td>
+          <td colspan="2"><strong>${{ total|number_format(2, '.', ',') }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
 
-          <hr>
-          <div class="d-flex justify-content-between">
-            <span><strong>Subtotal:</strong></span>
-            <span>${{ subtotal|number_format(2, '.', ',') }}</span>
-          </div>
-          <div class="d-flex justify-content-between">
-            <span><strong>Booking Fee:</strong></span>
-            <span>${{ total_fee|number_format(2, '.', ',') }}</span>
-          </div>
-          <div class="d-flex justify-content-between mb-3">
-            <span><strong>Total:</strong></span>
-            <span><strong>${{ total|number_format(2, '.', ',') }}</strong></span>
-          </div>
-
-          <button id="checkout-button" class="btn btn-primary w-100">
-            Pay ${{ total|number_format(2, '.', ',') }}
-          </button>
-        {% endif %}
-
-      </div>
-    </div>
-  </div>
+    <button id="checkout-button" class="btn btn-primary w-100">
+      Pay ${{ total|number_format(2, '.', ',') }}
+    </button>
+  {% endif %}
 </div>
 
-{# Stripe integration #}
-{% if groupedCartItems is not empty %}
+{% if items is not empty %}
   <script src="https://js.stripe.com/v3/"></script>
   <script>
-  (function() {
     const stripe = Stripe('{{ stripe_public_key }}');
-    const payBtn = document.getElementById('checkout-button');
-
-    payBtn.addEventListener('click', function () {
-      fetch("/create-checkout-session", {
+    document.getElementById('checkout-button').addEventListener('click', () => {
+      fetch("{{ path('create_checkout_session') }}", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({})
+        headers: { "Content-Type": "application/json" }
       })
-      .then(async res => {
-        if (!res.ok) throw new Error(await res.text());
-        return res.json();
-      })
-      .then(data => stripe.redirectToCheckout({ sessionId: data.id }))
-      .catch(err => alert("Error: " + err.message));
+      .then(r => r.json())
+      .then(d => stripe.redirectToCheckout({ sessionId: d.id }))
+      .catch(e => alert(e));
     });
-  })();
   </script>
 {% endif %}
 {% endblock %}

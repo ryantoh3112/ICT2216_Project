@@ -6,6 +6,7 @@ use App\Entity\CartItem;
 use App\Entity\TicketType;
 use App\Entity\Ticket;
 use App\Repository\EventRepository;
+use App\Repository\CartItemRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -124,7 +125,100 @@ final class EventController extends AbstractController
     //     ]);
     // }
 
-   #[Route(
+//    #[Route(
+//         '/{id}/tickets',
+//         name: 'select_ticket',
+//         requirements: ['id' => '\d+'],
+//         methods: ['GET','POST']
+//     )]
+//     public function selectTickets(
+//         Request $request,
+//         int $id,
+//         EventRepository $eventRepository,
+//         EntityManagerInterface $em
+//     ): Response {
+//         // 1) Ensure user is logged in
+//         $user = $request->attributes->get('jwt_user');
+//         if (!$user) {
+//             $this->addFlash('error', 'Please log in first.');
+//             $request->getSession()->set('_redirect_after_login', $request->getUri());
+//             return $this->redirectToRoute('auth_login');
+//         }
+
+//         // 2) Load the event
+//         $event = $eventRepository->find($id);
+//         if (!$event) {
+//             throw $this->createNotFoundException('Event not found.');
+//         }
+
+//         // 3) Build unique list of TicketType
+//         $ticketTypes = [];
+//         foreach ($event->getTicket() as $ticket) {
+//             $ticketTypes[$ticket->getTicketType()->getId()] = $ticket->getTicketType();
+//         }
+
+//         // 4) Compute availability for each type
+//         $availability = [];
+//         foreach ($ticketTypes as $typeId => $tt) {
+//             $availability[$typeId] = $em
+//                 ->getRepository(Ticket::class)
+//                 ->count([
+//                     'event'      => $event,
+//                     'ticketType' => $tt,
+//                     'payment'    => null,
+//                 ]);
+//         }
+
+//         // 5) Handle POST form submission
+//         if ($request->isMethod('POST')) {
+//             // CSRF check
+//             $token = $request->request->get('_csrf_token', '');
+//             if (!$this->isCsrfTokenValid('select_tickets', $token)) {
+//                 throw new AccessDeniedException('Invalid CSRF token.');
+//             }
+//             $all        = $request->request->all();
+//             $quantities = [];
+//             if (isset($all['quantities']) && is_array($all['quantities'])) {
+//                 $quantities = $all['quantities'];
+//             }
+
+//             foreach ($quantities as $typeId => $qty) {
+//                 $qty = (int) $qty;
+//                 if ($qty < 1) {
+//                     continue;
+//                 }
+//                 // don't allow selecting more than what's available
+//                 if (!isset($availability[$typeId]) || $qty > $availability[$typeId]) {
+//                     continue;
+//                 }
+//                 /** @var TicketType|null $tt */
+//                 $tt = $em->getRepository(TicketType::class)->find($typeId);
+//                 if (!$tt) {
+//                     continue;
+//                 }
+
+//                 $item = new CartItem();
+//                 $item->setName($tt->getName());
+//                 $item->setPrice($tt->getPrice());
+//                 $item->setQuantity($qty);
+//                 $item->setUser($user);
+
+//                 $em->persist($item);
+//             }
+
+//             $em->flush();
+
+//             return new RedirectResponse($this->generateUrl('checkout_page'));
+//         }
+
+//         // 6) Render the ticket-selection form
+//         return $this->render('event/select_ticket.html.twig', [
+//             'event'        => $event,
+//             'ticketTypes'  => array_values($ticketTypes),
+//             'availability' => $availability,
+//         ]);
+//     }
+    #[Route(
         '/{id}/tickets',
         name: 'select_ticket',
         requirements: ['id' => '\d+'],
@@ -134,6 +228,7 @@ final class EventController extends AbstractController
         Request $request,
         int $id,
         EventRepository $eventRepository,
+        CartItemRepository $cartRepo,
         EntityManagerInterface $em
     ): Response {
         // 1) Ensure user is logged in
@@ -144,22 +239,21 @@ final class EventController extends AbstractController
             return $this->redirectToRoute('auth_login');
         }
 
-        // 2) Load the event
+        // 2) Load the event (and ticket types)
         $event = $eventRepository->find($id);
         if (!$event) {
             throw $this->createNotFoundException('Event not found.');
         }
-
-        // 3) Build unique list of TicketType
+        // make a unique list of TicketType objects
         $ticketTypes = [];
-        foreach ($event->getTicket() as $ticket) {
-            $ticketTypes[$ticket->getTicketType()->getId()] = $ticket->getTicketType();
+        foreach ($event->getTicket() as $t) {
+            $ticketTypes[$t->getTicketType()->getId()] = $t->getTicketType();
         }
 
-        // 4) Compute availability for each type
-        $availability = [];
+        // 3) Compute raw availability for each type
+        $rawAvailability = [];
         foreach ($ticketTypes as $typeId => $tt) {
-            $availability[$typeId] = $em
+            $rawAvailability[$typeId] = $em
                 ->getRepository(Ticket::class)
                 ->count([
                     'event'      => $event,
@@ -168,49 +262,65 @@ final class EventController extends AbstractController
                 ]);
         }
 
-        // 5) Handle POST form submission
+        // 4) Count how many of each type the user already has in their cart
+        $inCartCounts = [];
+        $inCart = $cartRepo->findBy(['user' => $user]);
+        foreach ($inCart as $cartItem) {
+            // assume CartItem has getTicketType() relation
+            $tid = $cartItem->getTicketType()->getId();
+            $inCartCounts[$tid] = ($inCartCounts[$tid] ?? 0) + $cartItem->getQuantity();
+        }
+
+        // 5) Final availability = raw − in-cart, clamped ≥ 0
+        $availability = [];
+        foreach ($rawAvailability as $tid => $avail) {
+            $left = $avail - ($inCartCounts[$tid] ?? 0);
+            $availability[$tid] = max(0, $left);
+        }
+
+        // 6) If POST, process the submitted quantities
         if ($request->isMethod('POST')) {
-            // CSRF check
-            $token = $request->request->get('_csrf_token', '');
-            if (!$this->isCsrfTokenValid('select_tickets', $token)) {
+            // CSRF
+            if (! $this->isCsrfTokenValid('select_tickets', $request->request->get('_csrf_token'))) {
                 throw new AccessDeniedException('Invalid CSRF token.');
             }
-            $all        = $request->request->all();
-            $quantities = [];
-            if (isset($all['quantities']) && is_array($all['quantities'])) {
-                $quantities = $all['quantities'];
+
+            // $quantities = $request->request->get('quantities', []);
+            // retrieve raw, allow null, then normalize to array
+            // Fetch the full POST payload, then extract quantities if present
+            $postData    = $request->request->all();
+            $quantities  = [];
+            if (isset($postData['quantities']) && \is_array($postData['quantities'])) {
+                $quantities = $postData['quantities'];
             }
-
-            foreach ($quantities as $typeId => $qty) {
-                $qty = (int) $qty;
-                if ($qty < 1) {
+            
+            foreach ($ticketTypes as $tt) {
+                $tid = $tt->getId();
+                $q   = (int)($quantities[$tid] ?? 0);
+                if ($q < 1) {
                     continue;
                 }
-                // don't allow selecting more than what's available
-                if (!isset($availability[$typeId]) || $qty > $availability[$typeId]) {
+                // clamp to what’s really left
+                $toAdd = min($q, $availability[$tid] ?? 0);
+                if ($toAdd < 1) {
                     continue;
                 }
-                /** @var TicketType|null $tt */
-                $tt = $em->getRepository(TicketType::class)->find($typeId);
-                if (!$tt) {
-                    continue;
-                }
-
+                // persist a new CartItem
                 $item = new CartItem();
                 $item->setName($tt->getName());
                 $item->setPrice($tt->getPrice());
-                $item->setQuantity($qty);
+                $item->setQuantity($toAdd);
                 $item->setUser($user);
+                $item->setTicketType($tt);
 
                 $em->persist($item);
             }
-
             $em->flush();
 
             return new RedirectResponse($this->generateUrl('checkout_page'));
         }
 
-        // 6) Render the ticket-selection form
+        // 7) Render the form, passing in our adjusted availability map
         return $this->render('event/select_ticket.html.twig', [
             'event'        => $event,
             'ticketTypes'  => array_values($ticketTypes),

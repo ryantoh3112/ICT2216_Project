@@ -19,6 +19,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 final class PaymentController extends AbstractController
 {
@@ -40,39 +41,44 @@ final class PaymentController extends AbstractController
     //     ]);
     // }
 
-        #[Route('/checkout', name: 'checkout_page')]
+       #[Route('/checkout', name: 'checkout_page')]
     public function checkout(
         Request $request,
         CartItemRepository $cartRepo,
-        EntityManagerInterface $em
+        EntityManagerInterface $em,
+        string $stripe_public_key
     ): Response {
+        // 1) Ensure user is logged in
         $user = $request->attributes->get('jwt_user');
         if (!$user) {
             return $this->redirectToRoute('auth_login_form');
         }
 
-        // fetch all CartItem entities for this user
-        $rawItems = $cartRepo->findBy(['user' => $user]);
+        // 2) Load all CartItems for this user
+        /** @var CartItem[] $items */
+        $items = $cartRepo->findBy(['user' => $user]);
 
-        // group by ticket name
-        $groupedCartItems = [];
-        foreach ($rawItems as $item) {
-            $key = $item->getName();
-            if (!isset($groupedCartItems[$key])) {
-                $groupedCartItems[$key] = [
-                    'name'     => $item->getName(),
-                    'price'    => $item->getPrice(),
-                    'quantity' => $item->getQuantity(),
-                ];
-            } else {
-                $groupedCartItems[$key]['quantity'] += $item->getQuantity();
-            }
+        // 3) Build an availability map per CartItem
+        $availability = [];
+        foreach ($items as $item) {
+            // find the matching TicketType entity
+            $tt = $em->getRepository(TicketType::class)
+                     ->findOneBy(['name' => $item->getName()]);
+
+            // count all tickets of that type WITHOUT a payment assigned
+            $availability[$item->getId()] = $tt
+                ? $em->getRepository(Ticket::class)->count([
+                    'ticketType' => $tt,
+                    'payment'    => null,
+                ])
+                : 0;
         }
 
+        // 4) Render the Twig template exactly as it expects:
         return $this->render('payment/checkout.html.twig', [
-            'stripe_public_key'  => $_ENV['STRIPE_PUBLIC_KEY'],
-            'recaptcha_site_key' => $_ENV['RECAPTCHA_SITE_KEY'],
-            'groupedCartItems'   => $groupedCartItems,
+            'items'             => $items,
+            'availability'      => $availability,
+            'stripe_public_key' => $stripe_public_key,
         ]);
     }
 
@@ -176,6 +182,9 @@ final class PaymentController extends AbstractController
 
         return $this->json(['id' => $session->id]);
     }
+
+
+
 
 // #[Route('/success', name: 'checkout_success')]
 // public function success(
