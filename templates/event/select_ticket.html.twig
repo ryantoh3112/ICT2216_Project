@@ -1,45 +1,84 @@
+{# templates/event/select_ticket.html.twig #}
 {% extends 'base.html.twig' %}
 
 {% block body %}
 <div class="container py-5">
-    <h2>Choose Your Tickets</h2>
-    {% if event.imagepath %}
-        <img src="{{ asset(event.imagepath) }}" alt="{{ event.name }} image" class="img-fluid rounded mb-3">
+  <h2>Choose Your Tickets</h2>
+
+  {# Determine if any tickets remain #}
+  {% set anyAvailable = false %}
+  {% for type in ticketTypes %}
+    {% if availability[type.id]|default(0) > 0 %}
+      {% set anyAvailable = true %}
     {% endif %}
-    <p><strong>{{ event.name }}</strong></p>
-    <p><strong>Venue: </strong>{{ event.venue.name }}</p>
+  {% endfor %}
 
-    <table>
-        <thead>
-            <tr>
-                <th>Ticket Type</th>
-                <th>Price</th>
-                <th>Quantity</th>
-                <th>Description</th>
-            </tr>
-        </thead>
+  <form
+    action="{{ path('event_select_ticket', { id: event.id }) }}"
+    method="POST"
+  >
+    <input
+      type="hidden"
+      name="_csrf_token"
+      value="{{ csrf_token('select_tickets') }}"
+    >
 
-        <tbody>
-        {% for ticket in ticketType %}
-            <tr>
-                <td>{{ ticket.name }}</td>
-                <td>${{ ticket.price|number_format(2) }}</td>
-                <td>
-                    <select name="quantity_{{ ticket.id }}">
-                        {% for i in 0..4 %}
-                            <option value="{{ i }}">{{ i }}</option>
-                        {% endfor %}
-                    </select>
-                </td>
-                <td>{{ ticket.description }}</td>
-            </tr>
-        </tbody>
+    {# Event image #}
+    {% if event.imagepath %}
+      <img
+        src="{{ asset(event.imagepath) }}"
+        alt="{{ event.name }} image"
+        class="img-fluid rounded mb-3"
+      >
+    {% endif %}
+
+    <p><strong>{{ event.name }}</strong> — {{ event.venue.name }}</p>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Ticket Type</th>
+          <th>Price</th>
+          <th>Quantity</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {# Loop through each ticket type #}
+        {% for type in ticketTypes %}
+          {% set max = availability[type.id]|default(0) %}
+          <tr>
+            <td>{{ type.name }}</td>
+            <td>${{ type.price|number_format(2, '.', ',') }}</td>
+            <td style="min-width:120px;">
+              {# plain <select>, no Bootstrap class #}
+              <select
+                name="quantities[{{ type.id }}]"
+                {% if max == 0 %}disabled{% endif %}
+              >
+                {% for i in 0..max %}
+                  <option value="{{ i }}">{{ i }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              {{ type.description|default('–') }}
+              {% if max == 0 %}
+                <span class="badge bg-danger ms-2">Sold out</span>
+              {% endif %}
+            </td>
+          </tr>
         {% endfor %}
+      </tbody>
     </table>
 
-    <a href="{{ path('checkout_page') }}" class="btn btn-success" style="width:20%; bottom: 0; right: 0;">
-        Purchase Tickets
-    </a>
-
+    <button
+      type="submit"
+      class="btn {{ anyAvailable ? 'btn-success' : 'btn-secondary' }} mt-3"
+      {{ anyAvailable ? '' : 'disabled' }}
+    >
+      {{ anyAvailable ? 'Add to Cart & Continue to Checkout' : 'All Tickets Sold Out' }}
+    </button>
+  </form>
 </div>
 {% endblock %}

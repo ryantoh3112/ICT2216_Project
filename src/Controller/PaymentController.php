@@ -6,7 +6,10 @@ use App\Entity\PurchaseHistory;
 use App\Entity\CartItem;
 use App\Entity\History;
 use App\Entity\Payment;
+use App\Entity\TicketType;
+use App\Entity\Ticket;
 use App\Repository\PaymentRepository;
+use App\Repository\CartItemRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Stripe\Checkout\Session as StripeSession;
 use Stripe\Stripe;
@@ -19,21 +22,57 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 final class PaymentController extends AbstractController
 {
-     #[Route('/checkout', name: 'checkout_page')]
-    public function checkout(Request $request, EntityManagerInterface $em): Response
-    {
+    //  #[Route('/checkout', name: 'checkout_page')]
+    // public function checkout(Request $request, EntityManagerInterface $em): Response
+    // {
+    //     $user = $request->attributes->get('jwt_user');
+    //     if (!$user) {
+    //         return $this->redirectToRoute('auth_login_form');
+    //     }
+
+    //     $cartItems = $em->getRepository(CartItem::class)
+    //                    ->findBy(['user' => $user]);
+
+    //     return $this->render('payment/checkout.html.twig', [
+    //         'stripe_public_key'  => $_ENV['STRIPE_PUBLIC_KEY'],
+    //         'recaptcha_site_key' => $_ENV['RECAPTCHA_SITE_KEY'],
+    //         'cartItems'          => $cartItems,
+    //     ]);
+    // }
+
+        #[Route('/checkout', name: 'checkout_page')]
+    public function checkout(
+        Request $request,
+        CartItemRepository $cartRepo,
+        EntityManagerInterface $em
+    ): Response {
         $user = $request->attributes->get('jwt_user');
         if (!$user) {
             return $this->redirectToRoute('auth_login_form');
         }
 
-        $cartItems = $em->getRepository(CartItem::class)
-                       ->findBy(['user' => $user]);
+        // fetch all CartItem entities for this user
+        $rawItems = $cartRepo->findBy(['user' => $user]);
+
+        // group by ticket name
+        $groupedCartItems = [];
+        foreach ($rawItems as $item) {
+            $key = $item->getName();
+            if (!isset($groupedCartItems[$key])) {
+                $groupedCartItems[$key] = [
+                    'name'     => $item->getName(),
+                    'price'    => $item->getPrice(),
+                    'quantity' => $item->getQuantity(),
+                ];
+            } else {
+                $groupedCartItems[$key]['quantity'] += $item->getQuantity();
+            }
+        }
 
         return $this->render('payment/checkout.html.twig', [
             'stripe_public_key'  => $_ENV['STRIPE_PUBLIC_KEY'],
             'recaptcha_site_key' => $_ENV['RECAPTCHA_SITE_KEY'],
-            'cartItems'          => $cartItems,
+            'groupedCartItems'   => $groupedCartItems,
         ]);
     }
 
@@ -138,62 +177,139 @@ final class PaymentController extends AbstractController
         return $this->json(['id' => $session->id]);
     }
 
-#[Route('/success', name: 'checkout_success')]
-public function success(
-    Request $request,
-    EntityManagerInterface $em,
-    PaymentRepository $payments
-): Response {
-    // — AUTH & PAYMENT lookup (unchanged) —
-    $user = $request->attributes->get('jwt_user');
-    if (!$user) {
-        return $this->redirectToRoute('auth_login_form');
-    }
+// #[Route('/success', name: 'checkout_success')]
+// public function success(
+//     Request $request,
+//     EntityManagerInterface $em,
+//     PaymentRepository $payments
+// ): Response {
+//     // — AUTH & PAYMENT lookup (unchanged) —
+//     $user = $request->attributes->get('jwt_user');
+//     if (!$user) {
+//         return $this->redirectToRoute('auth_login_form');
+//     }
 
-    $paymentId = $request->getSession()->get('last_payment_id');
-    if (!$paymentId) {
-        return $this->redirectToRoute('checkout_page');
-    }
+//     $paymentId = $request->getSession()->get('last_payment_id');
+//     if (!$paymentId) {
+//         return $this->redirectToRoute('checkout_page');
+//     }
 
-    $payment = $payments->find($paymentId);
-    if (
-        !$payment ||
-        $payment->getUser() !== $user ||
-        $payment->getStatus() !== 'completed'
-    ) {
-        return $this->redirectToRoute('checkout_page');
-    }
+//     $payment = $payments->find($paymentId);
+//     if (
+//         !$payment ||
+//         $payment->getUser() !== $user ||
+//         $payment->getStatus() !== 'completed'
+//     ) {
+//         return $this->redirectToRoute('checkout_page');
+//     }
 
-    // — LOAD PURCHASED ITEMS from PurchaseHistory —
-    /** @var PurchaseHistory[] $records */
-    $records = $em->getRepository(PurchaseHistory::class)
-                  ->findBy(['payment' => $payment]);
+//     // — LOAD PURCHASED ITEMS from PurchaseHistory —
+//     /** @var PurchaseHistory[] $records */
+//     $records = $em->getRepository(PurchaseHistory::class)
+//                   ->findBy(['payment' => $payment]);
 
-    // — BUILD A SIMPLE ARRAY & CALC SUBTOTAL —
-    $bought   = [];
-    $subtotal = 0;
-    foreach ($records as $rec) {
-        $line = $rec->getUnitPrice() * $rec->getQuantity();
-        $bought[] = [
-            'productName' => $rec->getProductName(),
-            'quantity'    => $rec->getQuantity(),
-            'unitPrice'   => $rec->getUnitPrice(),
-            'line'        => $line,
-        ];
-        $subtotal += $line;
-    }
+//     // — BUILD A SIMPLE ARRAY & CALC SUBTOTAL —
+//     $bought   = [];
+//     $subtotal = 0;
+//     foreach ($records as $rec) {
+//         $line = $rec->getUnitPrice() * $rec->getQuantity();
+//         $bought[] = [
+//             'productName' => $rec->getProductName(),
+//             'quantity'    => $rec->getQuantity(),
+//             'unitPrice'   => $rec->getUnitPrice(),
+//             'line'        => $line,
+//         ];
+//         $subtotal += $line;
+//     }
 
-    // — DERIVE BOOKING FEE: payment.total − subtotal —
-    $total      = $payment->getTotalPrice();
-    $bookingFee = max(0, $total - $subtotal);
+//     // — DERIVE BOOKING FEE: payment.total − subtotal —
+//     $total      = $payment->getTotalPrice();
+//     $bookingFee = max(0, $total - $subtotal);
 
-    // — PASS EVERYTHING INTO TWIG —
-    return $this->render('payment/success.html.twig', [
-        'bought'     => $bought,
-        'subtotal'   => number_format($subtotal, 2),
-        'bookingFee' => number_format($bookingFee, 2),
-        'total'      => number_format($total, 2),
-    ]);
+//     // — PASS EVERYTHING INTO TWIG —
+//     return $this->render('payment/success.html.twig', [
+//         'bought'     => $bought,
+//         'subtotal'   => number_format($subtotal, 2),
+//         'bookingFee' => number_format($bookingFee, 2),
+//         'total'      => number_format($total, 2),
+//     ]);
+//     }
+
+
+    #[Route('/success', name: 'checkout_success')]
+    public function success(
+        Request $request,
+        EntityManagerInterface $em,
+        PaymentRepository $payments
+    ): Response {
+        $user = $request->attributes->get('jwt_user');
+        if (!$user) {
+            return $this->redirectToRoute('auth_login_form');
+        }
+        $paymentId = $request->getSession()->get('last_payment_id');
+        if (!$paymentId) {
+            return $this->redirectToRoute('checkout_page');
+        }
+        $payment = $payments->find($paymentId);
+        if (!$payment || $payment->getUser() !== $user || $payment->getStatus() !== 'completed') {
+            return $this->redirectToRoute('checkout_page');
+        }
+
+        /** @var PurchaseHistory[] $records */
+        $records = $em->getRepository(PurchaseHistory::class)
+                      ->findBy(['payment' => $payment]);
+
+        // Deduct tickets: mark actual Ticket entities as sold
+        foreach ($records as $rec) {
+            $productName = $rec->getProductName();
+            $qtyBought   = $rec->getQuantity();
+
+            /** @var TicketType|null $tt */
+            $tt = $em->getRepository(TicketType::class)
+                     ->findOneBy(['name' => $productName]);
+
+            if (!$tt) {
+                continue;
+            }
+
+            // fetch unsold tickets of this type
+            $unsold = $em->getRepository(Ticket::class)
+                ->findBy(
+                    ['ticketType' => $tt, 'payment' => null],
+                    null,
+                    $qtyBought
+                );
+
+            foreach ($unsold as $ticket) {
+                $ticket->setPayment($payment);
+                $em->persist($ticket);
+            }
+        }
+
+        $em->flush();
+
+        // prepare display data
+        $bought   = [];
+        $subtotal = 0;
+        foreach ($records as $rec) {
+            $line = $rec->getUnitPrice() * $rec->getQuantity();
+            $bought[] = [
+                'productName' => $rec->getProductName(),
+                'quantity'    => $rec->getQuantity(),
+                'unitPrice'   => $rec->getUnitPrice(),
+                'line'        => $line,
+            ];
+            $subtotal += $line;
+        }
+        $total      = $payment->getTotalPrice();
+        $bookingFee = max(0, $total - $subtotal);
+
+        return $this->render('payment/success.html.twig', [
+            'bought'     => $bought,
+            'subtotal'   => number_format($subtotal, 2),
+            'bookingFee' => number_format($bookingFee, 2),
+            'total'      => number_format($total, 2),
+        ]);
     }
 
     #[Route('/cancel', name: 'checkout_cancel')]

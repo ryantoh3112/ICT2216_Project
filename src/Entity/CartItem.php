@@ -26,8 +26,6 @@ class CartItem
     #[ORM\Column(type: 'integer', options: ['default' => 1])]
     private int $quantity = 1;
 
-    #[ORM\Column(type: 'integer', nullable: true)]
-    private ?int $ticketTypeId = null;
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'cartItems')]
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
@@ -82,11 +80,7 @@ class CartItem
         return $this;
     }
 
-    public function getTicketTypeId(): ?int
-    {
-        return $this->ticketTypeId;
-    }
-
+ 
     public function setTicketTypeId(?int $ticketTypeId): static
     {
         $this->ticketTypeId = $ticketTypeId;
