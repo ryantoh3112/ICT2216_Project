@@ -1,4 +1,3 @@
-{# templates/payment/success.html.twig #}
 {% extends 'base.html.twig' %}
 
 {% block body %}
@@ -11,7 +10,7 @@
         <h4>Order Summary</h4>
 
         {% if bought is not empty %}
-          {# line‐items #}
+          {# grouped line‐items #}
           {% for item in bought %}
             <div class="d-flex justify-content-between">
               <span><strong>Product:</strong></span>
@@ -21,7 +20,7 @@
               <span><strong>Quantity:</strong></span>
               <span>{{ item.quantity }}</span>
             </div>
-            <div class="d-flex justify-content-between mb-2">
+            <div class="d-flex justify-content-between mb-3">
               <span><strong>Unit Price:</strong></span>
               <span>${{ item.unitPrice|number_format(2) }}</span>
             </div>
@@ -34,7 +33,7 @@
             <span>${{ subtotal }}</span>
           </div>
 
-          {% if bookingFee > 0 %}
+          {% if bookingFee != '0.00' %}
             <div class="d-flex justify-content-between">
               <span><strong>Booking Fee:</strong></span>
               <span>${{ bookingFee }}</span>
@@ -46,7 +45,6 @@
             <span><strong>Total Paid:</strong></span>
             <span>${{ total }}</span>
           </div>
-
         {% else %}
           <p class="text-muted">No items found in your purchase history.</p>
         {% endif %}
