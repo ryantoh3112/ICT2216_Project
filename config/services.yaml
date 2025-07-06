@@ -6,6 +6,8 @@
 parameters:
     # added this for image upload directory
     uploads_directory: '%kernel.project_dir%/public/uploads'
+    event_images_directory: '%kernel.project_dir%/public/images/events' #admin dashboard is using this path for event images
+
     stripe_public_key: '%env(STRIPE_PUBLIC_KEY)%'
 
 

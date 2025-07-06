@@ -70,6 +70,18 @@
                                         <label class="form-label">Organiser</label>
                                         <input type="text" name="organiser" class="form-control" required>
                                     </div>
+
+                                                                        <div class="col-md-6">
+                                    <label for="event_date" class="form-label">Event Date</label>
+                                    <input 
+                                        type="date" 
+                                        id="event_date"
+                                        name="event_date" 
+                                        class="form-control" 
+                                        required
+                                    >
+                                    </div>
+
                                     <div class="col-12">
                                         <label class="form-label">Description</label>
                                         <textarea name="description" class="form-control" required></textarea>
@@ -119,6 +131,8 @@
                                         <input type="file" name="imagefile" class="form-control mt-2">
                                         <small class="text-muted fst-italic">*(Only .jpg/ .jpeg/ .png accepted.)</small>
                                     </div>
+
+                                    
                                     <div class="col-md-6">
                                         <label class="form-label">Purchase Start</label>
                                         <input type="date" name="purchase_start_date" class="form-control" required>
