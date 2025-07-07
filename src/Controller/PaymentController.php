@@ -13,6 +13,7 @@ use App\Repository\CartItemRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Stripe\Checkout\Session as StripeSession;
 use Stripe\Stripe;
+use Stripe\Exception\ApiErrorException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,6 +22,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Psr\Log\LoggerInterface;
 
 final class PaymentController extends AbstractController
 {
@@ -398,68 +400,172 @@ final class PaymentController extends AbstractController
 //     // 8) Return the session ID for the client to redirect
 //     return $this->json(['sessionId' => $session->id]);
 // }
-    #[Route('/create-checkout-session', name: 'create_checkout_session', methods: ['POST'])]
-    public function createCheckoutSession(
-        Request $request,
-        EntityManagerInterface $em,
-        CartItemRepository $cartRepo,
-        UrlGeneratorInterface $urlGenerator,
-        RateLimiterFactory $createCheckoutSessionLimiter
-    ): JsonResponse {
-        // 1) Ensure user is authenticated
-        /** @var \App\Entity\User|null $user */
-        $user = $request->attributes->get('jwt_user');
-        if (!$user) {
-            return $this->json(['error' => 'User not authenticated.'], 403);
-        }
+    // #[Route('/create-checkout-session', name: 'create_checkout_session', methods: ['POST'])]
+    // public function createCheckoutSession(
+    //     Request $request,
+    //     EntityManagerInterface $em,
+    //     CartItemRepository $cartRepo,
+    //     UrlGeneratorInterface $urlGenerator,
+    //     RateLimiterFactory $createCheckoutSessionLimiter
+    // ): JsonResponse {
+    //     // 1) Ensure user is authenticated
+    //     /** @var \App\Entity\User|null $user */
+    //     $user = $request->attributes->get('jwt_user');
+    //     if (!$user) {
+    //         return $this->json(['error' => 'User not authenticated.'], 403);
+    //     }
 
-        // 2) RATE LIMIT: max 5 sessions per minute PER USER
-        $limiter = $createCheckoutSessionLimiter->create('user_'.$user->getId());
-        $limit   = $limiter->consume(1);
-        if (false === $limit->isAccepted()) {
-            return $this->json([
-                'error' => 'Too many checkout attempts. Please wait before retrying.'
-            ], Response::HTTP_TOO_MANY_REQUESTS);
-        }
+    //     // 2) RATE LIMIT: max 5 sessions per minute PER USER
+    //     $limiter = $createCheckoutSessionLimiter->create('user_'.$user->getId());
+    //     $limit   = $limiter->consume(1);
+    //     if (false === $limit->isAccepted()) {
+    //         return $this->json([
+    //             'error' => 'Too many checkout attempts. Please wait before retrying.'
+    //         ], Response::HTTP_TOO_MANY_REQUESTS);
+    //     }
 
-        // 3) Build Stripe line items from the current cart
-        $rawItems = $cartRepo->findBy(['user' => $user]);
-        if (empty($rawItems)) {
-            return $this->json(['error' => 'Cart is empty.'], 400);
-        }
+    //     // 3) Build Stripe line items from the current cart
+    //     $rawItems = $cartRepo->findBy(['user' => $user]);
+    //     if (empty($rawItems)) {
+    //         return $this->json(['error' => 'Cart is empty.'], 400);
+    //     }
 
-        $lineItems = [];
-        $subtotal   = 0;
-        foreach ($rawItems as $ci) {
-            $unitAmt   = (int) round($ci->getPrice() * 100);
-            $qty       = $ci->getQuantity();
-            $subtotal += $ci->getPrice() * $qty;
+    //     $lineItems = [];
+    //     $subtotal   = 0;
+    //     foreach ($rawItems as $ci) {
+    //         $unitAmt   = (int) round($ci->getPrice() * 100);
+    //         $qty       = $ci->getQuantity();
+    //         $subtotal += $ci->getPrice() * $qty;
 
-            $lineItems[] = [
-                'price_data' => [
-                    'currency'     => 'usd',
-                    'product_data'=> ['name' => $ci->getName()],
-                    'unit_amount' => $unitAmt,
-                ],
-                'quantity'   => $qty,
-            ];
-        }
+    //         $lineItems[] = [
+    //             'price_data' => [
+    //                 'currency'     => 'usd',
+    //                 'product_data'=> ['name' => $ci->getName()],
+    //                 'unit_amount' => $unitAmt,
+    //             ],
+    //             'quantity'   => $qty,
+    //         ];
+    //     }
 
-        // 4) Add a flat booking fee line
-        $bookingFeeAmt = 3.00 * count($lineItems);
-        if ($bookingFeeAmt > 0) {
-            $lineItems[] = [
-                'price_data' => [
-                    'currency'     => 'usd',
-                    'product_data'=> ['name' => 'Booking Fee'],
-                    'unit_amount' => (int) round($bookingFeeAmt * 100),
-                ],
-                'quantity'   => 1,
-            ];
-            $subtotal += $bookingFeeAmt;
-        }
+    //     // 4) Add a flat booking fee line
+    //     $bookingFeeAmt = 3.00 * count($lineItems);
+    //     if ($bookingFeeAmt > 0) {
+    //         $lineItems[] = [
+    //             'price_data' => [
+    //                 'currency'     => 'usd',
+    //                 'product_data'=> ['name' => 'Booking Fee'],
+    //                 'unit_amount' => (int) round($bookingFeeAmt * 100),
+    //             ],
+    //             'quantity'   => 1,
+    //         ];
+    //         $subtotal += $bookingFeeAmt;
+    //     }
 
-        // 5) Always create a fresh Stripe Checkout Session
+    //     // 5) Always create a fresh Stripe Checkout Session
+    //     Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY']);
+    //     $session = StripeSession::create([
+    //         'payment_method_types' => ['card'],
+    //         'line_items'           => $lineItems,
+    //         'mode'                 => 'payment',
+    //         'expires_at'           => time() + 1800,
+    //         'success_url'          => $urlGenerator
+    //             ->generate('checkout_success', [], UrlGeneratorInterface::ABSOLUTE_URL)
+    //             . '?session_id={CHECKOUT_SESSION_ID}',
+    //         'cancel_url'           => $urlGenerator
+    //             ->generate('checkout_cancel', [], UrlGeneratorInterface::ABSOLUTE_URL)
+    //             . '?session_id={CHECKOUT_SESSION_ID}',
+    //     ]);
+
+    //     // 6) Persist the new Payment record + History
+    //     $payment = (new Payment())
+    //         ->setUser($user)
+    //         ->setTotalPrice($subtotal)
+    //         ->setPaymentMethod('stripe')
+    //         ->setSessionId($session->id)
+    //         ->setStatus('pending')
+    //         ->setPaymentDateTime(new \DateTime())
+    //         ->setExpiresAt((new \DateTime())->setTimestamp($session->expires_at));
+    //     $em->persist($payment);
+
+    //     $history = (new History())
+    //         ->setUser($user)
+    //         ->setPayment($payment)
+    //         ->setAction('Checkout session created')
+    //         ->setSessionId($session->id)
+    //         ->setStatus('pending')
+    //         ->setTimestamp(new \DateTime());
+    //     $em->persist($history);
+
+    //     $em->flush();
+
+    //     // 7) Return the newly created session ID
+    //     return $this->json(['sessionId' => $session->id]);
+    // }
+
+#[Route('/create-checkout-session', name: 'create_checkout_session', methods: ['POST'])]
+public function createCheckoutSession(
+    Request $request,
+    EntityManagerInterface $em,
+    CartItemRepository $cartRepo,
+    UrlGeneratorInterface $urlGenerator,
+    RateLimiterFactory $createCheckoutSessionLimiter,
+    LoggerInterface $logger
+): JsonResponse|Response {
+    // 1) Ensure user is authenticated
+    /** @var \App\Entity\User|null $user */
+    $user = $request->attributes->get('jwt_user');
+    if (!$user) {
+        return $this->json(['error' => 'User not authenticated.'], 403);
+    }
+
+    // 2) RATE LIMIT: max 5 sessions per minute PER USER
+    $limiter = $createCheckoutSessionLimiter->create('user_' . $user->getId());
+    $limit   = $limiter->consume(1);
+    if (false === $limit->isAccepted()) {
+        return $this->json([
+            'error' => 'Too many checkout attempts. Please wait before retrying.'
+        ], Response::HTTP_TOO_MANY_REQUESTS);
+    }
+
+    // 3) Build Stripe line items from the current cart
+    $rawItems = $cartRepo->findBy(['user' => $user]);
+    if (empty($rawItems)) {
+        return $this->json(['error' => 'Cart is empty.'], 400);
+    }
+
+    $lineItems = [];
+    $subtotal   = 0;
+    foreach ($rawItems as $ci) {
+        $unitAmt   = (int) round($ci->getPrice() * 100);
+        $qty       = $ci->getQuantity();
+        $subtotal += $ci->getPrice() * $qty;
+
+        $lineItems[] = [
+            'price_data' => [
+                'currency'    => 'usd',
+                'product_data'=> ['name' => $ci->getName()],
+                'unit_amount' => $unitAmt,
+            ],
+            'quantity'   => $qty,
+        ];
+    }
+
+    // 4) Add a flat booking fee line
+    $bookingFeeAmt = 3.00 * count($lineItems);
+    if ($bookingFeeAmt > 0) {
+        $lineItems[] = [
+            'price_data' => [
+                'currency'     => 'usd',
+                'product_data' => ['name' => 'Booking Fee'],
+                'unit_amount'  => (int) round($bookingFeeAmt * 100),
+            ],
+            'quantity'   => 1,
+        ];
+        $subtotal += $bookingFeeAmt;
+    }
+
+    // 5) Try creating the Stripe session
+    try {
         Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY']);
         $session = StripeSession::create([
             'payment_method_types' => ['card'],
@@ -473,34 +579,43 @@ final class PaymentController extends AbstractController
                 ->generate('checkout_cancel', [], UrlGeneratorInterface::ABSOLUTE_URL)
                 . '?session_id={CHECKOUT_SESSION_ID}',
         ]);
+    } catch (ApiErrorException $e) {
+        // Log the error via injected logger
+        $logger->error('Stripe API error creating session', [
+            'message' => $e->getMessage(),
+            'trace'   => $e->getTraceAsString(),
+        ]);
 
-        // 6) Persist the new Payment record + History
-        $payment = (new Payment())
-            ->setUser($user)
-            ->setTotalPrice($subtotal)
-            ->setPaymentMethod('stripe')
-            ->setSessionId($session->id)
-            ->setStatus('pending')
-            ->setPaymentDateTime(new \DateTime())
-            ->setExpiresAt((new \DateTime())->setTimestamp($session->expires_at));
-        $em->persist($payment);
-
-        $history = (new History())
-            ->setUser($user)
-            ->setPayment($payment)
-            ->setAction('Checkout session created')
-            ->setSessionId($session->id)
-            ->setStatus('pending')
-            ->setTimestamp(new \DateTime());
-        $em->persist($history);
-
-        $em->flush();
-
-        // 7) Return the newly created session ID
-        return $this->json(['sessionId' => $session->id]);
+        // Fallback: redirect back to cart with a flash error
+        $this->addFlash('error', 'Unable to start payment. Please try again later.');
+        return $this->redirectToRoute('checkout_page');
     }
 
+    // 6) Persist the new Payment record + History
+    $payment = (new Payment())
+        ->setUser($user)
+        ->setTotalPrice($subtotal)
+        ->setPaymentMethod('stripe')
+        ->setSessionId($session->id)
+        ->setStatus('pending')
+        ->setPaymentDateTime(new \DateTime())
+        ->setExpiresAt((new \DateTime())->setTimestamp($session->expires_at));
+    $em->persist($payment);
 
+    $history = (new History())
+        ->setUser($user)
+        ->setPayment($payment)
+        ->setAction('Checkout session created')
+        ->setSessionId($session->id)
+        ->setStatus('pending')
+        ->setTimestamp(new \DateTime());
+    $em->persist($history);
+
+    $em->flush();
+
+    // 7) Return the newly created session ID as JSON
+    return $this->json(['sessionId' => $session->id]);
+}
 
     //     #[Route('/checkout_cancel', name: 'checkout_cancel')]
     // public function cancel(

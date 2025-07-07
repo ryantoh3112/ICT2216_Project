@@ -224,8 +224,8 @@ public function updateItem(
     // 2) Validate Symfony CSRF token
     $submitted = $request->request->get('_csrf_token', '');
     if (!$this->isCsrfTokenValid('cart_update_' . $ticketTypeId, $submitted)) {
-        throw new AccessDeniedException('Invalid CSRF token');
-    }
+    throw $this->createAccessDeniedException('Invalid CSRF token');
+}
 
     // 3) Clamp & persist the new quantity
     $newQty = max(1, (int) $request->request->get('quantity', 1));

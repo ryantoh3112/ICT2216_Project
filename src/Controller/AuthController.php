@@ -280,7 +280,7 @@ public function login(
             $fails  = $user->getFailedLoginCount() ?? 0;
             $user->setFailedLoginCount($fails + 1);
 
-            if ($fails >= 10) {  // ← your lock threshold
+            if ($fails > 9) {  // ← your lock threshold
                 $user->setAccountStatus('locked');
                 $user->setLockedAt(new \DateTime());
             }

@@ -38,9 +38,9 @@ class Payment
     #[ORM\Column(type: 'string', length: 20)]
     private string $status = 'pending';
 
-    /**  
-     * Stripe’s built-in expiry timestamp for this session  
-     */
+      
+    //  Stripe’s built-in expiry timestamp for this session  
+  
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $expiresAt = null;
 
