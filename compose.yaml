@@ -96,7 +96,6 @@ services:
 
 ###< doctrine/doctrine-bundle ###
 
-
 volumes:
   database_data:
 
