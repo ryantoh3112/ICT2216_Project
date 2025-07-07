@@ -1,0 +1,35 @@
+name: CICD
+
+on:
+  push:
+    branches:
+      # - master
+      - deon-2
+  pull_request:
+    branches:
+      # - master
+      - deon-2
+
+jobs:
+  build-and-deploy:
+    # runs on fresh ubuntu img given by GitHub
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      # checkout the code in the repo, so that it can be used in the next steps
+    - name: Deploy to EC2 via SSH
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+            cd /home/student25/ICT2216_Project
+            git fetch origin
+            git checkout -B deon-2 origin/deon-2
+            git pull origin deon-2
+            sudo docker-compose down
+            sudo docker-compose build app nginx
+            sudo docker-compose up -d
+            sudo docker-compose exec -T app php bin/console doctrine:migrations:migrate --no-interaction
+            sudo docker-compose ps
