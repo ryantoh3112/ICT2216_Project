@@ -268,7 +268,6 @@ public function login(
     $password = $request->request->get('password', '');
     $auth     = $authRepository->findOneBy(['email' => $email]);
 
-    #guo dong
        if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
         $this->addFlash('error', 'Account is locked. Please contact support.');
         return $this->redirectToRoute('auth_login_form');
@@ -280,8 +279,8 @@ public function login(
             $user   = $auth->getUser();
             $fails  = $user->getFailedLoginCount() ?? 0;
             $user->setFailedLoginCount($fails + 1);
-            // guodong
-             if ($fails >= 10) {  // ← your lock threshold
+
+            if ($fails >= 10) {  // ← your lock threshold
                 $user->setAccountStatus('locked');
                 $user->setLockedAt(new \DateTime());
             }
@@ -745,7 +744,7 @@ public function login(
         // 2. Handle login-based 2FA
         $userId = $session->get('pending_2fa_user_id');
         if ($userId !== null) {
-            $user = $em->getRepository(\App\Entity\User::class)->find($userId);
+            $user = $em->getRepository(User::class)->find($userId);
 
             if (
                 !$user ||

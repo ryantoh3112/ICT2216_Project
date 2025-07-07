@@ -162,105 +162,188 @@ class WebhookController extends AbstractController
     //     return new Response('OK', 200);
     // }
 
-#[Route('/stripe/webhook', name: 'stripe_webhook', methods: ['POST'])]
-public function __invoke(
-    Request $request,
-    PaymentRepository $payments,
-    EntityManagerInterface $em
-): Response {
-    $payload   = $request->getContent();
-    $sigHeader = $request->headers->get('stripe-signature');
-    $secret    = $_ENV['STRIPE_WEBHOOK_SECRET'];
+// #[Route('/stripe/webhook', name: 'stripe_webhook', methods: ['POST'])]
+// public function __invoke(
+//     Request $request,
+//     PaymentRepository $payments,
+//     EntityManagerInterface $em
+// ): Response {
+//     $payload   = $request->getContent();
+//     $sigHeader = $request->headers->get('stripe-signature');
+//     $secret    = $_ENV['STRIPE_WEBHOOK_SECRET'];
 
-    try {
-        $event = Webhook::constructEvent($payload, $sigHeader, $secret);
-    } catch (\Exception $e) {
-        return new Response('Invalid payload or signature', 400);
-    }
+//     try {
+//         $event = Webhook::constructEvent($payload, $sigHeader, $secret);
+//     } catch (\Exception $e) {
+//         // Invalid payload or signature → 400
+//         return new Response('Invalid payload or signature', 400);
+//     }
 
-    if ($event->type !== 'checkout.session.completed') {
-        // we only care about completions here
-        return new Response('Ignored', 200);
-    }
+//     if ($event->type !== 'checkout.session.completed') {
+//         // Only process completed sessions
+//         // 200 so Stripe won’t retry
+//         return new Response('Event ignored: ' . $event->type, 200);
+//     }
 
-    $session = $event->data->object;
-    $payment = $payments->findOneBy(['sessionId' => $session->id]);
+//     $session = $event->data->object;
+//     $payment = $payments->findOneBy(['sessionId' => $session->id]);
 
-    if (! $payment) {
-        return new Response('No matching payment', 404);
-    }
+//     if (! $payment) {
+//         // Return 200 to avoid retries; log missing payment on your side
+//         // (Could also log: “No payment found for session {id}”)
+//         return new Response('No matching payment; ignoring', 200);
+//     }
 
-    // 1) Mark payment completed
-    $payment
-        ->setStatus('completed')
-        ->setPaymentDateTime((new \DateTime())->setTimestamp($session->created));
-    $em->persist($payment);
+//     // 1) Mark payment completed
+//     $payment
+//         ->setStatus('completed')
+//         ->setPaymentDateTime((new \DateTime())->setTimestamp($session->created));
+//     $em->persist($payment);
 
-    // 2) Log History
-    $hist = new History();
-    $hist
-      ->setUser($payment->getUser())
-      ->setPayment($payment)
-      ->setAction('Payment completed via webhook')
-      ->setTimestamp(new \DateTime())
-      ->setSessionId($session->id)
-      ->setStatus('completed');
-    $em->persist($hist);
+//     // 2) Log History
+//     $hist = (new History())
+//         ->setUser($payment->getUser())
+//         ->setPayment($payment)
+//         ->setAction('Payment completed via webhook')
+//         ->setTimestamp(new \DateTime())
+//         ->setSessionId($session->id)
+//         ->setStatus('completed');
+//     $em->persist($hist);
 
-    // 3) Fetch & clear cart, record PurchaseHistory
-    //    We'll also keep a local map of ticketType → quantity
-    $cartItems = $em->getRepository(CartItem::class)
-                    ->findBy(['user' => $payment->getUser()]);
+//     // 3) Build a map of TicketType → quantity from CartItems,
+//     //    persist PurchaseHistory and remove CartItems
+//     $cartItems  = $em->getRepository(CartItem::class)
+//                      ->findBy(['user' => $payment->getUser()]);
+//     $qtyByType  = [];
+//     foreach ($cartItems as $ci) {
+//         $ttId = $ci->getTicketType()->getId();
+//         $qtyByType[$ttId] = ($qtyByType[$ttId] ?? 0) + $ci->getQuantity();
 
-    $qtyByType = [];
-    foreach ($cartItems as $ci) {
-        // accumulate how many of each TicketType were bought
-        $ttId = $ci->getTicketType()->getId();
-        $qtyByType[$ttId] = ($qtyByType[$ttId] ?? 0) + $ci->getQuantity();
+//         $ph = (new PurchaseHistory())
+//             ->setUser($payment->getUser())
+//             ->setPayment($payment)
+//             ->setProductName($ci->getName())
+//             ->setUnitPrice((string)$ci->getPrice())
+//             ->setQuantity($ci->getQuantity());
+//         $em->persist($ph);
 
-        // record purchase history
-        $ph = new PurchaseHistory();
-        $ph
-          ->setUser($payment->getUser())
-          ->setPayment($payment)
-          ->setProductName($ci->getName())
-          ->setUnitPrice((string)$ci->getPrice())
-          ->setQuantity($ci->getQuantity());
-        $em->persist($ph);
+//         $em->remove($ci);
+//     }
 
-        // remove cart item
-        $em->remove($ci);
-    }
+//     // 4) Assign unsold tickets in bulk
+//     foreach ($qtyByType as $ttId => $count) {
+//         $tt = $em->getRepository(TicketType::class)->find($ttId);
+//         if (! $tt) {
+//             continue;
+//         }
 
-    // Flush **now** so that PurchaseHistory is in the DB and CartItems are cleared
-    $em->flush();
+//         $unsold = $em->getRepository(Ticket::class)
+//             ->findBy(
+//                 ['ticketType' => $tt, 'payment' => null],
+//                 null,
+//                 $count
+//             );
 
-    // 4) For each ticketType, assign that many unsold Ticket rows to this payment
-    foreach ($qtyByType as $ttId => $count) {
-        /** @var TicketType|null $tt */
-        $tt = $em->getRepository(TicketType::class)->find($ttId);
-        if (! $tt) {
-            continue;
+//         foreach ($unsold as $ticket) {
+//             $ticket->setPayment($payment);
+//             $em->persist($ticket);
+//         }
+//     }
+
+//     // 5) Flush everything in one go
+//     $em->flush();
+
+//     return new Response('Webhook handled successfully', 200);
+// }
+
+   #[Route('/stripe/webhook', name: 'stripe_webhook', methods: ['POST'])]
+    public function __invoke(
+        Request $request,
+        PaymentRepository $payments,
+        EntityManagerInterface $em
+    ): Response {
+        $payload   = $request->getContent();
+        $sigHeader = $request->headers->get('stripe-signature');
+        $secret    = $_ENV['STRIPE_WEBHOOK_SECRET'];
+
+        try {
+            $event = Webhook::constructEvent($payload, $sigHeader, $secret);
+        } catch (\Exception $e) {
+            return new Response('Invalid payload or signature', 400);
         }
 
-        $unsold = $em->getRepository(Ticket::class)
-            ->findBy(
-                ['ticketType' => $tt, 'payment' => null],
-                null,
-                $count
-            );
-
-        foreach ($unsold as $ticket) {
-            $ticket->setPayment($payment);
-            $em->persist($ticket);
+        if ($event->type !== 'checkout.session.completed') {
+            // Only process completions here; ignore all else
+            return new Response('Event ignored: ' . $event->type, 200);
         }
+
+        $session = $event->data->object;
+        $payment = $payments->findOneBy(['sessionId' => $session->id]);
+
+        if (! $payment) {
+            // Return 200 so Stripe does not retry; log on your side if needed
+            return new Response('No matching payment; ignoring', 200);
+        }
+
+        // 1) Mark payment completed
+        $payment
+            ->setStatus('completed')
+            ->setPaymentDateTime((new \DateTime())->setTimestamp($session->created));
+        $em->persist($payment);
+
+        // 2) Log History
+        $hist = (new History())
+            ->setUser($payment->getUser())
+            ->setPayment($payment)
+            ->setAction('Payment completed via webhook')
+            ->setTimestamp(new \DateTime())
+            ->setSessionId($session->id)
+            ->setStatus('completed');
+        $em->persist($hist);
+
+        // 3) Build map of TicketType→quantity, persist PurchaseHistory & clear cart
+        $cartItems = $em->getRepository(CartItem::class)
+                        ->findBy(['user' => $payment->getUser()]);
+        $qtyByType = [];
+
+        foreach ($cartItems as $ci) {
+            $ttId = $ci->getTicketType()->getId();
+            $qtyByType[$ttId] = ($qtyByType[$ttId] ?? 0) + $ci->getQuantity();
+
+            $ph = (new PurchaseHistory())
+                ->setUser($payment->getUser())
+                ->setPayment($payment)
+                ->setProductName($ci->getName())
+                ->setUnitPrice((string)$ci->getPrice())
+                ->setQuantity($ci->getQuantity());
+            $em->persist($ph);
+
+            $em->remove($ci);
+        }
+
+        // 4) Assign that many unsold tickets to this payment
+        foreach ($qtyByType as $ttId => $count) {
+            $tt = $em->getRepository(TicketType::class)->find($ttId);
+            if (! $tt) {
+                continue;
+            }
+            $unsold = $em->getRepository(Ticket::class)
+                         ->findBy(
+                             ['ticketType' => $tt, 'payment' => null],
+                             null,
+                             $count
+                         );
+            foreach ($unsold as $ticket) {
+                $ticket->setPayment($payment);
+                $em->persist($ticket);
+            }
+        }
+
+        // 5) Flush all changes in one go
+        $em->flush();
+
+        return new Response('Webhook handled successfully', 200);
     }
-
-    // 5) Final persist
-    $em->flush();
-
-    return new Response('OK', 200);
-}
 
 
 }

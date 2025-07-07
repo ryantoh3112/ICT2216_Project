@@ -256,6 +256,19 @@
                                                     <label class="form-label">Organiser</label>
                                                     <input type="text" name="organiser" value="{{ event.organiser }}" class="form-control" required>
                                                 </div>
+
+                                                {# — Event Date — #}
+                                                <div class="col-md-6">
+                                                    <label for="event_date_{{ event.id }}" class="form-label">Event Date</label>
+                                                    <input
+                                                        type="date"
+                                                        id="event_date_{{ event.id }}"
+                                                        name="event_date"
+                                                        value="{{ event.eventDate ? event.eventDate|date('Y-m-d') : '' }}"
+                                                        class="form-control"
+                                                        required
+                                                    >
+                                                </div>
                                                 <div class="col-12">
                                                     <label class="form-label">Description</label>
                                                     <textarea name="description" class="form-control" required>{{ event.description }}</textarea>

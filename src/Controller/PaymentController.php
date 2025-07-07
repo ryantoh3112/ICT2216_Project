@@ -699,50 +699,40 @@ final class PaymentController extends AbstractController
 
     //     ]);
     // }
-    #[Route('/checkout_cancel', name: 'checkout_cancel')]
-public function cancel(
-    Request $request,
-    EntityManagerInterface $em,
-    CartItemRepository $cartRepo
-): Response {
-    $user = $request->attributes->get('jwt_user');
-    if (!$user) {
-        return $this->redirectToRoute('auth_login_form');
-    }
-
-    if ($sessionId = $request->query->get('session_id')) {
-        /** @var Payment|null $payment */
-        $payment = $em->getRepository(Payment::class)
-                      ->findOneBy(['sessionId' => $sessionId]);
-
-        if ($payment && $payment->getStatus() === 'pending') {
-            // 1) mark payment cancelled
-            $payment->setStatus('cancelled');
-            $em->persist($payment);
-
-            // 2) log a matching History row
-            $hist = new History();
-            $hist
-              ->setUser($user)
-              ->setPayment($payment)
-              ->setAction('Checkout session cancelled by user')
-              ->setSessionId($sessionId)
-              ->setTimestamp(new \DateTime())
-              ->setStatus('cancelled')
-            ;
-            $em->persist($hist);
-
-            $em->flush();
+       #[Route('/checkout_cancel', name: 'checkout_cancel')]
+    public function cancel(
+        Request $request,
+        EntityManagerInterface $em,
+        CartItemRepository $cartRepo
+    ): Response {
+        $user = $request->attributes->get('jwt_user');
+        if (!$user) {
+            return $this->redirectToRoute('auth_login_form');
         }
+
+        // We no longer touch the Payment status here;
+        // cancellation is confirmed only via Stripe webhook.
+
+        // 1) Just re‐group the cart for display
+        $rawItems = $cartRepo->findBy(['user' => $user]);
+        $grouped = [];
+        foreach ($rawItems as $item) {
+            $tid = $item->getTicketType()->getId();
+            if (!isset($grouped[$tid])) {
+                $grouped[$tid] = [
+                    'name'     => $item->getName(),
+                    'price'    => $item->getPrice(),
+                    'quantity' => 0,
+                ];
+            }
+            $grouped[$tid]['quantity'] += $item->getQuantity();
+        }
+
+        return $this->render('payment/cancel.html.twig', [
+            'grouped'   => $grouped,
+            'cartItems' => $rawItems,
+        ]);
     }
-
-    // …then re-group cartItems for display…
-    $rawItems = $cartRepo->findBy(['user' => $user]);
-
-    return $this->render('payment/cancel.html.twig', [
-        'cartItems' => $rawItems,
-    ]);
-}
 
 //     #[Route('/success', name: 'checkout_success')]
 // public function success(

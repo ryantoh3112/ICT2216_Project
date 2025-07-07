@@ -197,6 +197,18 @@ final class AdminController extends AbstractController
         $event->setVenue($venue);
         $event->setCategory($category);
 
+                // Handle event_date (copied from addEvent logic)
+        $rawEventDate = $request->request->get('event_date');
+        if ($rawEventDate) {
+            try {
+                $eventDateTime = new \DateTime($rawEventDate);
+                $event->setEventDate($eventDateTime);
+            } catch (\Exception $e) {
+                $this->addFlash('error', 'Invalid event date format.');
+                return $this->redirectToRoute('admin_manage_events');
+            }
+        }
+
         // // Handle image file upload
         // $imagefile = $request->files->get('imagefile');
         // if ($imagefile && $imagefile->isValid()) {
