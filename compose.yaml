@@ -80,7 +80,7 @@ services:
     #   - "8081:80"
     # testing ssh local port forward for this page
     ports:
-      - "127.0.1:8081:80"  # Bind to localhost only for security
+      - "127.0.0.1:8081:80"  # Bind to localhost only for security
     environment:
       PMA_HOST: database
       MYSQL_ROOT_PASSWORD: rootpass
