@@ -39,6 +39,7 @@ services:
     volumes:
       - ./letsencrypt:/etc/letsencrypt
       - ./letsencrypt/www:/var/www/certbot
+      - ./letsencrypt/log:/var/log/letsencrypt
     # cronjob in instance helps to renew certificates automatically
     entrypoint: ""
 
