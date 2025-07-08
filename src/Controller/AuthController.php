@@ -527,7 +527,7 @@ public function login(
             #$user = $auth->getUser();
             $roles = $auth->getRoles();
             if (in_array('ROLE_ADMIN', $roles)) {
-                return $this->redirectToRoute('admin_dashboard');
+                return $this->redirectToRoute('admin_manage_events');
             } elseif (in_array('ROLE_USER', $roles)) {
                 return $this->redirectToRoute('user_profile');
             } else {
@@ -794,7 +794,7 @@ public function login(
 
             $response = new RedirectResponse(
                 $user->getRole() === 'ROLE_ADMIN' ? 
-                    $this->generateUrl('admin_dashboard') :
+                    $this->generateUrl('admin_manage_events') :
                     $this->generateUrl('user_profile')
             );
 

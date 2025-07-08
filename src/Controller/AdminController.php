@@ -42,27 +42,6 @@ final class AdminController extends AbstractController
         return $user;
     }
 
-    // Route to admin home page 
-    #[Route('/dashboard', name: 'dashboard')]
-    public function admin(
-        Request $request, 
-        AuthRepository $authRepository
-    ): Response
-    {
-        //check if admin
-        $result = $this->getAuthenticatedAdmin($request, $authRepository);
-        if ($result instanceof Response) {
-            return $result;
-        }
-        $user = $result; // it's a valid User
-
-        // $auth = $authRepository->findOneBy(['user' => $userId]);
-
-        $auth = $authRepository->findOneBy(['user' => $user]);
-
-        return $this->render('admin/admin.html.twig');
-    }
-
     // Page to manage all events 
     #[Route('/manage_events', name: 'manage_events')]
     public function manage_events(
@@ -108,27 +87,29 @@ final class AdminController extends AbstractController
         EventCategoryRepository $categoryRepo,
         TicketTypeRepository $ticketTypeRepo
     ): Response {
+        // 1) Check if event exists 
         $event = $eventRepo->find($id);
-
         if (!$event) {
             $this->addFlash('error', 'Event not found.');
             return $this->redirectToRoute('admin_manage_events');
         }
 
+        // 2) CSRF
         $submittedToken = $request->request->get('_token');
         if (!$this->isCsrfTokenValid('update_event_' . $id, $submittedToken)) {
             $this->addFlash('error', 'Invalid CSRF token.');
             return $this->redirectToRoute('admin_manage_events');
         }
 
-        // Validation to check if required fields are filled in 
+        // 2) Basic field validation 
         $name = strip_tags(trim($request->request->get('name')));
         $description = strip_tags(trim($request->request->get('description')));
         $organiser = strip_tags(trim($request->request->get('organiser')));
+        $rawEventDate = $request->request->get('event_date');
         $purchaseStartDateRaw = $request->request->get('purchase_start_date');
         $purchaseEndDateRaw = $request->request->get('purchase_end_date');
-        $venueId = (int) $request->request->get('venue');
-        $categoryId = (int) $request->request->get('category');
+        $venue = $venueRepo->find((int) $request->request->get('venue'));
+        $category = $categoryRepo->find((int) $request->request->get('category'));
         $capacity = (int) $request->request->get('capacity');
 
         if (!$name) {
@@ -145,69 +126,58 @@ final class AdminController extends AbstractController
             $this->addFlash('error', 'Organiser is required.');
             return $this->redirectToRoute('admin_manage_events');
         }
+        
+        if (!$rawEventDate) {
+            $this->addFlash('error', 'Organiser is required.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
 
-        if (!$purchaseStartDateRaw || !$purchaseEndDateRaw) {
+        if (!$purchaseStartDateRaw || !$purchaseEndDateRaw ) {
             $this->addFlash('error', 'Purchase start and end dates are required.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
+        // Venue and category validation
+        if (!$venue || !$category) {
+            $this->addFlash('error', 'Venue or category not found.');
             return $this->redirectToRoute('admin_manage_events');
         }
 
         try {
             $startDate = new \DateTime($purchaseStartDateRaw);
             $endDate = new \DateTime($purchaseEndDateRaw);
+            $eventDateTime = new \DateTime($rawEventDate);
         } catch (\Exception $e) {
             $this->addFlash('error', 'Invalid date format.');
             return $this->redirectToRoute('admin_manage_events');
         }
 
         // Ticket sales date validation
-        $startDate = new \DateTime($request->request->get('purchase_start_date'));
-        $endDate = new \DateTime($request->request->get('purchase_end_date'));
         if ($startDate >= $endDate) {
             $this->addFlash('error', 'Purchase start date must be before the end date.');
             return $this->redirectToRoute('admin_manage_events');
         }   
-
-        // Venue and category validation
-        $venue = $venueRepo->find((int) $request->request->get('venue'));
-        $category = $categoryRepo->find((int) $request->request->get('category'));
-
-        if (!$venue || !$category) {
-            $this->addFlash('error', 'Venue or category not found.');
+        if ($eventDateTime < $endDate) {
+            $this->addFlash('error', 'Purchase end cannot be after event date');
             return $this->redirectToRoute('admin_manage_events');
         }
 
         // Venue capacity validation
-        $capacity = (int) $request->request->get('capacity');
-        if ($capacity <= 0) {
-            $this->addFlash('error', 'Capacity must be greater than 0.');
-            return $this->redirectToRoute('admin_manage_events');
-        }
-        if ($capacity > $venue->getCapacity()) {
-            $this->addFlash('error', 'Capacity cannot exceed the venue\'s maximum capacity of ' . $venue->getCapacity() . '.');
+        if ($capacity < 1 || $capacity > $venue->getCapacity()) {
+            $this->addFlash('error', 'Capacity cannot exceed the venue\'s maximum capacity of '. $venue->getCapacity() .'.');
             return $this->redirectToRoute('admin_manage_events');
         }
 
-        // Update fields
-        $event->setName($request->request->get('name'));
-        $event->setDescription($request->request->get('description'));
-        $event->setCapacity((int) $request->request->get('capacity'));
-        $event->setPurchaseStartDate($startDate);
-        $event->setPurchaseEndDate($endDate);
-        $event->setOrganiser($request->request->get('organiser'));
+        // 3) Update fields
+        $event->setName($name);
+        $event->setDescription($description);
+        $event->setOrganiser($organiser);
+        $event->setEventDate($eventDateTime);
         $event->setVenue($venue);
         $event->setCategory($category);
-
-                // Handle event_date (copied from addEvent logic)
-        $rawEventDate = $request->request->get('event_date');
-        if ($rawEventDate) {
-            try {
-                $eventDateTime = new \DateTime($rawEventDate);
-                $event->setEventDate($eventDateTime);
-            } catch (\Exception $e) {
-                $this->addFlash('error', 'Invalid event date format.');
-                return $this->redirectToRoute('admin_manage_events');
-            }
-        }
+        $event->setCapacity($capacity);
+        $event->setPurchaseStartDate($startDate);
+        $event->setPurchaseEndDate($endDate);
 
         // // Handle image file upload
         // $imagefile = $request->files->get('imagefile');
@@ -230,16 +200,16 @@ final class AdminController extends AbstractController
             // // Set the image path in the event entity
             // $event->setImagePath($filename);
 
-                // 5) Image handling: reuse addEvent logic + preserve existing if none uploaded
-            $uploaded = $request->files->get('imagefile');
-            if ($uploaded instanceof UploadedFile && $uploaded->isValid()) {
-                $allowed = ['image/jpg','image/jpeg','image/png'];
-                if (!in_array($uploaded->getMimeType(), $allowed) || !@getimagesize($uploaded->getPathname())) {
-                    $this->addFlash('error','Invalid image upload.');
-                    return $this->redirectToRoute('admin_manage_events');
-                }
+        // 4) Image handling: reuse addEvent logic + preserve existing if none uploaded
+        $uploaded = $request->files->get('imagefile');
+        if ($uploaded instanceof UploadedFile && $uploaded->isValid()) {
+            $allowed = ['image/jpg','image/jpeg','image/png'];
+            if (!in_array($uploaded->getMimeType(), $allowed) || !@getimagesize($uploaded->getPathname())) {
+                $this->addFlash('error','Invalid image upload.');
+                return $this->redirectToRoute('admin_manage_events');
+            }
 
-                   // generate unique filename
+            // generate unique filename
             $filename = uniqid().'.'.$uploaded->guessExtension();
             $uploaded->move(
                 $this->getParameter('event_images_directory'),  // e.g. %kernel.project_dir%/public/images/events
@@ -249,7 +219,7 @@ final class AdminController extends AbstractController
             $event->setImagePath('images/events/'.$filename);
         }
 
-        // adding tickets 
+        // 5) adding tickets 
         // Get existing tickets for the event
         $existingTickets = $event->getTicket();
         $existingSeatNumbers = [];
@@ -268,6 +238,42 @@ final class AdminController extends AbstractController
                 }
             }
         }
+
+        //-- ticket count check if exceed event capacity -- 
+        // Count existing tickets
+        $existingTickets = $event->getTicket();
+        $existingTicketCount = count($existingTickets);
+
+        // Count tickets to be added for existing ticket types
+        $totalNewTickets = 0;
+        $ticketTypes = $ticketTypeRepo->findAll();
+
+        foreach ($ticketTypes as $ticketType) {
+            $inputName = 'ticket_type_' . $ticketType->getId();
+            $quantityToAdd = (int) $request->request->get($inputName);
+            if ($quantityToAdd > 0) {
+                $totalNewTickets += $quantityToAdd;
+            }
+        }
+
+        // Count tickets to be added for new ticket types
+        $newTicketTypes = $request->request->all('new_ticket_types');
+        if ($newTicketTypes) {
+            foreach ($newTicketTypes as $typeData) {
+                $quantity = (int) ($typeData['quantity'] ?? 0);
+                if ($quantity > 0) {
+                    $totalNewTickets += $quantity;
+                }
+            }
+        }
+
+        $totalTicketsAfterUpdate = $existingTicketCount + $totalNewTickets;
+
+        if ($totalTicketsAfterUpdate > $capacity) {
+            $this->addFlash('error', "Total number of tickets after update ($totalTicketsAfterUpdate) exceeds event capacity ($capacity).");
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
 
         $ticketTypes = $ticketTypeRepo->findAll();
         $seatCounter = $maxSeatNum + 1; 
@@ -334,180 +340,7 @@ final class AdminController extends AbstractController
         return $this->redirectToRoute('admin_manage_events');
     }
 
-    // // Functionality for add event button 
-    // #[Route('/admin/manage_event/add', name: 'add_event', methods: ['POST'])]
-    // public function addEvent(
-    //     Request $request,
-    //     EntityManagerInterface $em, 
-    //     VenueRepository $venueRepo,
-    //     EventCategoryRepository $categoryRepo
-    // ): Response {
-
-    //     $submittedToken = $request->request->get('_token');
-
-    //     if (!$this->isCsrfTokenValid('add_event', $submittedToken)) {
-    //         $this->addFlash('error', 'Invalid CSRF token.');
-    //         return $this->redirectToRoute('admin_manage_events');
-    //     }
-
-    //     // Validation to check if required fields are filled in 
-    //     $name = strip_tags(trim($request->request->get('name')));
-    //     $description = strip_tags(trim($request->request->get('description')));
-    //     $organiser = strip_tags(trim($request->request->get('organiser')));
-    //     $purchaseStartDateRaw = $request->request->get('purchase_start_date');
-    //     $purchaseEndDateRaw = $request->request->get('purchase_end_date');
-    //     $venueId = (int) $request->request->get('venue');
-    //     $categoryId = (int) $request->request->get('category');
-    //     $capacity = (int) $request->request->get('capacity');
-
-    //     if (!$name) {
-    //         $this->addFlash('error', 'Event name is required.');
-    //         return $this->redirectToRoute('admin_manage_events');
-    //     }
-
-    //     if (!$description) {
-    //         $this->addFlash('error', 'Event description is required.');
-    //         return $this->redirectToRoute('admin_manage_events');
-    //     }
-
-    //     if (!$organiser) {
-    //         $this->addFlash('error', 'Organiser is required.');
-    //         return $this->redirectToRoute('admin_manage_events');
-    //     }
-
-    //     if (!$purchaseStartDateRaw || !$purchaseEndDateRaw) {
-    //         $this->addFlash('error', 'Purchase start and end dates are required.');
-    //         return $this->redirectToRoute('admin_manage_events');
-    //     }
-
-    //     try {
-    //         $startDate = new \DateTime($purchaseStartDateRaw);
-    //         $endDate = new \DateTime($purchaseEndDateRaw);
-    //     } catch (\Exception $e) {
-    //         $this->addFlash('error', 'Invalid date format.');
-    //         return $this->redirectToRoute('admin_manage_events');
-    //     }
-
-
-    //     // Ticket sales date validation
-    //     $startDate = new \DateTime($request->request->get('purchase_start_date'));
-    //     $endDate = new \DateTime($request->request->get('purchase_end_date'));
-
-    //     if ($startDate >= $endDate) {
-    //         $this->addFlash('error', 'Purchase start date must be before the end date.');
-    //         return $this->redirectToRoute('admin_manage_events');
-    //     }
-
-    //     // Venue and category validation
-    //     $venue = $venueRepo->find((int) $request->request->get('venue'));
-    //     $category = $categoryRepo->find((int) $request->request->get('category'));
-
-    //     if (!$venue || !$category) {
-    //         $this->addFlash('error', 'Venue or category not found.');
-    //         return $this->redirectToRoute('admin_manage_events');
-    //     }
-
-    //     // Venue capacity validation
-    //     $capacity = (int) $request->request->get('capacity');
-    //     if ($capacity <= 0) {
-    //         $this->addFlash('error', 'Capacity must be greater than 0.');
-    //         return $this->redirectToRoute('admin_manage_events');
-    //     }
-    //     if ($capacity > $venue->getCapacity()) {
-    //         $this->addFlash('error', 'Capacity cannot exceed the venue\'s maximum capacity of ' . $venue->getCapacity() . '.');
-    //         return $this->redirectToRoute('admin_manage_events');
-    //     }
-
-    //     $event = new Event();
-    //     $event->setName($request->request->get('name'));
-    //     $event->setDescription($request->request->get('description'));
-    //     $event->setCapacity($capacity);
-    //     $event->setOrganiser($request->request->get('organiser'));
-
-    //     //get img file from imagefile input
-    //     $imagefile = $request->files->get('imagefile');
-    //     if ($imagefile && $imagefile->isValid()) {
-    //         # setting only valid image file type - jpg, jpeg & png
-    //         $allowedImgTypes = ['image/jpg', 'image/jpeg', 'image/png'];
-
-    //         // if user uploads invalid file type for img, redirect them back to manage events page with error message
-    //         if(!in_array($imagefile->getMimeType(), $allowedImgTypes)) {
-    //             $this->addFlash('error', 'Invalid image file type. Only JPG, JPEG, and PNG are allowed.');
-    //             return $this->redirectToRoute('admin_manage_events');
-    //         }
-    //         // ensure real img file is uploaded
-    //         if(!@getimagesize($imagefile->getPathname())) {
-    //             $this->addFlash('error', 'Nice try, but valid image only.');
-    //             return $this->redirectToRoute('admin_manage_events');
-    //         }
-    //         // Generate a unique filename
-    //         $filename = uniqid() . '.' . $imagefile->guessExtension();
-    //         // Move the file to the uploads directory
-    //         $imagefile->move($this->getParameter('uploads_directory'), $filename);
-    //         // Set the image path in the event entity
-    //         $event->setImagePath($filename);
-    //     } else {
-    //         // If no file is uploaded, set a default or null value
-    //         $event->setImagePath(null);
-    //     }
-    //     //$event->setImagePath($request->request->get('imagepath'));
-
-    //     $event->setPurchaseStartDate($startDate);
-    //     $event->setPurchaseEndDate($endDate);
-    //     $event->setVenue($venue);
-    //     $event->setCategory($category);
-    //     $em->persist($event);
-    //     $em->flush(); // flush early to get event ID
-
-    //     // Ensure ticket field not empty 
-    //     $ticketTypes = $request->request->all('ticket_types'); // gets array from form
-
-    //     // Check that the first ticket type exists and is fully filled
-    //     if (empty($ticketTypes[0]['name']) || 
-    //         !isset($ticketTypes[0]['price']) || $ticketTypes[0]['price'] <= 0 || 
-    //         !isset($ticketTypes[0]['quantity']) || $ticketTypes[0]['quantity'] <= 0) {
-
-    //         $this->addFlash('error', 'You must provide at least one complete ticket type (name, price, and quantity).');
-    //         return $this->redirectToRoute('admin_manage_events');
-    //     }
-
-    //     // Process ticket types
-    //     $seatCounter = 1;
-
-    //     foreach ($ticketTypes as $typeData) {
-    //         $name = strip_tags(trim($typeData['name']));
-    //         $description = strip_tags(trim($typeData['description']));
-    //         $price = (float) $typeData['price'];
-    //         $quantity = (int) $typeData['quantity'];
-
-    //         if (!$name || $price <= 0 || $quantity <= 0) {
-    //             continue; // skip invalid entries
-    //         }
-
-    //         // Create new TicketType
-    //         $ticketType = new TicketType();
-    //         $ticketType->setName($name);
-    //         $ticketType->setDescription($description);
-    //         $ticketType->setPrice($price);
-    //         $em->persist($ticketType);
-    //         $em->flush();
-
-    //         // Create individual Ticket records
-    //         for ($i = 0; $i < $quantity; $i++) {
-    //             $ticket = new Ticket();
-    //             $ticket->setEvent($event);
-    //             $ticket->setTicketType($ticketType);
-    //             $ticket->setSeatNumber("S" . str_pad($seatCounter++, 3, '0', STR_PAD_LEFT));
-    //             $em->persist($ticket);
-    //         }
-    //     }
-
-    //     $em->flush();
-
-    //     $this->addFlash('success', 'Event created successfully.');
-    //     return $this->redirectToRoute('admin_manage_events');
-    // }
-
+    // Functionality for add event button 
     #[Route('/admin/manage_event/add', name: 'add_event', methods: ['POST'])]
     public function addEvent(
         Request $request,
@@ -522,9 +355,9 @@ final class AdminController extends AbstractController
         }
 
         // 2) Basic field validation
-        $name        = trim($request->request->get('name', ''));
-        $description = trim($request->request->get('description', ''));
-        $organiser   = trim($request->request->get('organiser', ''));
+        $name        = strip_tags(trim($request->request->get('name', '')));
+        $description = strip_tags(trim($request->request->get('description', '')));
+        $organiser   = strip_tags(trim($request->request->get('organiser', '')));
         $rawDate     = $request->request->get('event_date');
         $rawStart    = $request->request->get('purchase_start_date');
         $rawEnd      = $request->request->get('purchase_end_date');
@@ -556,17 +389,22 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('admin_manage_events');
         }
 
+        if ($eventDate < $purchaseEnd) {
+            $this->addFlash('error', 'Purchase end cannot be after event date');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
         // 3) Build and persist the Event
         $event = (new Event())
             ->setName($name)
             ->setDescription($description)
             ->setOrganiser($organiser)
             ->setEventDate($eventDate)
-            ->setPurchaseStartDate($purchaseStart)
-            ->setPurchaseEndDate($purchaseEnd)
             ->setVenue($venue)
             ->setCategory($category)
-            ->setCapacity($capacity);
+            ->setCapacity($capacity)
+            ->setPurchaseStartDate($purchaseStart)
+            ->setPurchaseEndDate($purchaseEnd);
 
         // 4) Handle optional image upload
         $imagefile = $request->files->get('imagefile');
@@ -588,13 +426,42 @@ final class AdminController extends AbstractController
         $em->persist($event);
         $em->flush(); // so $event->getId() exists
 
-        // 5) Process ticket_types[...] from the form
+        // 5) Basic field validation for tickets
+        $ticketTypes = $request->request->all('ticket_types'); // gets array from form
+        // Check that the first ticket type exists and is fully filled
+        if (empty($ticketTypes[0]['name']) || 
+            !isset($ticketTypes[0]['price']) || $ticketTypes[0]['price'] <= 0 || 
+            !isset($ticketTypes[0]['quantity']) || $ticketTypes[0]['quantity'] <= 0) {
+
+            $this->addFlash('error', 'You must provide at least one complete ticket type (name, price, and quantity).');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
         $ticketTypesData = $request->request->all('ticket_types');
         $seatCounter     = 1;
 
+        //check that total tickets dont exceed event capacity
+        $totalTickets = 0;
+        foreach ($ticketTypesData as $typeData) {
+            $qty = intval($typeData['quantity'] ?? 0);
+            if ($qty > 0) {
+                $totalTickets += $qty;
+            }
+        }
+
+        if ($totalTickets > $capacity) {
+            // delete event if ticket count incorrect 
+            $em->remove($event);
+            $em->flush();
+
+            $this->addFlash('error', 'Total ticket quantity (' . $totalTickets . ') exceeds event capacity (' . $capacity . ').');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+        
+        // 6) Process ticket_types[...] from the form
         foreach ($ticketTypesData as $idx => $typeData) {
-            $tName     = trim($typeData['name'] ?? '');
-            $tDesc     = trim($typeData['description'] ?? '');
+            $tName     = strip_tags(trim($typeData['name'] ?? ''));
+            $tDesc     = strip_tags(trim($typeData['description'] ?? ''));
             $tPrice    = floatval($typeData['price'] ?? 0);
             $tQuantity = intval($typeData['quantity'] ?? 0);
 
@@ -755,6 +622,13 @@ final class AdminController extends AbstractController
         $user->setAccountStatus($newStatus);
         $user->setOtpEnabled($newOtp);
 
+        // If status is 'locked', set lockedAt timing
+        if ($newStatus === 'locked') {
+            $user->setLockedAt(new \DateTime());
+        } else {
+            $user->setLockedAt(null); // clear if not locked
+        }
+
         $em->flush();
 
         $this->addFlash('success', 'User updated successfully.');
@@ -769,7 +643,7 @@ final class AdminController extends AbstractController
         EntityManagerInterface $em,
         UserRepository $userRepo
     ): Response {
-        // Optional: CSRF token check for security
+        // CSRF token check for security
         $submittedToken = $request->request->get('_token');
         if (!$this->isCsrfTokenValid('delete_user_' . $id, $submittedToken)) {
             $this->addFlash('error', 'Invalid CSRF token.');
@@ -782,7 +656,7 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('admin_manage_users');
         }
 
-        // Prevent deleting yourself (optional)
+        // Prevent deleting yourself 
         $currentUser = $request->attributes->get('jwt_user');
         if ($currentUser && $currentUser->getId() === $id) {
             $this->addFlash('error', 'You cannot delete your own account.');
