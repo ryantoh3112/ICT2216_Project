@@ -78,7 +78,7 @@ final class AdminController extends AbstractController
     }
 
     // Functionality for edit event button
-    #[Route('/admin/manage_event/update/{id}', name: 'update_event', methods: ['POST'])]
+    #[Route('/manage_event/update/{id}', name: 'update_event', methods: ['POST'])]
     public function updateEvent(
         int $id,
         Request $request,
@@ -358,7 +358,7 @@ final class AdminController extends AbstractController
     }
 
     // Functionality for add event button 
-    #[Route('/admin/manage_event/add', name: 'add_event', methods: ['POST'])]
+    #[Route('/manage_event/add', name: 'add_event', methods: ['POST'])]
     public function addEvent(
         Request $request,
         EntityManagerInterface $em,
@@ -515,7 +515,7 @@ final class AdminController extends AbstractController
     }
 
     // Functionality for delete event button
-    #[Route('/admin/manage_event/delete/{id}', name: 'delete_event', methods: ['POST'])]
+    #[Route('/manage_event/delete/{id}', name: 'delete_event', methods: ['POST'])]
     public function deleteEvent(
         int $id,
         Request $request,
@@ -588,7 +588,7 @@ final class AdminController extends AbstractController
     }
 
     // Functionality for Edit User button 
-    #[Route('/admin/manage_user/update/{id}', name: 'update_user', methods: ['POST'])]
+    #[Route('/manage_user/update/{id}', name: 'update_user', methods: ['POST'])]
     public function updateUser(
         int $id,
         Request $request,
@@ -653,7 +653,7 @@ final class AdminController extends AbstractController
     }
 
     // Functionality for delete user buttion 
-    #[Route('/admin/user/delete/{id}', name: 'delete_user', methods: ['POST'])]
+    #[Route('/user/delete/{id}', name: 'delete_user', methods: ['POST'])]
     public function deleteUser(
         int $id,
         Request $request,
