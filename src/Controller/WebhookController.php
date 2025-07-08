@@ -18,11 +18,7 @@ use App\Entity\Ticket;
 
 class WebhookController extends AbstractController
 {
-   
-    //   Handle Stripe webhook events.
-   
-    
-#[Route('/stripe/webhook', name: 'stripe_webhook', methods: ['POST'])]
+    #[Route('/stripe/webhook', name: 'stripe_webhook', methods: ['POST'])]
     public function __invoke(
         Request $request,
         PaymentRepository $payments,
@@ -38,26 +34,22 @@ class WebhookController extends AbstractController
             return new Response('Invalid payload or signature', 400);
         }
 
-        // Look up our Payment by the session ID
         $session = $event->data->object;
         $payment = $payments->findOneBy(['sessionId' => $session->id]);
 
-        // If it's not one we know about, ACK and ignore
         if (! $payment) {
             return new Response('No matching payment; ignoring', 200);
         }
 
         switch ($event->type) {
             case 'checkout.session.completed':
-                // mark completed
+                // 1) mark payment completed
                 $payment
                     ->setStatus('completed')
-                    ->setPaymentDateTime((new \DateTime())
-                        ->setTimestamp($session->created)
-                    );
+                    ->setPaymentDateTime((new \DateTime())->setTimestamp($session->created));
                 $em->persist($payment);
 
-                // log history
+                // 2) log history
                 $em->persist((new History())
                     ->setUser($payment->getUser())
                     ->setPayment($payment)
@@ -67,7 +59,7 @@ class WebhookController extends AbstractController
                     ->setStatus('completed')
                 );
 
-                // move CartItems → PurchaseHistory & clear cart…
+                // 3) move CartItems → PurchaseHistory & clear cart
                 $cartItems = $em->getRepository(CartItem::class)
                                 ->findBy(['user' => $payment->getUser()]);
                 $counts = [];
@@ -79,28 +71,42 @@ class WebhookController extends AbstractController
                         ->setUser($payment->getUser())
                         ->setPayment($payment)
                         ->setProductName($ci->getName())
-                        ->setUnitPrice((string)$ci->getPrice())
+                        ->setUnitPrice((float)$ci->getPrice())
                         ->setQuantity($ci->getQuantity())
                     );
                     $em->remove($ci);
                 }
-
-                // …and assign actual Ticket entities
+                // 4) assign and QR‐code tickets
                 foreach ($counts as $ttId => $qty) {
                     $tt = $em->getRepository(TicketType::class)->find($ttId);
-                    if (!$tt) continue;
+                    if (!$tt) {
+                        continue;
+                    }
+
                     $unsold = $em->getRepository(Ticket::class)
-                                 ->findBy(['ticketType' => $tt, 'payment' => null], null, $qty);
+                                ->findBy(['ticketType' => $tt, 'payment' => null], null, $qty);
                     foreach ($unsold as $t) {
-                        $t->setPayment($payment);
+                        $t->setPayment($payment)
+                        ->setQrToken(bin2hex(random_bytes(32)));
+
+                        // expire at the *end* of the event day, not midnight
+                        $eventDate = $t->getEvent()?->getEventDate();
+                        if ($eventDate instanceof \DateTimeInterface) {
+                            // clone so we don’t mutate the original
+                            $expiresAt = (clone $eventDate)
+                                ->setTime(23, 59, 59);
+                            $t->setQrExpiresAt($expiresAt);
+                        } else {
+                            // fallback to 24h TTL
+                            $t->setQrExpiresAt((new \DateTimeImmutable())->modify('+1 day'));
+                        }
+
                         $em->persist($t);
                     }
                 }
                 break;
 
-                // This automation only works in webhook production
             case 'checkout.session.expired':
-                // only cancel if still pending
                 if ($payment->getStatus() === 'pending') {
                     $payment->setStatus('cancelled');
                     $em->persist($payment);
@@ -117,12 +123,10 @@ class WebhookController extends AbstractController
                 break;
 
             default:
-                // we deliberately ignore all other event types
                 return new Response('Event ignored: ' . $event->type, 200);
         }
 
         $em->flush();
         return new Response('Webhook handled successfully', 200);
     }
-
 }
