@@ -20,6 +20,7 @@ use App\Repository\EventCategoryRepository;
 use App\Repository\TicketTypeRepository;
 use App\Repository\AuthRepository;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\UploadedFile;
 
 #[Route('/admin', name: 'admin_')]
 final class AdminController extends AbstractController
@@ -202,7 +203,7 @@ final class AdminController extends AbstractController
 
         // 4) Image handling: reuse addEvent logic + preserve existing if none uploaded
         $uploaded = $request->files->get('imagefile');
-        if ($uploaded && $uploaded->isValid()) {
+        if ($uploaded instanceof UploadedFile && $uploaded->isValid()) {
             $allowed = ['image/jpg','image/jpeg','image/png'];
             if (!in_array($uploaded->getMimeType(), $allowed)){
                 $this->addFlash('error', 'Invalid image file type. Only JPG, JPEG, and PNG are allowed.');
