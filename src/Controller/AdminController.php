@@ -69,7 +69,7 @@ final class AdminController extends AbstractController
         $categories = $categoryRepo->findAll();
         $ticketTypes = $ticketTypeRepo->findAll();
 
-        return $this->render('/manage_events.html.twig',[
+        return $this->render('admin/manage_events.html.twig',[
             'events' => $events,
             'venues' => $venues,
             'categories' => $categories,
