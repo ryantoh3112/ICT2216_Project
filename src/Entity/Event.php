@@ -24,6 +24,9 @@ class Event
 
     #[ORM\Column]
     private ?int $capacity = null;
+    
+    #[ORM\Column]
+    private ?\DateTime $eventDate = null;
 
     #[ORM\Column]
     private ?\DateTime $purchaseStartDate = null;
@@ -41,14 +44,14 @@ class Event
     #[ORM\JoinColumn(nullable: false)]
     private ?Venue $venue = null;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(length: 255, nullable: true)]
     private ?string $organiser = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $image = null;
+    private ?string $imagepath = null;
 
     #[ORM\ManyToOne(inversedBy: 'event')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?EventCategory $category = null;
 
     public function __construct()
@@ -93,6 +96,18 @@ class Event
     public function setCapacity(int $capacity): static
     {
         $this->capacity = $capacity;
+
+        return $this;
+    }
+    
+    public function getEventDate(): ?\DateTime
+    {
+        return $this->eventDate;
+    }
+
+    public function setEventDate(\DateTime $eventDate): static
+    {
+        $this->eventDate = $eventDate;
 
         return $this;
     }
@@ -175,15 +190,14 @@ class Event
         return $this;
     }
 
-    public function getImage(): ?string
+    public function getImagePath(): ?string
     {
-        return $this->image;
+        return $this->imagepath;
     }
 
-    public function setImage(?string $image): static
+    public function setImagePath(?string $imagepath): self
     {
-        $this->image = $image;
-
+        $this->imagepath = $imagepath;
         return $this;
     }
 

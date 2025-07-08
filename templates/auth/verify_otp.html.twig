@@ -1,0 +1,74 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<style>
+  .form-card {
+    background: #fff;
+    border-radius: 1.2rem;
+    box-shadow: 0 6px 32px rgba(30,30,60,0.07);
+    padding: 2.5rem 2.5rem 2rem;
+    max-width: 420px;
+    margin: 2.5rem auto;
+    text-align: center;
+  }
+
+  h3 {
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+  }
+
+  .form-control {
+    border-radius: 0.65rem;
+    font-size: 1.08rem;
+  }
+
+  .form-text {
+    font-size: 0.95rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+  }
+
+  .btn-link {
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+  }
+</style>
+
+<section class="d-flex align-items-center" style="background: #f8f9fa; min-height: 100vh;">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-5">
+        <div class="form-card">
+          <h3>{{ isLoginOtp ? 'Login Verification' : 'Confirm 2FA Action' }}</h3>
+          <p class="form-text">
+            Enter the 6-digit OTP sent to your email to 
+            {{ isLoginOtp ? 'complete your login.' : 'confirm this change.' }}
+          </p>
+
+          {% for label, messages in app.flashes %}
+              {% for message in messages %}
+                  <div class="alert alert-{{ label == 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+                      {{ message }}
+                      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>
+              {% endfor %}
+          {% endfor %}
+
+          <form method="POST" action="{{ path('auth_verify_otp') }}">
+            <div class="mb-3 text-start">
+              <label for="otp_code" class="form-label">OTP Code</label>
+              <input type="text" class="form-control text-center" name="otp" id="otp_code" required maxlength="6" pattern="\d{6}">
+            </div>
+            <button type="submit" class="btn btn-success w-100">Verify OTP</button>
+          </form>
+
+          <form method="POST" action="{{ path('auth_resend_otp') }}">
+            <input type="hidden" name="resend" value="1">
+            <button type="submit" class="btn btn-link">Didn’t get the code? Resend OTP</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

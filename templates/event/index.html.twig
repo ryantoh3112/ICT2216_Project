@@ -1,0 +1,120 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <!-- events section -->
+    <section class="event_section layout_padding">
+        <div class="container">
+            <div class="heading_container heading_center mb-4">
+                <h2>Our Events</h2>
+            </div>
+
+            <div class="row">
+                {% for event in events %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="box flex-fill">
+                            <div class="img-box mb-2 position-relative" style="height: 250px; overflow: hidden;">
+                                {% if soldOut[event.id] %}
+                                    <div class="position-absolute top-0 start-0 bg-danger text-white px-2 py-1 fw-bold rounded-end">
+                                        Sold Out
+                                    </div>
+                                {% endif %}
+                                <img src="{{ asset(event.imagepath ?: 'images/events.jpg')}}" 
+                                    alt="Event Image" class="img-fluid rounded w-100 h-100 object-fit-cover {{ soldOut[event.id] ? 'opacity-50': '' }}">
+                            </div>
+                            <div class="detail-box">
+                                <h5 class="fw-bold">
+                                    {{ event.name }}
+                                </h5>
+                               
+                                {% if event.eventDate %}
+                                    <p class="text-bold medium">
+                                       {{ event.eventDate|date('d M Y (D)') }}
+                                    </p>
+                                {% endif %}
+
+                                <a href="{{ path('event_show', { id: event.id }) }}" class="btn btn-outline-primary ">View More</a>
+                        
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <p>No events found.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!--Pagination-->
+        {% if totalPages > 1 %}
+        <nav aria-label="Page navigation" class="d-flex justify-content-center mt-3">
+            <ul class="pagination pagination-md">
+                {# Previous button #}
+                {% if currentPage > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ path('event_list', {'page': currentPage - 1}) }}" aria-label="Previous">
+                            &lsaquo;
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&lsaquo;</span>
+                    </li>
+                {% endif %}
+                
+                {# Page numbers #}
+                {% for i in 1..totalPages %}
+                    <li class="page-item {{ i == currentPage ? 'active' : ''}}">
+                         <a class="page-link" href="{{ path('event_list', { page: i }) }}">{{ i }}</a>
+                    </li>
+                {% endfor %}
+
+                {# Next button #}
+                {% if currentPage < totalPages %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ path('event_list', {'page': currentPage + 1}) }}" aria-label="Next">
+                            &rsaquo;
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&rsaquo;</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const buttons = document.querySelectorAll('.add-to-cart');
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const data = {
+          name: btn.dataset.name,
+          price: parseFloat(btn.dataset.price),
+          image: btn.dataset.image
+        };
+
+        fetch('/sync-cart', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (res.success) {
+            alert(`${data.name} added to cart!`);
+          } else {
+            alert('Error: ' + (res.error || 'Could not add item.'));
+          }
+        })
+        .catch(() => alert('Something went wrong while syncing cart.'));
+      });
+    });
+  });
+</script>
+{% endblock %}

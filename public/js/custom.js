@@ -8,25 +8,20 @@ function getYear() {
 getYear();
 
 
-// isotope js
+// Isotope js for filter menus
 $(window).on('load', function () {
-    $('.filters_menu li').click(function () {
+    var $grid = $('.grid').isotope({
+        itemSelector: '.all',
+        layoutMode: 'fitRows'
+    });
+
+    $('.filters_menu li').on('click', function () {
         $('.filters_menu li').removeClass('active');
         $(this).addClass('active');
 
-        var data = $(this).attr('data-filter');
-        $grid.isotope({
-            filter: data
-        })
+        var filterValue = $(this).attr('data-filter');
+        $grid.isotope({ filter: filterValue });
     });
-
-    var $grid = $(".grid").isotope({
-        itemSelector: ".all",
-        percentPosition: false,
-        masonry: {
-            columnWidth: ".all"
-        }
-    })
 });
 
 // nice select

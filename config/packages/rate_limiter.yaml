@@ -1,0 +1,17 @@
+framework:
+    rate_limiter:
+        chat_api:
+            policy: 'token_bucket'
+            limit: 1
+            rate:
+                interval: '5 seconds'
+                amount: 3
+            storage_service: 'rate_limiter.storage'
+
+        create_checkout_session:
+            policy: 'token_bucket'
+            limit: 5
+            rate:
+                interval: '5 minute'
+                amount: 5
+            storage_service: 'rate_limiter.storage'

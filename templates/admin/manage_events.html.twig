@@ -1,0 +1,467 @@
+{# templates/admin/manage_events.html.twig #}
+
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <div class="container-fluid">
+        <div class="row">
+            {% set current_route = app.request.attributes.get('_route') %}
+
+            <ul class="nav nav-tabs" id="dashboardTabs">
+                <li class="nav-item">
+                    <a
+                        class="nav-link {{ current_route == 'admin_manage_events' ? 'active' : '' }}"
+                        href="{{ path('admin_manage_events') }}"
+                    >
+                        Manage Events
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a
+                        class="nav-link {{ current_route == 'admin_manage_users' ? 'active' : '' }}"
+                        href="{{ path('admin_manage_users') }}"
+                    >
+                        Manage Users
+                    </a>
+                </li>
+            </ul>
+    
+            <main class="container-fluid">
+                <h1>Manage Events</h1>
+
+                {% for label, messages in app.flashes %}
+                    {% for message in messages %}
+                        <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
+                            <div class="toast align-items-center text-bg-{{ label == 'success' ? 'success' : (label == 'error' ? 'danger' : 'info') }} border-0 show" role="alert">
+                                <div class="d-flex">
+                                    <div class="toast-body">
+                                        {{ message }}
+                                    </div>
+                                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+
+                <div class="mb-3 text-end">
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addEventModal">
+                        + Add Event
+                    </button>
+                </div>
+
+                {# Add Modal #}
+                <div class="modal fade" id="addEventModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <!-- since we have img upload, need to include enctype="multipart/form-data" -->
+                        <form method="post" enctype="multipart/form-data" action="{{ path('admin_add_event') }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('add_event') }}">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Add New Event</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Name</label>
+                                        <input type="text" name="name" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Organiser</label>
+                                        <input type="text" name="organiser" class="form-control" required>
+                                    </div>
+
+                                                                        <div class="col-md-6">
+                                    <label for="event_date" class="form-label">Event Date</label>
+                                    <input 
+                                        type="date" 
+                                        id="event_date"
+                                        name="event_date" 
+                                        class="form-control" 
+                                        required
+                                    >
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="form-label">Description</label>
+                                        <textarea name="description" class="form-control" required></textarea>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Venue</label>
+                                    </div>
+                                    <div>
+                                        <select name="venue" required>
+                                            <option value="" disabled selected>Select a venue</option>
+                                            {% for venue in venues %}
+                                                <option value="{{ venue.id }}">{{ venue.name }}, Max capacity: {{ venue.capacity }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Category</label>
+                                    </div>
+                                    <div >
+                                        <select name="category" required>
+                                            <option value="" disabled selected>Select a category</option>
+                                            {% for category in categories %}
+                                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Capacity</label>
+                                        <input type="number" name="capacity" class="form-control" required>
+                                        <small class="text-muted fst-italic">*(Ensure event capacity does not exceed venue's max capacity.)</small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Tickets</label>
+                                    </div>
+                                    <div id="ticket-types-container">
+                                        <div class="ticket-type-group mb-3 border rounded p-3">
+                                            <input type="text" name="ticket_types[0][name]" class="form-control mb-2" placeholder="Ticket Type (e.g. VIP)" required>
+                                            <input type="text" name="ticket_types[0][description]" class="form-control mb-2" placeholder="Description">
+                                            <input type="number" name="ticket_types[0][price]" class="form-control mb-2" placeholder="Price" required>
+                                            <input type="number" name="ticket_types[0][quantity]" class="form-control mb-2" placeholder="Quantity" required>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-secondary" id="add-ticket-type">+ Add Ticket Type</button>
+                                    <div class="col-md-12">
+                                        <label class="form-label">Image Filename</label>
+                                        <!-- <input type="text" name="imagepath" class="form-control"> -->
+                                        <input type="file" name="imagefile" class="form-control mt-2">
+                                        <small class="text-muted fst-italic">*(Only .jpg/ .jpeg/ .png accepted.)</small>
+                                    </div>
+
+                                    
+                                    <div class="col-md-6">
+                                        <label class="form-label">Purchase Start</label>
+                                        <input type="date" name="purchase_start_date" class="form-control" required>
+                                        <small class="text-muted fst-italic">*(Ensure Purchase Start Date is before End Date)</small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Purchase End</label>
+                                        <input type="date" name="purchase_end_date" class="form-control" required>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-primary" type="submit" id="addEventSubmit">Add Event</button>
+                                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                                </div>
+                                <small class="text-muted fst-italic">*(Ensure Venue and Category is selected.)</small>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+
+                {# View Table #}
+                <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover w-auto">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <!-- <th>Description</th> -->
+                            <th>Venue</th>
+                            <th>Category</th>
+                            <th>Capacity</th>
+                            <th>Purchase Start</th>
+                            <th>Purchase End</th>
+                            <th>Organiser</th>
+                            <th>Image</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in events %}
+                            <tr>
+                                <td>{{ event.id }}</td>
+                                <td>{{ event.name }}</td>
+                                <!-- <td>{{ event.description|length > 50 ? event.description|slice(0, 50) ~ '...' : event.description }}</td> -->
+                                <td>{{ event.venue.name }}</td>
+                                <td>{{ event.category.name }}</td>
+                                <td>{{ event.capacity }}</td>
+                                <td>{{ event.purchaseStartDate ? event.purchaseStartDate|date('Y-m-d') : '-' }}</td>
+                                <td>{{ event.purchaseEndDate ? event.purchaseEndDate|date('Y-m-d') : '-' }}</td>
+                                <td>{{ event.organiser }}</td>
+                                <td>
+                                    <!-- {event.imagepath} -->
+                                    {% if event.imagepath %}
+                                        <img src="{{ asset(event.imagepath) }}" alt="Event Image" style="width: 80px; height: auto;">
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                
+                                <td class="text-nowrap">
+                                    <div class="d-flex flex-column gap-2">
+                                        <a href="#" 
+                                        class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editEventModal{{ event.id }}">
+                                            View/ Change details <i class="fas fa-pen ms-1"></i>
+                                        </a>
+
+                                        <form method="post" action="{{ path('admin_delete_event', {id: event.id}) }}" id="deleteForm{{ event.id }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('delete_event_' ~ event.id) }}">
+                                            <!-- Change the button to trigger modal -->
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-danger" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#confirmDeleteModal{{ event.id }}">
+                                                Delete Event <i class="fas fa-trash ms-1"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- Confirmation Pop-up Modal/Window for deleting event-->
+                            <div class="modal fade" id="confirmDeleteModal{{ event.id }}" tabindex="-1" aria-labelledby="confirmDeleteModalLabel{{ event.id }}" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="confirmDeleteModalLabel{{ event.id }}">Confirm Event Deletion</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            Are you sure you want to delete the event "<strong>{{ event.name }}</strong>"?
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <!-- This button submits the form -->
+                                            <button type="button" class="btn btn-danger" 
+                                                    onclick="document.getElementById('deleteForm{{ event.id }}').submit();">
+                                                Yes, Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {# Edit Modal #}
+                            <div class="modal fade" id="editEventModal{{ event.id }}" tabindex="-1">
+                                <div class="modal-dialog modal-lg">
+                                    <form method="post" enctype="multipart/form-data" action="{{ path('admin_update_event', {'id': event.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('update_event_' ~ event.id) }}">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Edit Event: {{ event.name }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Name</label>
+                                                    <input type="text" name="name" value="{{ event.name }}" class="form-control" required>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Organiser</label>
+                                                    <input type="text" name="organiser" value="{{ event.organiser }}" class="form-control" required>
+                                                </div>
+
+                                                {# — Event Date — #}
+                                                <div class="col-md-6">
+                                                    <label for="event_date_{{ event.id }}" class="form-label">Event Date</label>
+                                                    <input
+                                                        type="date"
+                                                        id="event_date_{{ event.id }}"
+                                                        name="event_date"
+                                                        value="{{ event.eventDate ? event.eventDate|date('Y-m-d') : '' }}"
+                                                        class="form-control"
+                                                        required
+                                                    >
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label">Description</label>
+                                                    <textarea name="description" class="form-control" required>{{ event.description }}</textarea>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Venue</label>
+                                                </div>
+                                                <div>
+                                                    <select name="venue">
+                                                        {% for venue in venues %}
+                                                            <option value="{{ venue.id }}" {{ venue.id == event.venue.id ? 'selected' : '' }}>{{ venue.name }}, Max capacity: {{ venue.capacity }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Category</label>
+                                                </div>
+                                                <div>
+                                                    <select name="category">
+                                                        {% for category in categories %}
+                                                            <option value="{{ category.id }}" {{ category.id == event.category.id ? 'selected' : '' }}>{{ category.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Capacity</label>
+                                                    <input type="number" name="capacity" value="{{ event.capacity }}" class="form-control" required>
+                                                </div>
+                                                <small class="text-muted fst-italic">*(Ensure event capacity does not exceed venue's max capacity.)</small>
+
+                                                <h5 class="mt-3">Existing Ticket Types</h5>
+                                                <div id="edit-ticket-types-container-{{ event.id }}">
+                                                    {% set usedTypes = [] %}
+
+                                                    {# First, collect the ticket types used by this event #}
+                                                    {% for ticket in event.getTicket() %}
+                                                        {% if ticket.getTicketType() and ticket.getTicketType().id not in usedTypes %}
+                                                            {% set usedTypes = usedTypes|merge([ticket.getTicketType().id]) %}
+                                                        {% endif %}
+                                                    {% endfor %}
+
+                                                    {# Now loop through only those used ticket types #}
+                                                    {% for ticketType in ticketTypes %}
+                                                        {% if ticketType.id in usedTypes %}
+                                                            {% set ticketCount = 0 %}
+                                                            {% set soldCount = 0 %}
+                                                            {% for ticket in event.getTicket() %}
+                                                                {% if ticket.getTicketType().id == ticketType.id %}
+                                                                    {% set ticketCount = ticketCount + 1 %}
+                                                                    {% if ticket.getPayment() %}
+                                                                        {% set soldCount = soldCount + 1 %}
+                                                                    {% endif %}
+                                                                {% endif %}
+                                                            {% endfor %}
+
+                                                            <div class="row mb-2">
+                                                                <div class="col-md-6">
+                                                                    <label>
+                                                                        {{ ticketType.name }} ({{ ticketType.price }} SGD)<br>
+                                                                        <small>Sold: {{ soldCount }} / {{ ticketCount }}</small>
+                                                                    </label>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <input type="number" name="ticket_type_{{ ticketType.id }}" min="0" class="form-control" placeholder="Number of Tickets to Add">
+                                                                </div>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+
+                                                <hr class="my-3">
+                                                <h5>Add New Ticket Types</h5>
+                                                <div id="edit-new-ticket-types-container-{{ event.id }}">
+                                                    <div class="ticket-type-group mb-3 border rounded p-3">
+                                                        <input type="text" name="new_ticket_types[0][name]" class="form-control mb-2" placeholder="Ticket Type (e.g. VIP)">
+                                                        <input type="text" name="new_ticket_types[0][description]" class="form-control mb-2" placeholder="Description">
+                                                        <input type="number" name="new_ticket_types[0][price]" class="form-control mb-2" placeholder="Price">
+                                                        <input type="number" name="new_ticket_types[0][quantity]" class="form-control mb-2" placeholder="Quantity">
+                                                        <button type="button" class="btn btn-sm btn-danger remove-ticket-type">Remove</button>
+                                                    </div>
+                                                </div>
+                                                <button type="button" class="btn btn-secondary" id="add-new-ticket-type-{{ event.id }}">+ Add New Ticket Type</button>
+
+                                                {% if event.imagepath %}
+                                                <img src="{{ asset(event.imagepath) }}" alt="Event Image" style="width: auto; height: auto;">
+                                                {% else %}
+                                                {% endif %}
+
+                                                <div class="col-md-12">
+                                                    {% if event.imagepath %}
+                                                        <label class="form-label">Edit Image</label>
+                                                    {% else %}
+                                                        <label class="form-label">Add Image</label>
+                                                    {% endif %}
+                                                    <input type="file" name="imagefile" class="form-control mt-2">
+                                                    <small class="text-muted fst-italic">*(Only .jpg/ .jpeg/ .png accepted.)</small>
+                                                </div>
+                                                
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Purchase Start</label>
+                                                    <input type="date" name="purchase_start_date" value="{{ event.purchaseStartDate ? event.purchaseStartDate|date('Y-m-d') : '' }}" class="form-control">
+                                                    <small class="text-muted fst-italic">*(Ensure Purchase Start Date is before End Date)</small>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Purchase End</label>
+                                                    <input type="date" name="purchase_end_date" value="{{ event.purchaseEndDate ? event.purchaseEndDate|date('Y-m-d') : '' }}" class="form-control">
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button class="btn btn-primary" type="submit">Save Changes</button>
+                                                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </main>    
+        </div>   
+    </div> 
+{% endblock %}
+
+{% block javascripts %}
+<script>
+//add ticket type for add modal
+    let ticketIndex = 1;
+    let editTicketIndexes = {}; // Object to track indexes for each event
+
+    // Add ticket type for Add Modal
+    document.getElementById('add-ticket-type').addEventListener('click', function () {
+        const container = document.getElementById('ticket-types-container');
+
+        const newGroup = document.createElement('div');
+        newGroup.classList.add('ticket-type-group', 'mb-3', 'border', 'rounded', 'p-3');
+
+        newGroup.innerHTML = `
+            <input type="text" name="ticket_types[${ticketIndex}][name]" class="form-control mb-2" placeholder="Ticket Type (e.g. VIP)">
+            <input type="text" name="ticket_types[${ticketIndex}][description]" class="form-control mb-2" placeholder="Description">
+            <input type="number" name="ticket_types[${ticketIndex}][price]" class="form-control mb-2" placeholder="Price">
+            <input type="number" name="ticket_types[${ticketIndex}][quantity]" class="form-control mb-2" placeholder="Quantity">
+            <button type="button" class="btn btn-sm btn-danger remove-ticket-type">Remove</button>
+        `;
+
+        container.appendChild(newGroup);
+        ticketIndex++;
+        
+        // Add event listener for remove button
+        newGroup.querySelector('.remove-ticket-type').addEventListener('click', function() {
+            newGroup.remove();
+        });
+    });
+
+    // Add ticket type for Edit Modals
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.id && e.target.id.startsWith('add-new-ticket-type-')) {
+            const eventId = e.target.id.split('-').pop();
+            const container = document.getElementById(`edit-new-ticket-types-container-${eventId}`);
+            
+            // Initialize index for this event if not exists
+            if (!editTicketIndexes[eventId]) {
+                editTicketIndexes[eventId] = 1;
+            }
+
+            const newGroup = document.createElement('div');
+            newGroup.classList.add('ticket-type-group', 'mb-3', 'border', 'rounded', 'p-3');
+
+            newGroup.innerHTML = `
+                <input type="text" name="new_ticket_types[${editTicketIndexes[eventId]}][name]" class="form-control mb-2" placeholder="Ticket Type (e.g. VIP)">
+                <input type="text" name="new_ticket_types[${editTicketIndexes[eventId]}][description]" class="form-control mb-2" placeholder="Description">
+                <input type="number" name="new_ticket_types[${editTicketIndexes[eventId]}][price]" class="form-control mb-2" placeholder="Price">
+                <input type="number" name="new_ticket_types[${editTicketIndexes[eventId]}][quantity]" class="form-control mb-2" placeholder="Quantity">
+                <button type="button" class="btn btn-sm btn-danger remove-ticket-type">Remove</button>
+            `;
+
+            container.appendChild(newGroup);
+            editTicketIndexes[eventId]++;
+            
+            // Add event listener for remove button
+            newGroup.querySelector('.remove-ticket-type').addEventListener('click', function() {
+                newGroup.remove();
+            });
+        }
+    });
+
+    // Handle remove ticket type buttons (for both add and edit modals)
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('remove-ticket-type')) {
+            e.target.closest('.ticket-type-group').remove();
+        }
+    });
+</script>
+{% endblock %}
+

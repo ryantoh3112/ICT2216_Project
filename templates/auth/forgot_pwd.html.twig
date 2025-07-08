@@ -1,0 +1,253 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+  <style>
+    .register-card {
+      background: #fff;
+      border-radius: 1.2rem;
+      box-shadow: 0 6px 32px rgba(30,30,60,0.07);
+      padding: 2.2rem 2.5rem 1.5rem 2.5rem;
+      min-width: 500px;
+      min-height: 300px;
+      margin: 2rem auto;
+    }
+
+    .register-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 1.2rem;
+    }
+    .register-logo .fa-user {
+      color: #2196f3;
+    }
+    .register-title {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #222;
+      margin-bottom: 1.4rem;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+      font-size: 1.09rem;
+    }
+    .form-control {
+      border-radius: 0.65rem;
+      font-size: 1.08rem;
+    }
+
+    #passwordHelpBlock {
+      margin-top: 0.5rem;
+      margin-bottom: 0.2rem;
+      font-size: 0.95rem;
+      color: #607d8b;
+      line-height: 1.35;
+      max-width: 100%;
+      display: block;
+    }
+    #feedbackin, #feedbackirn {
+      /* display: block; */
+      display: none;
+      margin-top: 0.4rem;
+      margin-bottom: 0.4rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      max-width: 100%;
+      word-break: break-word;
+      white-space: pre-line;
+    }
+    #feedbackirn { color: #D32F2F !important; }
+    #feedbackin { color: #388e3c !important; }
+    .progress { margin-bottom: 0.2rem; }
+
+    /* Responsive image fade */
+    .register-img-col {
+      animation: fadeIn 0.9s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @media (max-width: 991px) {
+      .register-img-col { display: none !important; }
+      .register-card { margin-top: 3vh; }
+    }
+    @media (max-width: 575px) {
+      .register-card { padding: 1.2rem 0.9rem 1rem 0.9rem; }
+    }
+  </style>
+
+  <section class="d-flex align-items-center" style="background: #f7fafc;">
+    <div class="container">
+      <div class="row justify-content-center align-items-center">
+        <div class="col-lg-6 d-flex flex-column align-items-center">
+          <div class="register-card">
+            <!-- <div class="register-logo">
+              <i class="fas fa-user fa-2x"></i>
+              <span class="register-title">My GoTix</span>
+            </div> -->
+            <h3 class="fw-normal mb-3 pb-2 text-center" style="letter-spacing: 1px;">Forgot Password</h3>
+            
+            {% for label, messages in app.flashes %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ label == 'success' ? 'success' : (label == 'error' ? 'danger' : 'info') }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endfor %}
+
+            <form class="needs-validation" novalidate action="{{ path('auth_forgot_password') }}" method="POST">
+              <div class="form-group mb-3">
+                <label for="email_register">Email address</label>
+                <input type="email" id="email_register" name="email" class="form-control" required />
+                <div class="invalid-feedback">Please enter a valid email.</div>
+              </div>
+
+                {# <-- new CAPTCHA block --> #}
+    {% if show_captcha %}
+      <div class="mb-3">
+        {% include 'components/recaptcha.html.twig' with { recaptcha_site_key: recaptcha_site_key } %}
+      </div>
+    {% endif %}
+
+    
+              <div>
+                <button class="btn btn-info btn-lg btn-block w-100" type="submit">Submit</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="col-lg-6 px-0 d-none d-lg-block register-img-col">
+          <img src="{{ asset('images/concert.jpg') }}" alt="Login image" class="w-100 vh-100"
+            style="object-fit: cover; object-position: left; border-radius: 1.2rem;">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Your JS validation script goes here -->
+  <script>
+    // JS from your previous solution (unchanged)
+    (function () {
+      'use strict';
+      window.addEventListener('load', function () {
+        var forms = document.getElementsByClassName('needs-validation');
+        Array.prototype.forEach.call(forms, function (form) {
+          // Password restriction on keypress
+          form.validationPassword.addEventListener('keypress', function (event) {
+            var checkx = true;
+            var chr = String.fromCharCode(event.which);
+            var matchedCase = ["[!@#$%&*_?]", "[A-Z]", "[0-9]", "[a-z]"];
+            for (var i = 0; i < matchedCase.length; i++) {
+              if (new RegExp(matchedCase[i]).test(chr)) {
+                checkx = false;
+              }
+            }
+            if (form.validationPassword.value.length >= 20)
+              checkx = true;
+            if (checkx) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          });
+
+          // Password strength validation
+          var matchedCaseStrength = ["[!@#$%&*_?]", "[A-Z]", "[0-9]", "[a-z]"];
+          form.validationPassword.addEventListener('keyup', function () {
+            var messageCase = [" Special Character", " Upper Case", " Numbers", " Lower Case"];
+            // var passwd = form.validationPassword.value;
+            // if (pwd.length === 0) {
+            //   $("#progressbar").width("0%");
+            //   $("#feedbackin, #feedbackirn").hide();
+            //   return;
+            // }
+            var ctr = 0;
+            for (var i = 0; i < matchedCaseStrength.length; i++) {
+              if (new RegExp(matchedCaseStrength[i]).test(form.validationPassword.value)) {
+                ctr++;
+                messageCase[i] = '';
+              }
+            }
+            var progressbar = 0;
+            var strength = "";
+            var bClass = "";
+            switch (ctr) {
+              case 0:
+              case 1:
+                strength = "Way too Weak";
+                progressbar = 15;
+                bClass = "bg-danger";
+                break;
+              case 2:
+                strength = "Very Weak";
+                progressbar = 25;
+                bClass = "bg-danger";
+                break;
+              case 3:
+                strength = "Weak";
+                progressbar = 34;
+                bClass = "bg-warning";
+                break;
+              case 4:
+                strength = "Medium";
+                progressbar = 65;
+                bClass = "bg-warning";
+                break;
+            }
+            if (strength == "Medium" && form.validationPassword.value.length >= 8) {
+              strength = "Strong";
+              bClass = "bg-success";
+              form.validationPassword.setCustomValidity("");
+            } else {
+              form.validationPassword.setCustomValidity(strength);
+            }
+            var sometext = "";
+            if (form.validationPassword.value.length < 8) {
+              var lengthI = 8 - form.validationPassword.value.length;
+              sometext += ` ${lengthI} more Characters, `;
+            }
+            messageCase = messageCase.filter(Boolean); // Remove empty
+            sometext += messageCase.length ? ("\n" + messageCase.join(", ")) : '';
+            if (sometext) {
+              sometext = " You Need" + sometext;
+            }
+            $("#feedbackin, #feedbackirn").text(strength + sometext);
+            $("#progressbar").removeClass("bg-danger bg-warning bg-success").addClass(bClass);
+            var plength = form.validationPassword.value.length;
+            if (plength > 0) progressbar += ((plength - 0) * 1.75);
+            var percentage = progressbar + "%";
+            form.validationPassword.parentNode.classList.add('was-validated');
+            if (form.validationPassword.value.length === 0) {
+              $("#progressbar").width("0%");
+              $("#feedbackin, #feedbackirn").hide();
+              return;
+            }
+            $("#progressbar").width(percentage);
+          });
+
+          // Confirm password match
+          form.validationConfirmPassword.addEventListener('input', function () {
+            if (form.validationConfirmPassword.value !== form.validationPassword.value) {
+              form.validationConfirmPassword.setCustomValidity("Passwords do not match");
+            } else {
+              form.validationConfirmPassword.setCustomValidity("");
+            }
+          });
+
+          // Bootstrap validation
+          form.addEventListener('submit', function (event) {
+            if (form.checkValidity() === false) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+          }, false);
+        });
+      }, false);
+    })();
+  </script>
+{% endblock %}

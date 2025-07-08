@@ -11,7 +11,7 @@ use App\Entity\Payment;
 use App\Entity\Ticket;
 use App\Entity\TicketType;
 use App\Entity\History;
-use App\Entity\JWTBlacklist;
+use App\Entity\JWTSession;
 
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
@@ -20,30 +20,38 @@ class AppFixtures extends Fixture
 {
     public function load(ObjectManager $manager): void
     {
-        // // Create User
-        // $user = new User();
-        // $user->setName('John Doe');
-        // $user->setRole('ROLE_USER');
-        // $user->setCreatedAt(new \DateTime());
-        // $user->setUpdatedAt(new \DateTime());
-        // $user->setLastLoginAt(new \DateTime());
-        // $user->setFailedLoginCount(0);
-        // $user->setAccountStatus('active');
-        // $manager->persist($user);
+        // Create User
+        $user = new User();
+        $user->setName('John Doe');
+        $user->setRole('ROLE_USER');
+        $user->setCreatedAt(new \DateTime());
+        $manager->persist($user);
 
-        // // Create Auth
-        // $auth = new Auth();
-        // $auth->setUser($user);
-        // $auth->setEmail('john@example.com');
-        // $auth->setPassword(password_hash('password', PASSWORD_ARGON2I));
-        // $manager->persist($auth);
+        // Create Auth
+        $auth = new Auth();
+        $auth->setUser($user);
+        $auth->setEmail('john@example.com');
+        $auth->setPassword(password_hash('password', PASSWORD_BCRYPT));
+        $manager->persist($auth);
 
-        // // Create Category
-        // $category = new EventCategory();
-        // $category->setName('Music');
-        // $category->setDescription('Live music events');
-        // $category->setImage('music.jpg');
-        // $manager->persist($category);
+        // Create Event Categories
+        $category1 = new EventCategory();
+        $category1->setName('Concerts');
+        $category1->setDescription('Live music, festivals, and headline tours.');
+        $category1->setImage('images/categories/concerts.jpg');
+        $manager->persist($category1);
+
+        $category2 = new EventCategory();
+        $category2->setName('Sports');
+        $category2->setDescription('Matches, tournaments, and live sports events.');
+        $category2->setImage('images/categories/sports.jpg');
+        $manager->persist($category2);
+
+        $category3 = new EventCategory();
+        $category3->setName('Arts, Theatre & Comedy');
+        $category3->setDescription('Stand-up comedy, plays, and artistic showcases.');
+        $category3->setImage('images/categories/arts.jpg');
+        $manager->persist($category3);
 
         // Create Venue
         $venue1 = new Venue();
@@ -179,6 +187,404 @@ class AppFixtures extends Fixture
         $manager->persist($venue7);
         $manager->persist($venue8);
         $manager->persist($venue9);
+
+        //Create Event
+        $event1 = new Event();
+        $event1->setVenue($venue9);
+        $event1->setCategory($category1);
+        $event1->setName('BLACKPINK Encore Tour');
+        $event1->setCapacity(55000);
+        $event1->setEventDate(new \DateTime('2026-02-11'));
+        $event1->setPurchaseStartDate(new \DateTime('2025-08-15'));
+        $event1->setPurchaseEndDate(new \DateTime('2025-11-07'));
+        $event1->setOrganiser('YG Entertainment');
+        $event1->setDescription
+        ("K-pop’s biggest girl group lights up the stage again with new choreography and fan-favourite songs.");
+        $event1->setImagePath('images/events/blackpink.jpg');
+        $manager->persist($event1);
+
+        $event2 = new Event();
+        $event2->setVenue($venue4);
+        $event2->setCategory($category3);
+        $event2->setName('Harry Potter: Visions of Magic');
+        $event2->setCapacity(5000);
+        $event2->setEventDate(new \DateTime('2025-08-01'));
+        $event2->setPurchaseStartDate(new \DateTime('2025-01-15'));
+        $event2->setPurchaseEndDate(new \DateTime('2025-04-09'));
+        $event2->setOrganiser('Neon and Warner Bros. Themed Entertainment');
+        $event2->setDescription
+        ("Step into the wizarding world in this immersive multimedia exhibition, featuring magical environments, iconic scenes, and spellbinding visual storytelling. 
+        Explore the mysteries of the Ministry of Magic, the Room of Requirement, and more.");
+        $event2->setImagePath('images/events/harry_potter.jpg');
+        $manager->persist($event2);
+
+        $event3 = new Event();
+        $event3->setVenue($venue9);
+        $event3->setCategory($category1);
+        $event3->setName('Coldplay: Music of the Spheres Tour');
+        $event3->setCapacity(50000);
+        $event3->setEventDate(new \DateTime('2025-10-25'));
+        $event3->setPurchaseStartDate(new \DateTime('2025-07-10'));
+        $event3->setPurchaseEndDate(new \DateTime('2025-09-01'));
+        $event3->setOrganiser('Live Nation');
+        $event3->setDescription
+        ("Coldplay brings their Music of the Spheres tour to Singapore.");
+        $event3->setImagePath('images/events/coldplay.jpg');
+        $manager->persist($event3);
+
+        $event4 = new Event();
+        $event4->setVenue($venue1);
+        $event4->setCategory($category2);
+        $event4->setName('F1 Singapore Grand Prix 2025');
+        $event4->setCapacity(70000);
+        $event4->setEventDate(new \DateTime('2025-11-19'));
+        $event4->setPurchaseStartDate(new \DateTime('2025-06-01'));
+        $event4->setPurchaseEndDate(new \DateTime('2025-09-15'));
+        $event4->setOrganiser('Singapore GP Pte Ltd');
+        $event4->setDescription
+        ("The electrifying night race returns to the heart of the city. Feel the adrenaline at the iconic 
+        night race through Marina Bay’s cityscape.");
+        $event4->setImagePath('images/events/f1singapore.jpg');
+        $manager->persist($event4);
+
+        $event5 = new Event();
+        $event5->setVenue($venue2);
+        $event5->setCategory($category1);
+        $event5->setName('JJ Lin: Sanctuary World Tour');
+        $event5->setCapacity(45000);
+        $event5->setEventDate(new \DateTime('2025-12-18'));
+        $event5->setPurchaseStartDate(new \DateTime('2025-06-20'));
+        $event5->setPurchaseEndDate(new \DateTime('2025-08-10'));
+        $event5->setOrganiser('Warner Music');
+        $event5->setDescription
+        ("Singapore’s Mandopop king returns home with his signature sound and heartfelt ballads to a stunning stage production.");
+        $event5->setImagePath('images/events/jjlin_worldtour.jpg');
+        $manager->persist($event5);
+
+        $event6 = new Event();
+        $event6->setVenue($venue3);
+        $event6->setCategory($category3);
+        $event6->setName('The Lion King Musical');
+        $event6->setCapacity(3000);
+        $event6->setEventDate(new \DateTime('2025-10-15'));
+        $event6->setPurchaseStartDate(new \DateTime('2025-06-15'));
+        $event6->setPurchaseEndDate(new \DateTime('2025-08-20'));
+        $event6->setOrganiser('Base Entertainment');
+        $event6->setDescription
+        ("Disney’s iconic Broadway show returns to MBS Theatre");
+        $event6->setImagePath('images/events/lionking_musical.jpg');
+        $manager->persist($event6);
+
+        $event7 = new Event();
+        $event7->setVenue($venue2);
+        $event7->setCategory($category2);
+        $event7->setName('ONE Championship: Singapore Fight Night');
+        $event7->setCapacity(12000);
+        $event7->setEventDate(new \DateTime('2025-09-30'));
+        $event7->setPurchaseStartDate(new \DateTime('2025-03-15'));
+        $event7->setPurchaseEndDate(new \DateTime('2025-06-14'));
+        $event7->setOrganiser('ONE Championship');
+        $event7->setDescription
+        ("Asia’s biggest MMA fighters clash in a thrilling night of knockouts, submissions, and drama.");
+        $event7->setImagePath('images/events/one_championship.jpg');
+        $manager->persist($event7);
+
+        $event8 = new Event();
+        $event8->setVenue($venue7);
+        $event8->setCategory($category1);
+        $event8->setName('Singapore Jazz Festival');
+        $event8->setCapacity(5000);
+        $event8->setEventDate(new \DateTime('2025-11-01'));
+        $event8->setPurchaseStartDate(new \DateTime('2025-07-15'));
+        $event8->setPurchaseEndDate(new \DateTime('2025-08-15'));
+        $event8->setOrganiser('Sing Jazz Pte Ltd');
+        $event8->setDescription
+        ("A weekend of smooth and soulful jazz by international and local artists at a scenic waterfront venue.");
+        $event8->setImagePath('images/events/jazz_singapore.jpg');
+        $manager->persist($event8);
+
+        $event9 = new Event();
+        $event9->setVenue($venue2);
+        $event9->setCategory($category2);
+        $event9->setName('Singapore vs Thailand Football Friendly');
+        $event9->setCapacity(6000);
+        $event9->setEventDate(new \DateTime('2025-12-06'));
+        $event9->setPurchaseStartDate(new \DateTime('2025-08-01'));
+        $event9->setPurchaseEndDate(new \DateTime('2025-10-10'));
+        $event9->setOrganiser('Football Association of Singapore');
+        $event9->setDescription
+        ("A competitive face-off between regional football giants in an electrifying match.");
+        $event9->setImagePath('images/events/football.jpg');
+        $manager->persist($event9);
+
+        $event10 = new Event();
+        $event10->setVenue($venue6);
+        $event10->setCategory($category3);
+        $event10->setName('Crazy Rich Asians: The Musical');
+        $event10->setCapacity(1600);
+        $event10->setEventDate(new \DateTime('2025-10-13'));
+        $event10->setPurchaseStartDate(new \DateTime('2025-05-15'));
+        $event10->setPurchaseEndDate(new \DateTime('2025-08-13'));
+        $event10->setOrganiser('Marina Bay Sands Theatre Co.');
+        $event10->setDescription
+        ("A glitzy stage adaptation of the beloved novel with laughs, drama and glamour set in Singapore.");
+        $event10->setImagePath('images/events/crazy_rich_asians.jpg');
+        $manager->persist($event10);
+
+        $event11 = new Event();
+        $event11->setVenue($venue1);
+        $event11->setCategory($category2);
+        $event11->setName('Standard Chartered Singapore Marathon');
+        $event11->setCapacity(25000);
+        $event11->setEventDate(new \DateTime('2025-11-09'));
+        $event11->setPurchaseStartDate(new \DateTime('2025-07-01'));
+        $event11->setPurchaseEndDate(new \DateTime('2025-09-05'));
+        $event11->setOrganiser('Ironman Asia');
+        $event11->setDescription
+        ("Join thousands of runners in Singapore’s premier marathon event. Categories include full, half, and 10km");
+        $event11->setImagePath('images/events/stand_chart_run.jpg');
+        $manager->persist($event11);
+
+        $event12 = new Event();
+        $event12->setVenue($venue9);
+        $event12->setCategory($category1);
+        $event12->setName('Taylor Swift The Eras Tour');
+        $event12->setCapacity(50000);
+        $event12->setEventDate(new \DateTime('2026-03-18'));
+        $event12->setPurchaseStartDate(new \DateTime('2025-07-05'));
+        $event12->setPurchaseEndDate(new \DateTime('2025-08-05'));
+        $event12->setOrganiser('AEG Presents');
+        $event12->setDescription
+        ("Global pop icon Taylor Swift takes you on a journey through her musical eras in this dazzling multi-night show.");
+        $event12->setImagePath('images/events/taylor_swift.jpg');
+        $manager->persist($event12);
+
+        $event13 = new Event();
+        $event13->setVenue($venue8);
+        $event13->setCategory($category3);
+        $event13->setName('The Phantom of the Opera');
+        $event13->setCapacity(3000);
+        $event13->setEventDate(new \DateTime('2025-05-04'));
+        $event13->setPurchaseStartDate(new \DateTime('2025-01-01'));
+        $event13->setPurchaseEndDate(new \DateTime('2025-03-10'));
+        $event13->setOrganiser('Base Entertainment Asia');
+        $event13->setDescription
+        ("The haunting love story unfolds with breathtaking music and iconic stage design. A global Broadway favourite.");
+        $event13->setImagePath('images/events/phantom_of_the_opera.jpg');
+        $manager->persist($event13);
+
+         // // Create Ticket Type
+        $ticketType1 = new TicketType();
+        $ticketType1->setName('Premium');
+        $ticketType1->setDescription('Front row seats with complimentary drinks and early entry access');
+        $ticketType1->setPrice(200);
+        $manager->persist($ticketType1);
+
+        $ticketType2 = new TicketType();
+        $ticketType2->setName('VIP');
+        $ticketType2->setDescription('Excellent view with early entry access');
+        $ticketType2->setPrice(150);
+        $manager->persist($ticketType2);
+
+        $ticketType3 = new TicketType();
+        $ticketType3->setName('Standard');
+        $ticketType3->setDescription('Regular seating with good seats.');
+        $ticketType3->setPrice(90);
+        $manager->persist($ticketType3);
+
+        $ticketType4 = new TicketType();
+        $ticketType4->setName('Child');
+        $ticketType4->setDescription('Child friendly seating available');
+        $ticketType4->setPrice(20);
+        $manager->persist($ticketType4);
+
+
+        // // Create Ticket
+        $ticket1 = new Ticket();
+        $ticket1->setEvent($event1);
+        $ticket1->setTicketType($ticketType1);
+        $ticket1->setSeatNumber('A1');
+        $manager->persist($ticket1);
+
+        $ticket2 = new Ticket();
+        $ticket2->setEvent($event1);
+        $ticket2->setTicketType($ticketType2);
+        $ticket2->setSeatNumber('A2');
+        $manager->persist($ticket2);
+
+        $ticket3 = new Ticket();
+        $ticket3->setEvent($event1);
+        $ticket3->setTicketType($ticketType3);
+        $ticket3->setSeatNumber('B1');
+        $manager->persist($ticket2);
+
+        $ticket4 = new Ticket();
+        $ticket4->setEvent($event1);
+        $ticket4->setTicketType($ticketType3);
+        $ticket4->setSeatNumber('B2');
+        $manager->persist($ticket4);
+
+        $ticket5 = new Ticket();
+        $ticket5->setEvent($event2);
+        $ticket5->setTicketType($ticketType2);
+        $ticket5->setSeatNumber('A1');
+        $manager->persist($ticket5);
+
+        $ticket6 = new Ticket();
+        $ticket6->setEvent($event2);
+        $ticket6->setTicketType($ticketType3);
+        $ticket6->setSeatNumber('B4');
+        $manager->persist($ticket6);
+
+        $ticket7 = new Ticket();
+        $ticket7->setEvent($event2);
+        $ticket7->setTicketType($ticketType3);
+        $ticket7->setSeatNumber('B5');
+        $manager->persist($ticket7);
+
+        $ticket8 = new Ticket();
+        $ticket8->setEvent($event2);
+        $ticket8->setTicketType($ticketType4);
+        $ticket8->setSeatNumber('C1');
+        $manager->persist($ticket8);
+
+        $ticket9 = new Ticket();
+        $ticket9->setEvent($event4);
+        $ticket9->setTicketType($ticketType1);
+        $ticket9->setSeatNumber('A11');
+        $manager->persist($ticket9);
+
+        $ticket10 = new Ticket();
+        $ticket10->setEvent($event4);
+        $ticket10->setTicketType($ticketType1);
+        $ticket10->setSeatNumber('A12');
+        $manager->persist($ticket10);
+
+        $ticket11 = new Ticket();
+        $ticket11->setEvent($event4);
+        $ticket11->setTicketType($ticketType3);
+        $ticket11->setSeatNumber('B8');
+        $manager->persist($ticket11);
+
+        $ticket12 = new Ticket();
+        $ticket12->setEvent($event4);
+        $ticket12->setTicketType($ticketType3);
+        $ticket12->setSeatNumber('B9');
+        $manager->persist($ticket12);
+
+        $ticket13 = new Ticket();
+        $ticket13->setEvent($event4);
+        $ticket13->setTicketType($ticketType3);
+        $ticket13->setSeatNumber('B10');
+        $manager->persist($ticket13);
+
+
+        $ticket14 = new Ticket();
+        $ticket14->setEvent($event6);
+        $ticket14->setTicketType($ticketType1);
+        $ticket14->setSeatNumber('A20');
+        $manager->persist($ticket14);
+
+        $ticket15 = new Ticket();
+        $ticket15->setEvent($event6);
+        $ticket15->setTicketType($ticketType1);
+        $ticket15->setSeatNumber('A21');
+        $manager->persist($ticket15);
+
+        $ticket16 = new Ticket();
+        $ticket16->setEvent($event6);
+        $ticket16->setTicketType($ticketType3);
+        $ticket16->setSeatNumber('B10');
+        $manager->persist($ticket16);
+
+        $ticket17 = new Ticket();
+        $ticket17->setEvent($event6);
+        $ticket17->setTicketType($ticketType3);
+        $ticket17->setSeatNumber('B11');
+        $manager->persist($ticket17);
+
+        $ticket18 = new Ticket();
+        $ticket18->setEvent($event6);
+        $ticket18->setTicketType($ticketType3);
+        $ticket18->setSeatNumber('B12');
+        $manager->persist($ticket18);
+
+        $ticket19 = new Ticket();
+        $ticket19->setEvent($event5);
+        $ticket19->setTicketType($ticketType2);
+        $ticket19->setSeatNumber('A1');
+        $manager->persist($ticket19);
+
+        $ticket20 = new Ticket();
+        $ticket20->setEvent($event5);
+        $ticket20->setTicketType($ticketType2);
+        $ticket20->setSeatNumber('A2');
+        $manager->persist($ticket20);
+
+        $ticket21 = new Ticket();
+        $ticket21->setEvent($event5);
+        $ticket21->setTicketType($ticketType3);
+        $ticket21->setSeatNumber('B21');
+        $manager->persist($ticket21);
+
+        $ticket22 = new Ticket();
+        $ticket22->setEvent($event5);
+        $ticket22->setTicketType($ticketType3);
+        $ticket22->setSeatNumber('B22');
+        $manager->persist($ticket22);
+
+        $ticket23 = new Ticket();
+        $ticket23->setEvent($event9);
+        $ticket23->setTicketType($ticketType3);
+        $ticket23->setSeatNumber('B50');
+        $manager->persist($ticket23);
+
+        $ticket24 = new Ticket();
+        $ticket24->setEvent($event9);
+        $ticket24->setTicketType($ticketType3);
+        $ticket24->setSeatNumber('B53');
+        $manager->persist($ticket24);
+
+        $ticket25 = new Ticket();
+        $ticket25->setEvent($event9);
+        $ticket25->setTicketType($ticketType3);
+        $ticket25->setSeatNumber('B54');
+        $manager->persist($ticket25);
+
+        $ticket26 = new Ticket();
+        $ticket26->setEvent($event9);
+        $ticket26->setTicketType($ticketType3);
+        $ticket26->setSeatNumber('B55');
+        $manager->persist($ticket26);
+
+        $ticket27 = new Ticket();
+        $ticket27->setEvent($event11);
+        $ticket27->setTicketType($ticketType3);
+        $ticket27->setSeatNumber('B9');
+        $manager->persist($ticket27);
+
+        $ticket28 = new Ticket();
+        $ticket28->setEvent($event11);
+        $ticket28->setTicketType($ticketType3);
+        $ticket28->setSeatNumber('B10');
+        $manager->persist($ticket28);
+
+        $ticket29 = new Ticket();
+        $ticket29->setEvent($event11);
+        $ticket29->setTicketType($ticketType3);
+        $ticket29->setSeatNumber('B11');
+        $manager->persist($ticket29);
+
+        $ticket30 = new Ticket();
+        $ticket30->setEvent($event6);
+        $ticket30->setTicketType($ticketType4);
+        $ticket30->setSeatNumber('C12');
+        $manager->persist($ticket30);
+
+
+    
+
+
 
         // // Create Event
         // $event = new Event();

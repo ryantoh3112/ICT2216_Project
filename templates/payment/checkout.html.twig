@@ -1,0 +1,133 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+  <div class="container mt-5 mb-5" style="min-height:70vh">
+    <h2 class="text-center mb-4">🛒 Your Cart</h2>
+
+    {% if items is empty %}
+      <p class="text-center text-muted">Your cart is empty.</p>
+    {% else %}
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Unit Price</th>
+            <th style="width:140px">Quantity</th>
+            <th>Line Total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td>{{ item.name }}</td>
+              <td>${{ item.price|number_format(2, '.', ',') }}</td>
+              <td>
+                <form action="{{ path('cart_update', { ticketTypeId: item.id }) }}" method="POST">
+                  {# plain hidden field with csrf_token() #}
+                  <input
+                    type="hidden"
+                    name="_csrf_token"
+                    value="{{ csrf_token('cart_update_' ~ item.id) }}"
+                  >
+
+                  <select
+                    name="quantity"
+                    onchange="this.form.submit()"
+                    {% if item.avail < 1 %}disabled{% endif %}
+                  >
+                    {% for i in 1..item.avail %}
+                      <option value="{{ i }}" {{ i == item.quantity ? 'selected' : '' }}>{{ i }}</option>
+                    {% endfor %}
+                  </select>
+
+                  {% if item.avail < 1 %}
+                    <div class="text-danger small mt-1">Sold out</div>
+                  {% endif %}
+                </form>
+              </td>
+              <td>${{ item.line|number_format(2, '.', ',') }}</td>
+              <td>
+                <form
+                  action="{{ path('cart_remove', { ticketTypeId: item.id }) }}"
+                  method="POST"
+                  onsubmit="return confirm('Remove this item?');"
+                >
+                  <input
+                    type="hidden"
+                    name="_csrf_token"
+                    value="{{ csrf_token('cart_remove_' ~ item.id) }}"
+                  >
+                  <button class="btn btn-sm btn-outline-danger">Remove</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+
+          {# Totals #}
+          <tr>
+            <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
+            <td colspan="2">${{ subtotal|number_format(2, '.', ',') }}</td>
+          </tr>
+          <tr>
+            <td colspan="3" class="text-end"><strong>Booking Fee:</strong></td>
+            <td colspan="2">${{ booking_fee|number_format(2, '.', ',') }}</td>
+          </tr>
+          <tr>
+            <td colspan="3" class="text-end"><strong>Total:</strong></td>
+            <td colspan="2"><strong>${{ total|number_format(2, '.', ',') }}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <button id="checkout-button" class="btn btn-primary w-100">
+        Pay ${{ total|number_format(2, '.', ',') }}
+      </button>
+    {% endif %}
+  </div>
+
+  {% if items is not empty %}
+    {# Expose a CSRF token to JavaScript #}
+    <meta name="csrf-token" content="{{ csrf_token('checkout') }}">
+
+    <script src="https://js.stripe.com/v3/"></script>
+    <script>
+      const stripe    = Stripe('{{ stripe_public_key }}');
+      const btn       = document.getElementById('checkout-button');
+      const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          const res = await fetch("{{ path('create_checkout_session') }}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token":  csrfToken
+            },
+            body: JSON.stringify({})  // no payload needed
+          });
+
+          const d = await res.json();
+          if (d.error) {
+            alert(d.error);
+            btn.disabled = false;
+            return;
+          }
+
+          const { error } = await stripe.redirectToCheckout({
+            sessionId: d.sessionId  // use the returned sessionId
+          });
+
+          if (error) {
+            alert(error.message);
+            btn.disabled = false;
+          }
+        } catch (e) {
+          alert("Oops—could not start payment: " + e.message);
+          btn.disabled = false;
+        }
+      });
+    </script>
+  {% endif %}
+{% endblock %}

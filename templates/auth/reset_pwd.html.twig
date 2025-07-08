@@ -1,0 +1,141 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<style>
+  .form-card {
+    background: #fff;
+    border-radius: 1.2rem;
+    box-shadow: 0 6px 32px rgba(30,30,60,0.07);
+    padding: 2.2rem 2.5rem 1.5rem 2.5rem;
+    min-width: 500px;
+    max-width: 500px;
+    margin: 2rem auto;
+    min-height: 380px;
+    transition: all 0.3s ease;
+  }
+
+  .form-control {
+    border-radius: 0.65rem;
+    font-size: 1.08rem;
+  }
+
+  .progress {
+    height: 8px;
+    border-radius: 5px;
+    margin-bottom: 0.5rem;
+    visibility: hidden;
+  }
+
+  #feedbackin, #feedbackirn {
+    display: none;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+    min-height: 1.2em;
+  }
+
+  #feedbackin { color: #388e3c; }
+  #feedbackirn { color: #D32F2F; }
+</style>
+
+<section class="d-flex align-items-center" style="background: #f7fafc;">
+  <div class="container">
+    <div class="row justify-content-center align-items-center">
+      <div class="col-lg-6 d-flex flex-column align-items-center">
+        <div class="form-card">
+          <h3 class="text-center">Reset Password</h3>
+
+          {% for label, messages in app.flashes %}
+              {% for message in messages %}
+                  <div class="alert alert-{{ label == 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+                      {{ message }}
+                      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>
+              {% endfor %}
+          {% endfor %}
+
+          <form method="POST" action="{{ path('auth_reset_password') }}">
+            <input type="hidden" name="token" value="{{ token }}">
+            <div class="mb-3">
+              <label for="password" class="form-label">New Password</label>
+              <input type="password" id="password" name="password" class="form-control" required>
+              <div class="progress">
+                <div id="progressbar" class="progress-bar" role="progressbar"></div>
+              </div>
+              <div id="feedbackin"></div>
+              <div id="feedbackirn"></div>
+            </div>
+
+            <div class="mb-3">
+              <label for="confirm_password" class="form-label">Confirm Password</label>
+              <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100">Reset Password</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const passwordInput = document.getElementById('password');
+  const confirmInput = document.getElementById('confirm_password');
+  const feedbackIn = document.getElementById('feedbackin');
+  const feedbackIrn = document.getElementById('feedbackirn');
+  const progressBar = document.getElementById('progressbar');
+
+  passwordInput.addEventListener('keyup', function () {
+    let val = passwordInput.value;
+    let strength = 0;
+    let messages = [];
+
+    // Show progress bar only after typing
+    document.querySelector('.progress').style.visibility = 'visible';
+
+    if (val.match(/[a-z]/)) strength++;
+    else messages.push("lowercase letter");
+
+    if (val.match(/[A-Z]/)) strength++;
+    else messages.push("uppercase letter");
+
+    if (val.match(/[0-9]/)) strength++;
+    else messages.push("number");
+
+    if (val.match(/[\W_]/)) strength++;
+    else messages.push("special character");
+
+    let percent = strength * 25;
+    progressBar.style.width = percent + "%";
+
+    progressBar.className = "progress-bar";
+    if (percent < 50) {
+      progressBar.classList.add("bg-danger");
+    } else if (percent < 75) {
+      progressBar.classList.add("bg-warning");
+    } else {
+      progressBar.classList.add("bg-success");
+    }
+
+    if (val.length >= 8 && strength >= 4) {
+      feedbackIn.textContent = "Password strength is strong.";
+      feedbackIrn.style.display = 'none';
+      feedbackIn.style.display = 'block';
+      passwordInput.setCustomValidity('');
+    } else {
+      feedbackIrn.textContent = "Include " + messages.join(", ") + " and minimum 8 characters.";
+      feedbackIn.style.display = 'none';
+      feedbackIrn.style.display = 'block';
+      passwordInput.setCustomValidity("Weak password");
+    }
+  });
+
+  confirmInput.addEventListener('input', function () {
+    if (confirmInput.value !== passwordInput.value) {
+      confirmInput.setCustomValidity("Passwords do not match");
+    } else {
+      confirmInput.setCustomValidity("");
+    }
+  });
+</script>
+{% endblock %}
