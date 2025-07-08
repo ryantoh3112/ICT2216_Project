@@ -207,6 +207,7 @@ final class AdminController extends AbstractController
         // dump($_FILES, $uploaded); die;
         // if ($uploaded instanceof UploadedFile && $uploaded->isValid()) {
         if ($uploaded && $uploaded->isValid()){
+            dump($uploaded->getSize()); die;
             $allowed = ['image/jpg','image/jpeg','image/png'];
             if (!in_array($uploaded->getMimeType(), $allowed)){
                 $this->addFlash('error', 'Invalid image file type. Only JPG, JPEG, and PNG are allowed.');
