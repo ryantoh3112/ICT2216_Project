@@ -20,7 +20,7 @@ server {
     }
 
     # block script execution in /uploads/
-    location ~* /uploads/.*\.(php|phtml|phar|cgi|pl|py|sh|exe|jsp|bat)$ {
+    location ~* /events/.*\.(php|phtml|phar|cgi|pl|py|sh|exe|jsp|bat)$ {
         deny all;
     }
 }
