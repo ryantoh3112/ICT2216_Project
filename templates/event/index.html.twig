@@ -12,21 +12,23 @@
                 {% for event in events %}
                     <div class="col-md-6 col-lg-4 mb-4">
                         <div class="box flex-fill">
-                            <div class="img-box mb-2" style="height: 250px; overflow: hidden;">
+                            <div class="img-box mb-2 position-relative" style="height: 250px; overflow: hidden;">
+                                {% if soldOut[event.id] %}
+                                    <div class="position-absolute top-0 start-0 bg-danger text-white px-2 py-1 fw-bold rounded-end">
+                                        Sold Out
+                                    </div>
+                                {% endif %}
                                 <img src="{{ asset(event.imagepath ?: 'images/events.jpg')}}" 
-                                    alt="Event Image" class="img-fluid rounded w-100 h-100 object-fit-cover">
+                                    alt="Event Image" class="img-fluid rounded w-100 h-100 object-fit-cover {{ soldOut[event.id] ? 'opacity-50': '' }}">
                             </div>
                             <div class="detail-box">
                                 <h5 class="fw-bold">
                                     {{ event.name }}
                                 </h5>
                                
-                                {% if event.purchaseStartDate and event.purchaseEndDate %}
-                                    <p class="text-muted small">
-                                        {{ event.purchaseStartDate|date('d M Y (D)') }}
-                                        {% if event.purchaseStartDate != event.purchaseEndDate %}
-                                            ~ {{ event.purchaseEndDate|date('d M Y (D)') }}
-                                        {% endif %}
+                                {% if event.eventDate %}
+                                    <p class="text-bold medium">
+                                       {{ event.eventDate|date('d M Y (D)') }}
                                     </p>
                                 {% endif %}
 

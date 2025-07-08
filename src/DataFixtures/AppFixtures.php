@@ -373,6 +373,219 @@ class AppFixtures extends Fixture
         $event13->setImagePath('images/events/phantom_of_the_opera.jpg');
         $manager->persist($event13);
 
+         // // Create Ticket Type
+        $ticketType1 = new TicketType();
+        $ticketType1->setName('Premium');
+        $ticketType1->setDescription('Front row seats with complimentary drinks and early entry access');
+        $ticketType1->setPrice(200);
+        $manager->persist($ticketType1);
+
+        $ticketType2 = new TicketType();
+        $ticketType2->setName('VIP');
+        $ticketType2->setDescription('Excellent view with early entry access');
+        $ticketType2->setPrice(150);
+        $manager->persist($ticketType2);
+
+        $ticketType3 = new TicketType();
+        $ticketType3->setName('Standard');
+        $ticketType3->setDescription('Regular seating with good seats.');
+        $ticketType3->setPrice(90);
+        $manager->persist($ticketType3);
+
+        $ticketType4 = new TicketType();
+        $ticketType4->setName('Child');
+        $ticketType4->setDescription('Child friendly seating available');
+        $ticketType4->setPrice(20);
+        $manager->persist($ticketType4);
+
+
+        // // Create Ticket
+        $ticket1 = new Ticket();
+        $ticket1->setEvent($event1);
+        $ticket1->setTicketType($ticketType1);
+        $ticket1->setSeatNumber('A1');
+        $manager->persist($ticket1);
+
+        $ticket2 = new Ticket();
+        $ticket2->setEvent($event1);
+        $ticket2->setTicketType($ticketType2);
+        $ticket2->setSeatNumber('A2');
+        $manager->persist($ticket2);
+
+        $ticket3 = new Ticket();
+        $ticket3->setEvent($event1);
+        $ticket3->setTicketType($ticketType3);
+        $ticket3->setSeatNumber('B1');
+        $manager->persist($ticket2);
+
+        $ticket4 = new Ticket();
+        $ticket4->setEvent($event1);
+        $ticket4->setTicketType($ticketType3);
+        $ticket4->setSeatNumber('B2');
+        $manager->persist($ticket4);
+
+        $ticket5 = new Ticket();
+        $ticket5->setEvent($event2);
+        $ticket5->setTicketType($ticketType2);
+        $ticket5->setSeatNumber('A1');
+        $manager->persist($ticket5);
+
+        $ticket6 = new Ticket();
+        $ticket6->setEvent($event2);
+        $ticket6->setTicketType($ticketType3);
+        $ticket6->setSeatNumber('B4');
+        $manager->persist($ticket6);
+
+        $ticket7 = new Ticket();
+        $ticket7->setEvent($event2);
+        $ticket7->setTicketType($ticketType3);
+        $ticket7->setSeatNumber('B5');
+        $manager->persist($ticket7);
+
+        $ticket8 = new Ticket();
+        $ticket8->setEvent($event2);
+        $ticket8->setTicketType($ticketType4);
+        $ticket8->setSeatNumber('C1');
+        $manager->persist($ticket8);
+
+        $ticket9 = new Ticket();
+        $ticket9->setEvent($event4);
+        $ticket9->setTicketType($ticketType1);
+        $ticket9->setSeatNumber('A11');
+        $manager->persist($ticket9);
+
+        $ticket10 = new Ticket();
+        $ticket10->setEvent($event4);
+        $ticket10->setTicketType($ticketType1);
+        $ticket10->setSeatNumber('A12');
+        $manager->persist($ticket10);
+
+        $ticket11 = new Ticket();
+        $ticket11->setEvent($event4);
+        $ticket11->setTicketType($ticketType3);
+        $ticket11->setSeatNumber('B8');
+        $manager->persist($ticket11);
+
+        $ticket12 = new Ticket();
+        $ticket12->setEvent($event4);
+        $ticket12->setTicketType($ticketType3);
+        $ticket12->setSeatNumber('B9');
+        $manager->persist($ticket12);
+
+        $ticket13 = new Ticket();
+        $ticket13->setEvent($event4);
+        $ticket13->setTicketType($ticketType3);
+        $ticket13->setSeatNumber('B10');
+        $manager->persist($ticket13);
+
+
+        $ticket14 = new Ticket();
+        $ticket14->setEvent($event6);
+        $ticket14->setTicketType($ticketType1);
+        $ticket14->setSeatNumber('A20');
+        $manager->persist($ticket14);
+
+        $ticket15 = new Ticket();
+        $ticket15->setEvent($event6);
+        $ticket15->setTicketType($ticketType1);
+        $ticket15->setSeatNumber('A21');
+        $manager->persist($ticket15);
+
+        $ticket16 = new Ticket();
+        $ticket16->setEvent($event6);
+        $ticket16->setTicketType($ticketType3);
+        $ticket16->setSeatNumber('B10');
+        $manager->persist($ticket16);
+
+        $ticket17 = new Ticket();
+        $ticket17->setEvent($event6);
+        $ticket17->setTicketType($ticketType3);
+        $ticket17->setSeatNumber('B11');
+        $manager->persist($ticket17);
+
+        $ticket18 = new Ticket();
+        $ticket18->setEvent($event6);
+        $ticket18->setTicketType($ticketType3);
+        $ticket18->setSeatNumber('B12');
+        $manager->persist($ticket18);
+
+        $ticket19 = new Ticket();
+        $ticket19->setEvent($event5);
+        $ticket19->setTicketType($ticketType2);
+        $ticket19->setSeatNumber('A1');
+        $manager->persist($ticket19);
+
+        $ticket20 = new Ticket();
+        $ticket20->setEvent($event5);
+        $ticket20->setTicketType($ticketType2);
+        $ticket20->setSeatNumber('A2');
+        $manager->persist($ticket20);
+
+        $ticket21 = new Ticket();
+        $ticket21->setEvent($event5);
+        $ticket21->setTicketType($ticketType3);
+        $ticket21->setSeatNumber('B21');
+        $manager->persist($ticket21);
+
+        $ticket22 = new Ticket();
+        $ticket22->setEvent($event5);
+        $ticket22->setTicketType($ticketType3);
+        $ticket22->setSeatNumber('B22');
+        $manager->persist($ticket22);
+
+        $ticket23 = new Ticket();
+        $ticket23->setEvent($event9);
+        $ticket23->setTicketType($ticketType3);
+        $ticket23->setSeatNumber('B50');
+        $manager->persist($ticket23);
+
+        $ticket24 = new Ticket();
+        $ticket24->setEvent($event9);
+        $ticket24->setTicketType($ticketType3);
+        $ticket24->setSeatNumber('B53');
+        $manager->persist($ticket24);
+
+        $ticket25 = new Ticket();
+        $ticket25->setEvent($event9);
+        $ticket25->setTicketType($ticketType3);
+        $ticket25->setSeatNumber('B54');
+        $manager->persist($ticket25);
+
+        $ticket26 = new Ticket();
+        $ticket26->setEvent($event9);
+        $ticket26->setTicketType($ticketType3);
+        $ticket26->setSeatNumber('B55');
+        $manager->persist($ticket26);
+
+        $ticket27 = new Ticket();
+        $ticket27->setEvent($event11);
+        $ticket27->setTicketType($ticketType3);
+        $ticket27->setSeatNumber('B9');
+        $manager->persist($ticket27);
+
+        $ticket28 = new Ticket();
+        $ticket28->setEvent($event11);
+        $ticket28->setTicketType($ticketType3);
+        $ticket28->setSeatNumber('B10');
+        $manager->persist($ticket28);
+
+        $ticket29 = new Ticket();
+        $ticket29->setEvent($event11);
+        $ticket29->setTicketType($ticketType3);
+        $ticket29->setSeatNumber('B11');
+        $manager->persist($ticket29);
+
+        $ticket30 = new Ticket();
+        $ticket30->setEvent($event6);
+        $ticket30->setTicketType($ticketType4);
+        $ticket30->setSeatNumber('C12');
+        $manager->persist($ticket30);
+
+
+    
+
+
+
         // // Create Event
         // $event = new Event();
         // $event->setName('Jazz Night');
