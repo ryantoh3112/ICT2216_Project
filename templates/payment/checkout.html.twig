@@ -24,12 +24,23 @@
               <td>${{ item.price|number_format(2, '.', ',') }}</td>
               <td>
                 <form action="{{ path('cart_update', { ticketTypeId: item.id }) }}" method="POST">
-                  <select name="quantity" onchange="this.form.submit()"
-                          {% if item.avail < 1 %}disabled{% endif %}>
+                  {# plain hidden field with csrf_token() #}
+                  <input
+                    type="hidden"
+                    name="_csrf_token"
+                    value="{{ csrf_token('cart_update_' ~ item.id) }}"
+                  >
+
+                  <select
+                    name="quantity"
+                    onchange="this.form.submit()"
+                    {% if item.avail < 1 %}disabled{% endif %}
+                  >
                     {% for i in 1..item.avail %}
-                      <option value="{{ i }}" {{ i == item.quantity ? 'selected' }}>{{ i }}</option>
+                      <option value="{{ i }}" {{ i == item.quantity ? 'selected' : '' }}>{{ i }}</option>
                     {% endfor %}
                   </select>
+
                   {% if item.avail < 1 %}
                     <div class="text-danger small mt-1">Sold out</div>
                   {% endif %}
@@ -37,8 +48,16 @@
               </td>
               <td>${{ item.line|number_format(2, '.', ',') }}</td>
               <td>
-                <form action="{{ path('cart_remove', { ticketTypeId: item.id }) }}" method="POST"
-                onsubmit="return confirm('Remove this item?');">
+                <form
+                  action="{{ path('cart_remove', { ticketTypeId: item.id }) }}"
+                  method="POST"
+                  onsubmit="return confirm('Remove this item?');"
+                >
+                  <input
+                    type="hidden"
+                    name="_csrf_token"
+                    value="{{ csrf_token('cart_remove_' ~ item.id) }}"
+                  >
                   <button class="btn btn-sm btn-outline-danger">Remove</button>
                 </form>
               </td>
@@ -67,41 +86,48 @@
     {% endif %}
   </div>
 
- {% if items is not empty %}
-      <script src="https://js.stripe.com/v3/"></script>
-      <script>
-        const stripe = Stripe('{{ stripe_public_key }}');
-        const btn    = document.getElementById('checkout-button');
+  {% if items is not empty %}
+    {# Expose a CSRF token to JavaScript #}
+    <meta name="csrf-token" content="{{ csrf_token('checkout') }}">
 
-        btn.addEventListener('click', async () => {
-          btn.disabled = true;
-          try {
-            const res = await fetch("{{ path('create_checkout_session') }}", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({})              // no payload needed
-            });
+    <script src="https://js.stripe.com/v3/"></script>
+    <script>
+      const stripe    = Stripe('{{ stripe_public_key }}');
+      const btn       = document.getElementById('checkout-button');
+      const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
-            const d = await res.json();
-            if (d.error) {
-              alert(d.error);
-              btn.disabled = false;
-              return;
-            }
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          const res = await fetch("{{ path('create_checkout_session') }}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token":  csrfToken
+            },
+            body: JSON.stringify({})  // no payload needed
+          });
 
-            const { error } = await stripe.redirectToCheckout({
-              sessionId: d.sessionId        // <-- use sessionId, not id
-            });
+          const d = await res.json();
+          if (d.error) {
+            alert(d.error);
+            btn.disabled = false;
+            return;
+          }
 
-            if (error) {
-              alert(error.message);
-              btn.disabled = false;
-            }
-          } catch (e) {
-            alert("Oops—could not start payment: " + e.message);
+          const { error } = await stripe.redirectToCheckout({
+            sessionId: d.sessionId  // use the returned sessionId
+          });
+
+          if (error) {
+            alert(error.message);
             btn.disabled = false;
           }
-        });
-      </script>
-    {% endif %}
+        } catch (e) {
+          alert("Oops—could not start payment: " + e.message);
+          btn.disabled = false;
+        }
+      });
+    </script>
+  {% endif %}
 {% endblock %}

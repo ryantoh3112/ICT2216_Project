@@ -1,6 +1,12 @@
 twig:
+    # your global variables
+    globals:
+        recaptcha_site_key: '%env(RECAPTCHA_SITE_KEY)%'
+
+    # any other top-level Twig options
     file_name_pattern: '*.twig'
 
+# environment-specific tweaks
 when@test:
     twig:
         strict_variables: true

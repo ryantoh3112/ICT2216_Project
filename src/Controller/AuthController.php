@@ -268,13 +268,22 @@ public function login(
     $password = $request->request->get('password', '');
     $auth     = $authRepository->findOneBy(['email' => $email]);
 
+       if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
+        $this->addFlash('error', 'Account is locked. Please contact support.');
+        return $this->redirectToRoute('auth_login_form');
+    }
+
     if (!$auth || ! $passwordHasher->isPasswordValid($auth, $password)) {
         // Invalid → bump the **User** failedLoginCount too
         if ($auth) {
             $user   = $auth->getUser();
             $fails  = $user->getFailedLoginCount() ?? 0;
             $user->setFailedLoginCount($fails + 1);
-            // optionally lock at some higher threshold...
+
+            if ($fails > 9) {  // ← your lock threshold
+                $user->setAccountStatus('locked');
+                $user->setLockedAt(new \DateTime());
+            }
             $em->persist($user);
         }
         $em->flush();
@@ -518,7 +527,7 @@ public function login(
             #$user = $auth->getUser();
             $roles = $auth->getRoles();
             if (in_array('ROLE_ADMIN', $roles)) {
-                return $this->redirectToRoute('admin_dashboard');
+                return $this->redirectToRoute('admin_manage_events');
             } elseif (in_array('ROLE_USER', $roles)) {
                 return $this->redirectToRoute('user_profile');
             } else {
@@ -735,7 +744,7 @@ public function login(
         // 2. Handle login-based 2FA
         $userId = $session->get('pending_2fa_user_id');
         if ($userId !== null) {
-            $user = $em->getRepository(\App\Entity\User::class)->find($userId);
+            $user = $em->getRepository(User::class)->find($userId);
 
             if (
                 !$user ||
@@ -785,7 +794,7 @@ public function login(
 
             $response = new RedirectResponse(
                 $user->getRole() === 'ROLE_ADMIN' ? 
-                    $this->generateUrl('admin_dashboard') :
+                    $this->generateUrl('admin_manage_events') :
                     $this->generateUrl('user_profile')
             );
 

@@ -50,6 +50,7 @@
                         <tr>
                             <th>ID</th>
                             <th>Name</th>
+                            <th>Email</th>
                             <th>Role</th>
                             <th>Created At</th>
                             <th>Last Login</th>
@@ -66,13 +67,14 @@
                             <tr>
                                 <td>{{ user.id }}</td>
                                 <td>{{ user.name }}</td>
+                                <td>{{ user.auth ? user.auth.email : '—' }}</td>
                                 <td>{{ user.role }}</td>
-                                <td>{{ user.createdAt ? user.createdAt|date('Y-m-d H:i') : '-' }}</td>
-                                <td>{{ user.lastLoginAt ? user.lastLoginAt|date('Y-m-d H:i') : '-' }}</td>
-                                <td>{{ user.updatedAt ? user.updatedAt|date('Y-m-d H:i') : '-' }}</td>
+                                <td>{{ user.createdAt ? user.createdAt|date('F j, Y, g:i A', 'Asia/Singapore') : '-' }}</td>
+                                <td>{{ user.lastLoginAt ? user.lastLoginAt|date('F j, Y, g:i A', 'Asia/Singapore') : '-' }}</td>
+                                <td>{{ user.updatedAt ? user.updatedAt|date('F j, Y, g:i A', 'Asia/Singapore') : '-' }}</td>
                                 <td>{{ user.failedLoginCount is not null ? user.failedLoginCount : '-' }}</td>
                                 <td>{{ user.accountStatus is not null ? user.accountStatus : '-'  }}</td>
-                                <td>{{ user.lockedAt ? user.lockedAt|date('Y-m-d H:i') : '-' }}</td>
+                                <td>{{ user.lockedAt ? user.lockedAt|date('F j, Y, g:i A', 'Asia/Singapore') : '-' }}</td>
                                 <td>{% if user.otpEnabled %}Enabled{% else %}Disabled{% endif %}</td>
                                 <td>
                                     <div class="d-flex gap-2">
