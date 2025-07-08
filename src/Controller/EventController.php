@@ -40,7 +40,7 @@ final class EventController extends AbstractController
     //     ]);
     // }
 
-     #[Route('', name: 'list')]
+    #[Route('', name: 'list')]
     public function index(Request $request, EventRepository $eventRepository): Response
     {
         $page   = max(1, $request->query->getInt('page', 1));

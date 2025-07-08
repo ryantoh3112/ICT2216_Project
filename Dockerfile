@@ -78,5 +78,8 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
+# Set PHP file upload limits
+RUN echo "upload_max_filesize=10M\npost_max_size=10M" > /usr/local/etc/php/conf.d/uploads.ini
+
 EXPOSE 9000
 CMD ["php-fpm"]
