@@ -95,7 +95,7 @@ services:
       - database
 
 ###< doctrine/doctrine-bundle ###
-# cicd testing 
+# cicd run 1
 volumes:
   database_data:
 
