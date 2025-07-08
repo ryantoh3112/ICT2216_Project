@@ -202,10 +202,15 @@ final class AdminController extends AbstractController
 
         // 4) Image handling: reuse addEvent logic + preserve existing if none uploaded
         $uploaded = $request->files->get('imagefile');
-        if ($uploaded instanceof UploadedFile && $uploaded->isValid()) {
+        if ($uploaded && $uploaded->isValid()) {
             $allowed = ['image/jpg','image/jpeg','image/png'];
-            if (!in_array($uploaded->getMimeType(), $allowed) || !@getimagesize($uploaded->getPathname())) {
-                $this->addFlash('error','Invalid image upload.');
+            if (!in_array($uploaded->getMimeType(), $allowed)){
+                $this->addFlash('error', 'Invalid image file type. Only JPG, JPEG, and PNG are allowed.');
+                return $this->redirectToRoute('admin_manage_events');
+            }
+
+            if(!@getimagesize($uploaded->getPathname())){
+                $this->addFlash('error', 'Nice try, but valid image only.');
                 return $this->redirectToRoute('admin_manage_events');
             }
 
