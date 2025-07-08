@@ -203,6 +203,7 @@ final class AdminController extends AbstractController
 
         // 4) Image handling: reuse addEvent logic + preserve existing if none uploaded
         $uploaded = $request->files->get('imagefile');
+        dump($uploaded); die;
         if ($uploaded instanceof UploadedFile && $uploaded->isValid()) {
             $allowed = ['image/jpg','image/jpeg','image/png'];
             if (!in_array($uploaded->getMimeType(), $allowed)){
