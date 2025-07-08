@@ -32,7 +32,12 @@
                                     </p>
                                 {% endif %}
 
-                                <a href="{{ path('event_show', { id: event.id }) }}" class="btn btn-outline-primary ">View More</a>
+                                {% if soldOut[event.id] %}
+                                    <span class="btn btn-secondary disabled">Sold Out</span>
+                                {% else %}  
+                                    <a href="{{ path('event_show', { id: event.id }) }}" class="btn btn-outline-primary">View More</a>
+                                {% endif %}
+            
                         
                             </div>
                         </div>
