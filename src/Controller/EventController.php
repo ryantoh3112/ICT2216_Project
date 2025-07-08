@@ -51,10 +51,24 @@ final class EventController extends AbstractController
         $events      = $eventRepository->findBy([], null, $limit, $offset);
         $totalPages  = ceil($totalEvents / $limit);
 
+        //Compute availability for each event
+        $soldOut = [];
+
+        foreach($events as $event){
+            $availability = 0;
+            foreach($event->getTicket() as $ticket){
+                if($ticket->getPayment() === null){
+                    $availability++;
+                }
+            }
+            $soldOut[$event->getId()] = ($availability === 0);
+        }
+
         return $this->render('event/index.html.twig', [
             'events'      => $events,
             'currentPage' => $page,
             'totalPages'  => $totalPages,
+            'soldOut'     => $soldOut,
         ]);
     }
 

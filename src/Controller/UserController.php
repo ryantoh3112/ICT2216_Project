@@ -9,6 +9,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use App\Entity\User;
 use App\Entity\Auth;
 use App\Entity\PurchaseHistory;
+use App\Entity\Ticket;
 use App\Repository\UserRepository;
 use App\Repository\AuthRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -80,7 +81,78 @@ final class UserController extends AbstractController
     // }
 
 
-       #[Route('/profile', name: 'profile')]
+    //    #[Route('/profile', name: 'profile')]
+    // public function profile(
+    //     Request $request,
+    //     EntityManagerInterface $em
+    // ): Response {
+    //     /** @var User|null $user */
+    //     $user = $request->attributes->get('jwt_user');
+    //     if (!$user) {
+    //         $this->addFlash('error', 'Please log in.');
+    //         return $this->redirectToRoute('auth_login');
+    //     }
+
+    //     // fetch email
+    //     $auth = $em->getRepository(Auth::class)
+    //                ->findOneBy(['user' => $user]);
+
+    //     // load all PurchaseHistory rows for this user, newest first
+    //     /** @var PurchaseHistory[] $rows */
+    //     $rows = $em->getRepository(PurchaseHistory::class)
+    //                ->findBy(['user' => $user], ['purchasedAt' => 'DESC']);
+
+    //     // group purchases by payment ID
+    //     $purchases = [];
+    //     foreach ($rows as $row) {
+    //         $pid = $row->getPayment()->getId();
+    //         if (!isset($purchases[$pid])) {
+    //             $payment = $row->getPayment();
+    //             $purchases[$pid] = [
+    //                 'date'       => $row->getPurchasedAt(),
+    //                 'items'      => [],
+    //                 'subtotal'   => 0,
+    //                 'bookingFee' => 0,
+    //                 'total'      => $payment->getTotalPrice(),
+    //             ];
+    //         }
+
+    //         // group each product name within this payment
+    //         $prod = $row->getProductName();
+    //         if (!isset($purchases[$pid]['items'][$prod])) {
+    //             $purchases[$pid]['items'][$prod] = [
+    //                 'name'     => $prod,
+    //                 'qty'      => 0,
+    //                 'unit'     => $row->getUnitPrice(),
+    //                 'line'     => 0,
+    //             ];
+    //         }
+
+    //         $qty  = $row->getQuantity();
+    //         $unit = $row->getUnitPrice();
+    //         $line = $unit * $qty;
+
+    //         $purchases[$pid]['items'][$prod]['qty']  += $qty;
+    //         $purchases[$pid]['items'][$prod]['line'] += $line;
+    //         $purchases[$pid]['subtotal']            += $line;
+    //     }
+
+    //     // now compute bookingFee and flatten each items array
+    //     foreach ($purchases as &$purchase) {
+    //         $purchase['bookingFee'] = max(0, $purchase['total'] - $purchase['subtotal']);
+    //         // flatten: from name-keyed to indexed array
+    //         $purchase['items'] = array_values($purchase['items']);
+    //     }
+    //     unset($purchase);
+
+    //     return $this->render('user/profile.html.twig', [
+    //         'user'      => $user,
+    //         'email'     => $auth?->getEmail() ?? '—',
+    //         'purchases' => $purchases,
+    //     ]);
+    // }
+    
+        #[Route('/profile', name: 'profile')]
     public function profile(
         Request $request,
         EntityManagerInterface $em
@@ -96,61 +168,78 @@ final class UserController extends AbstractController
         $auth = $em->getRepository(Auth::class)
                    ->findOneBy(['user' => $user]);
 
-        // load all PurchaseHistory rows for this user, newest first
-        /** @var PurchaseHistory[] $rows */
-        $rows = $em->getRepository(PurchaseHistory::class)
-                   ->findBy(['user' => $user], ['purchasedAt' => 'DESC']);
+        // load all Tickets for this user where payment is completed
+        /** @var Ticket[] $tickets */
 
-        // group purchases by payment ID
-        $purchases = [];
-        foreach ($rows as $row) {
-            $pid = $row->getPayment()->getId();
-            if (!isset($purchases[$pid])) {
-                $payment = $row->getPayment();
-                $purchases[$pid] = [
-                    'date'       => $row->getPurchasedAt(),
-                    'items'      => [],
-                    'subtotal'   => 0,
-                    'bookingFee' => 0,
-                    'total'      => $payment->getTotalPrice(),
-                ];
-            }
+    // 1) Load and group PurchaseHistory by payment
+    //
+    /** @var PurchaseHistory[] $rows */
+    $rows = $em->getRepository(PurchaseHistory::class)
+               ->findBy(['user' => $user], ['purchasedAt' => 'DESC']);
 
-            // group each product name within this payment
-            $prod = $row->getProductName();
-            if (!isset($purchases[$pid]['items'][$prod])) {
-                $purchases[$pid]['items'][$prod] = [
-                    'name'     => $prod,
-                    'qty'      => 0,
-                    'unit'     => $row->getUnitPrice(),
-                    'line'     => 0,
-                ];
-            }
-
-            $qty  = $row->getQuantity();
-            $unit = $row->getUnitPrice();
-            $line = $unit * $qty;
-
-            $purchases[$pid]['items'][$prod]['qty']  += $qty;
-            $purchases[$pid]['items'][$prod]['line'] += $line;
-            $purchases[$pid]['subtotal']            += $line;
+    $purchases = [];
+    foreach ($rows as $row) {
+        $pid = $row->getPayment()->getId();
+        if (!isset($purchases[$pid])) {
+            $payment = $row->getPayment();
+            $purchases[$pid] = [
+                'id'         => $pid,
+                'date'       => $row->getPurchasedAt(),
+                'items'      => [],
+                'subtotal'   => 0,
+                'bookingFee' => 0,
+                'total'      => $payment->getTotalPrice(),
+            ];
         }
-
-        // now compute bookingFee and flatten each items array
-        foreach ($purchases as &$purchase) {
-            $purchase['bookingFee'] = max(0, $purchase['total'] - $purchase['subtotal']);
-            // flatten: from name-keyed to indexed array
-            $purchase['items'] = array_values($purchase['items']);
-        }
-        unset($purchase);
-
-        return $this->render('user/profile.html.twig', [
-            'user'      => $user,
-            'email'     => $auth?->getEmail() ?? '—',
-            'purchases' => $purchases,
-        ]);
+        $line = $row->getUnitPrice() * $row->getQuantity();
+        $purchases[$pid]['items'][] = [
+            'name' => $row->getProductName(),
+            'qty'  => $row->getQuantity(),
+            'unit' => $row->getUnitPrice(),
+            'line' => $line,
+        ];
+        $purchases[$pid]['subtotal'] += $line;
     }
-    
+    foreach ($purchases as &$purchase) {
+        $purchase['bookingFee'] = max(0, $purchase['total'] - $purchase['subtotal']);
+    }
+    unset($purchase);
+
+    //
+    // 2) Load all paid Tickets (with QR) and group by payment
+    //
+    /** @var Ticket[] $tickets */
+    $tickets = $em->getRepository(Ticket::class)
+                  ->createQueryBuilder('t')
+                  ->join('t.payment', 'p')
+                  ->andWhere('p.user = :user')
+                  ->andWhere('p.status = :status')
+                  ->andWhere('t.qrToken IS NOT NULL')
+                  ->setParameter('user',   $user)
+                  ->setParameter('status', 'completed')
+                  ->getQuery()
+                  ->getResult();
+
+    $ticketsByPayment = [];
+    foreach ($tickets as $t) {
+        $pid = $t->getPayment()->getId();
+        $ticketsByPayment[$pid][] = [
+            'seat'  => $t->getSeatNumber(),
+            'event' => $t->getEvent()->getName(),
+            'date'  => $t->getEvent()->getEventDate(),
+            'token' => $t->getQrToken(),
+        ];
+    }
+
+    return $this->render('user/profile.html.twig', [
+        'user'              => $user,
+        'email'             => $auth?->getEmail() ?? '—',
+        'purchases'         => array_values($purchases),
+        'ticketsByPayment'  => $ticketsByPayment,
+    ]);
+}
+
+
     #[Route('/profile/update-username', name: 'update_username', methods: ['POST'])]
     public function updateUsername(
         Request $request,

@@ -6,10 +6,10 @@ use App\Repository\PaymentRepository;
 use App\Entity\User;
 use App\Entity\Ticket;
 use App\Entity\History;
+use App\Entity\PurchaseHistory;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use App\Entity\PurchaseHistory;
 
 #[ORM\Entity(repositoryClass: PaymentRepository::class)]
 class Payment
@@ -38,28 +38,29 @@ class Payment
     #[ORM\Column(type: 'string', length: 20)]
     private string $status = 'pending';
 
-    /**
-     * @var Collection<int, Ticket>
-     */
+      
+    //  Stripe’s built-in expiry timestamp for this session  
+  
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $expiresAt = null;
+
+    /** @var Collection<int, Ticket> */
     #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'payment', cascade: ['persist', 'remove'])]
-    
     private Collection $ticket;
 
-    /**
-     * @var Collection<int, History>
-     */
+    /** @var Collection<int, History> */
     #[ORM\OneToMany(targetEntity: History::class, mappedBy: 'payment', cascade: ['persist', 'remove'])]
     private Collection $history;
 
-
-      /** @var Collection<int, PurchaseHistory> */
-    #[ORM\OneToMany(targetEntity: PurchaseHistory::class, mappedBy: "payment", cascade: ["persist", "remove"])]
+    /** @var Collection<int, PurchaseHistory> */
+    #[ORM\OneToMany(targetEntity: PurchaseHistory::class, mappedBy: 'payment', cascade: ['persist', 'remove'])]
     private Collection $purchaseHistory;
 
     public function __construct()
     {
-        $this->ticket  = new ArrayCollection();
-        $this->history = new ArrayCollection();
+        $this->ticket          = new ArrayCollection();
+        $this->history         = new ArrayCollection();
+        $this->purchaseHistory = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -133,9 +134,18 @@ class Payment
         return $this;
     }
 
-    /**
-     * @return Collection<int, Ticket>
-     */
+    public function getExpiresAt(): ?\DateTimeInterface
+    {
+        return $this->expiresAt;
+    }
+
+    public function setExpiresAt(\DateTimeInterface $expiresAt): static
+    {
+        $this->expiresAt = $expiresAt;
+        return $this;
+    }
+
+    /** @return Collection<int, Ticket> */
     public function getTicket(): Collection
     {
         return $this->ticket;
@@ -160,9 +170,7 @@ class Payment
         return $this;
     }
 
-    /**
-     * @return Collection<int, History>
-     */
+    /** @return Collection<int, History> */
     public function getHistory(): Collection
     {
         return $this->history;
@@ -187,9 +195,7 @@ class Payment
         return $this;
     }
 
-       /**
-     * @return Collection<int, PurchaseHistory>
-     */
+    /** @return Collection<int, PurchaseHistory> */
     public function getPurchaseHistory(): Collection
     {
         return $this->purchaseHistory;
