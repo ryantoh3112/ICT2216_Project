@@ -22,6 +22,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Uid\Uuid; 
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Psr\Log\LoggerInterface; // For splunk logs
+use Symfony\Component\DependencyInjection\Attribute\Autowire; // For splunk logs
 
 #Conroller-level prefix for all routes in this controller
 #Everything below is part of /auth/...
@@ -172,12 +174,14 @@ public function login(
     EmailService $emailService,
     EntityManagerInterface $em,
     CaptchaRepository $captchaRepo,
-    HttpClientInterface $httpClient
+    HttpClientInterface $httpClient,
+    #[Autowire(service: 'monolog.logger.splunk')]LoggerInterface $logger,
 ): Response {
     $ip          = $request->getClientIp();
     $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
     // 1) Fetch-or-create the Captcha tracker
+    // Needed for Logging
     $attempt = $captchaRepo->findOneBy([
         'ipAddress'         => $ip,
         'deviceFingerprint' => $fingerprint,
@@ -241,8 +245,20 @@ public function login(
         }
         $em->flush();
 
+
+        $fails = $user->getFailedLoginCount() ?? 0;
+        if ($fails >= 3) {
+            $logger->info('Login Failed: To be Logged to Splunk', [
+                'ip_address'         => $ip,
+                'account_status'     => $auth?->getUser()?->getAccountStatus(),
+                'failed_login_count' => $auth?->getUser()?->getFailedLoginCount(),
+                'last_attempt_at'    => $attempt->getLastAttemptAt()?->format('Y-m-d H:i:s'),
+            ]);
+        }
+
         $this->addFlash('error', 'Invalid credentials.');
         return $this->redirectToRoute('auth_login_form');
+
     }
 
     // 6) Successful login → reset **User** failedLoginCount, but **do not** reset Captcha
@@ -615,7 +631,8 @@ public function login(
         EntityManagerInterface $em,
         UserPasswordHasherInterface $hasher
     ): Response {
-        $token = $request->query->get('token') ?? $request->request->get('token');
+       $token = trim($request->query->get('token') ?? $request->request->get('token', ''));
+
 
         if (!$token) {
             $this->addFlash('error', 'Missing reset token.');

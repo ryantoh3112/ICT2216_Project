@@ -49,6 +49,12 @@ services:
         tags:
             - { name: kernel.event_subscriber }
 
+    App\Service\SplunkHandler:
+        arguments:
+            $client: '@http_client'
+            $url: '%env(SPLUNK_HEC_URL)%'
+            $token: '%env(SPLUNK_HEC_TOKEN)%'
+            $index: '%env(SPLUNK_INDEX)%'
 # twig:
 #     globals:
 #         recaptcha_site_key: '%env(RECAPTCHA_SITE_KEY)%'
