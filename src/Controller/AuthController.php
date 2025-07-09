@@ -23,42 +23,13 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Uid\Uuid; 
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Psr\Log\LoggerInterface; // For splunk logs
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\DependencyInjection\Attribute\Autowire; // For splunk logs
 
-#Testing
 #Conroller-level prefix for all routes in this controller
 #Everything below is part of /auth/...
 #[Route('/auth', name: 'auth_')]
 final class AuthController extends AbstractController
 {
-
-    private function resolveRealIp(Request $request): string
-    {
-        // 1) Try X-Forwarded-For (may be comma-separated list)
-        $xff = $request->headers->get('X-Forwarded-For');
-        if ($xff) {
-            // first entry is the original client
-            $parts = explode(',', $xff);
-            return trim($parts[0]);
-        }
-
-        // 2) Fallback to X-Real-IP if your proxy sets it
-        $xri = $request->headers->get('X-Real-IP');
-        if ($xri) {
-            return trim($xri);
-        }
-
-        // 3) As a last resort, REMOTE_ADDR (will be your proxy)
-        return $request->server->get('REMOTE_ADDR', '0.0.0.0');
-    }
-    private LoggerInterface $splunkLogger;  
-    public function __construct(
-        #[Autowire(service: 'monolog.logger.splunk')]
-        LoggerInterface $splunkLogger
-    ) {
-        $this->splunkLogger = $splunkLogger;
-    }
-    
     #[Route('/register', name: 'register', methods: ['GET', 'POST'])]
     public function register(
         Request $request,
@@ -68,7 +39,7 @@ final class AuthController extends AbstractController
         CaptchaRepository $captchaRepo,
         HttpClientInterface $httpClient
     ): Response {
-        $ip = $this->resolveRealIp($request);
+        $ip          = $request->getClientIp();
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         // 1) fetch-or-create our tracker
@@ -169,7 +140,7 @@ public function loginForm(
     Request $request,
     CaptchaRepository $captchaRepo
 ): Response {
-    $ip = $this->resolveRealIp($request);
+    $ip          = $request->getClientIp();
     $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
     // 1) fetch-or-create tracker
@@ -204,8 +175,9 @@ public function login(
     EntityManagerInterface $em,
     CaptchaRepository $captchaRepo,
     HttpClientInterface $httpClient,
+    #[Autowire(service: 'monolog.logger.splunk')]LoggerInterface $logger,
 ): Response {
-    $ip = $this->resolveRealIp($request);
+    $ip          = $request->getClientIp();
     $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
     // 1) Fetch-or-create the Captcha tracker
@@ -276,7 +248,7 @@ public function login(
 
         $fails = $user->getFailedLoginCount() ?? 0;
         if ($fails >= 3) {
-            $this->splunkLogger->info('Login Failed: To be Logged to Splunk', [
+            $logger->info('Login Failed: To be Logged to Splunk', [
                 'ip_address'         => $ip,
                 'account_status'     => $auth?->getUser()?->getAccountStatus(),
                 'failed_login_count' => $auth?->getUser()?->getFailedLoginCount(),
@@ -405,7 +377,7 @@ public function login(
             return $this->redirectToRoute('user_profile');
         }
 
-        $ip = $this->resolveRealIp($request);
+        $ip          = $request->getClientIp();
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         $attempt = $captchaRepo->findOneBy([
@@ -431,7 +403,7 @@ public function login(
         CaptchaRepository $captchaRepo
     ): Response {
         // step 1: fetch or create our CAPTCHA tracker
-        $ip = $this->resolveRealIp($request);
+        $ip          = $request->getClientIp();
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         $attempt = $captchaRepo->findOneBy([
