@@ -705,7 +705,6 @@ public function login(
             'email' => $user->getAuth()->getEmail()
         ]);
     }
-
     # Revoked once User logs out
     #[Route('/logout', name: 'logout')]
     public function logout(
@@ -759,4 +758,5 @@ public function login(
         $this->addFlash('success', 'You have been logged out.');
         return $response;
     }
+
 }
