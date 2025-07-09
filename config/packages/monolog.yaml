@@ -45,3 +45,8 @@ when@prod:
                 type: service
                 id: App\Service\SplunkHandler
                 channels: ['splunk']
+            
+            main:
+                type: stream
+                path: "%kernel.logs_dir%/prod.log"
+                level: error

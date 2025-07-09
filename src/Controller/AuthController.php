@@ -31,8 +31,11 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire; // For splunk logs
 final class AuthController extends AbstractController
 {
     private LoggerInterface $logger;
-    public function __construct(LoggerInterface $logger)
-    {
+    public function __construct(
+    
+        #[Autowire(service: 'monolog.logger.splunk')]
+        LoggerInterface $logger
+    ) {
         $this->logger = $logger;
     }
     #[Route('/register', name: 'register', methods: ['GET', 'POST'])]
@@ -138,7 +141,16 @@ final class AuthController extends AbstractController
         ]);
     }
 
-    
+ #[Route('/test-splunk')]
+public function testSplunkLogger(): Response
+{
+    $this->logger->info('Test Splunk Log', [
+        'time' => (new \DateTime())->format('c'),
+        'env' => $_ENV['APP_ENV'],
+    ]);
+
+    return new Response('Splunk log sent (if configured correctly)');
+}
 
  #[Route('/login', name: 'login_form', methods: ['GET'])]
 public function loginForm(
