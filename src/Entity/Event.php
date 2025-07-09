@@ -49,13 +49,13 @@ class Event
 
     #[ORM\Column(length: 255, nullable: true)]
     // input validation for organiser input field
-    #[Assert\NotBlank(message: "Organiser name cannot be blank.")]
-    #[Assert\Length(min: 1, max: 50, maxMessage: "Organiser name cannot exceed {{ limit }} characters.")]
-    # not allowing special characters in organiser name
-    #[Assert\Regex(
-        pattern: '/^[a-zA-Z0-9\s]+$/',
-        message: 'Organiser name can only contain letters, numbers and spaces.'
-    )]
+    // #[Assert\NotBlank(message: "Organiser name cannot be blank.")]
+    // #[Assert\Length(min: 1, max: 50, maxMessage: "Organiser name cannot exceed {{ limit }} characters.")]
+    // # not allowing special characters in organiser name
+    // #[Assert\Regex(
+    //     pattern: '/^[a-zA-Z0-9\s]+$/',
+    //     message: 'Organiser name can only contain letters, numbers and spaces.'
+    // )]
     private ?string $organiser = null;
 
     #[ORM\Column(length: 255, nullable: true)]

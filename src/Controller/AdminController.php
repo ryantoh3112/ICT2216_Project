@@ -412,6 +412,19 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('admin_manage_events');
         }
 
+        if(empty($organiser)){
+            $this->addFlash('error', 'Organiser name is required.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+        if(strlen($organiser) > 50){
+            $this->addFlash('error', 'Organiser name cannot exceed 50 characters.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+        if(!preg_match('/^[a-zA-Z0-9\s]+$/', $organiser)){
+            $this->addFlash('error', 'Organiser name can only contain letters, numbers and spaces.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
         // 3) Build and persist the Event
         $event = (new Event())
             ->setName($name)
@@ -424,13 +437,13 @@ final class AdminController extends AbstractController
             ->setPurchaseStartDate($purchaseStart)
             ->setPurchaseEndDate($purchaseEnd);
         
-        $violations = $validator->validate($event);
-        if (count($violations) > 0) {
-            foreach ($violations as $violation) {
-                $this->addFlash('error', $violation->getMessage());
-            }
-            return $this->redirectToRoute('admin_manage_events');
-        }
+        // $violations = $validator->validate($event);
+        // if (count($violations) > 0) {
+        //     foreach ($violations as $violation) {
+        //         $this->addFlash('error', $violation->getMessage());
+        //     }
+        //     return $this->redirectToRoute('admin_manage_events');
+        // }
 
         // 4) Handle optional image upload
         $imagefile = $request->files->get('imagefile');
