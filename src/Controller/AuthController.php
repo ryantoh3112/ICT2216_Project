@@ -182,7 +182,6 @@ public function login(
     EntityManagerInterface $em,
     CaptchaRepository $captchaRepo,
     HttpClientInterface $httpClient,
-    #[Autowire(service: 'monolog.logger.splunk')]LoggerInterface $logger,
 ): Response {
     $ip          = $request->getClientIp();
     $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
