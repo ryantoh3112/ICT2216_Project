@@ -33,7 +33,7 @@ class SplunkHandler extends AbstractProcessingHandler
     {
         $data = $record->toArray();
 
-        $this->client->request('POST', $this->url, [
+        $response = $this->client->request('POST', $this->url, [
             'headers' => [
                 'Authorization' => 'Splunk ' . $this->token,
                 'Content-Type'  => 'application/json',
@@ -51,6 +51,10 @@ class SplunkHandler extends AbstractProcessingHandler
                 'time'       => $data['datetime']->getTimestamp(),
             ],
         ]);
+        if (200 !== $response->getStatusCode()) {
+        // Optionally throw or log error - you can write to PHP error_log or another logger
+            error_log('Splunk HEC request failed: ' . $response->getContent(false));
+        }
     }
 
 }

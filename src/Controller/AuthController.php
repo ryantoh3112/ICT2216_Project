@@ -30,14 +30,6 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire; // For splunk logs
 #[Route('/auth', name: 'auth_')]
 final class AuthController extends AbstractController
 {
-    private LoggerInterface $splunkLogger;
-
-    public function __construct(
-        #[Autowire(service: 'monolog.logger.splunk')]
-        LoggerInterface $splunkLogger
-    ) {
-        $this->splunkLogger = $splunkLogger;
-    }
 
     #[Route('/register', name: 'register', methods: ['GET', 'POST'])]
     public function register(
@@ -257,7 +249,7 @@ public function login(
 
         $fails = $user->getFailedLoginCount() ?? 0;
         if ($fails >= 3) {
-            $this->splunkLogger->info('Login Failed: To be Logged to Splunk', [
+            $logger->info('Login Failed: To be Logged to Splunk', [
                 'ip_address'         => $ip,
                 'account_status'     => $auth?->getUser()?->getAccountStatus(),
                 'failed_login_count' => $auth?->getUser()?->getFailedLoginCount(),
