@@ -25,19 +25,11 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Psr\Log\LoggerInterface; // For splunk logs
 use Symfony\Component\DependencyInjection\Attribute\Autowire; // For splunk logs
 
-#Testing
 #Conroller-level prefix for all routes in this controller
 #Everything below is part of /auth/...
 #[Route('/auth', name: 'auth_')]
 final class AuthController extends AbstractController
 {
-    private LoggerInterface $splunkLogger;  
-    public function __construct(
-        #[Autowire(service: 'monolog.logger.splunk')]
-        LoggerInterface $splunkLogger
-    ) {
-        $this->splunkLogger = $splunkLogger;
-    }
     #[Route('/register', name: 'register', methods: ['GET', 'POST'])]
     public function register(
         Request $request,
@@ -183,6 +175,7 @@ public function login(
     EntityManagerInterface $em,
     CaptchaRepository $captchaRepo,
     HttpClientInterface $httpClient,
+    #[Autowire(service: 'monolog.logger.splunk')]LoggerInterface $logger,
 ): Response {
     $ip          = $request->getClientIp();
     $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
@@ -255,7 +248,7 @@ public function login(
 
         $fails = $user->getFailedLoginCount() ?? 0;
         if ($fails >= 3) {
-            $this->splunkLogger->info('Login Failed: To be Logged to Splunk', [
+            $logger->info('Login Failed: To be Logged to Splunk', [
                 'ip_address'         => $ip,
                 'account_status'     => $auth?->getUser()?->getAccountStatus(),
                 'failed_login_count' => $auth?->getUser()?->getFailedLoginCount(),
