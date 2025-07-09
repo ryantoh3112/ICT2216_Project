@@ -31,6 +31,27 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire; // For splunk logs
 #[Route('/auth', name: 'auth_')]
 final class AuthController extends AbstractController
 {
+
+        private function resolveForwardedIp(Request $request): ?string
+    {
+        // 1) Try X-Forwarded-For (comma-separated list)
+        $xff = $request->headers->get('X-Forwarded-For');
+        if ($xff) {
+            $parts = explode(',', $xff);
+            return trim($parts[0]);
+        }
+
+        // 2) Fallback to X-Real-IP
+        $xri = $request->headers->get('X-Real-IP');
+        if ($xri) {
+            return trim($xri);
+        }
+
+        // 3) If neither header is present, return null
+        return null;
+    }
+
+
     #[Route('/register', name: 'register', methods: ['GET', 'POST'])]
     public function register(
         Request $request,
@@ -40,7 +61,7 @@ final class AuthController extends AbstractController
         CaptchaRepository $captchaRepo,
         HttpClientInterface $httpClient
     ): Response {
-        $ip          = $request->getClientIp();
+        $ip = $this->resolveForwardedIp($request);
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         // 1) fetch-or-create our tracker
@@ -141,7 +162,7 @@ public function loginForm(
     Request $request,
     CaptchaRepository $captchaRepo
 ): Response {
-    $ip          = $request->getClientIp();
+    $ip = $this->resolveForwardedIp($request);
     $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
     // 1) fetch-or-create tracker
@@ -178,7 +199,7 @@ public function login(
     HttpClientInterface $httpClient,
     #[Autowire(service: 'monolog.logger.splunk')]LoggerInterface $logger,
 ): Response {
-    $ip          = $request->getClientIp();
+    $ip = $this->resolveForwardedIp($request);
     $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
     // 1) Fetch-or-create the Captcha tracker
@@ -378,7 +399,7 @@ public function login(
             return $this->redirectToRoute('user_profile');
         }
 
-        $ip          = $request->getClientIp();
+        $ip = $this->resolveForwardedIp($request);
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         $attempt = $captchaRepo->findOneBy([
@@ -404,7 +425,7 @@ public function login(
         CaptchaRepository $captchaRepo
     ): Response {
         // step 1: fetch or create our CAPTCHA tracker
-        $ip          = $request->getClientIp();
+        $ip = $this->resolveForwardedIp($request);
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         $attempt = $captchaRepo->findOneBy([
