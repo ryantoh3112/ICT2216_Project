@@ -221,10 +221,6 @@ final class AdminController extends AbstractController
 
             // generate unique filename
             $filename = uniqid().'.'.$uploaded->guessExtension();
-            // $uploaded->move(
-            //     $this->getParameter('event_images_directory'),  // e.g. %kernel.project_dir%/public/images/events
-            //     $filename
-            // );
             try {
                 $uploaded->move(
                     $this->getParameter('event_images_directory'),

@@ -28,53 +28,6 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 #[Route('/auth', name: 'auth_')]
 final class AuthController extends AbstractController
 {
-    // #[Route('/register', name: 'register', methods: ['GET', 'POST'])]
-    // public function register(
-    //     Request $request,
-    //     EntityManagerInterface $em,
-    //     UserPasswordHasherInterface $passwordHasher,
-    //     AuthRepository $authRepository
-    // ): Response {
-    //     if ($request->isMethod('POST')) {
-    //         $name            = $request->request->get('username');
-    //         $email           = $request->request->get('email');
-    //         $password        = $request->request->get('password');
-    //         $confirmPassword = $request->request->get('confirm_password');
-
-    //         // existing email?
-    //         if ($authRepository->findOneBy(['email' => $email])) {
-    //             $this->addFlash('error', 'Email already registered.');
-    //             return $this->redirectToRoute('auth_register');
-    //         }
-    //         // password match?
-    //         if ($password !== $confirmPassword) {
-    //             $this->addFlash('error', 'Passwords do not match.');
-    //             return $this->redirectToRoute('auth_register');
-    //         }
-
-    //         // create User + Auth...
-    //         $user = new \App\Entity\User();
-    //         $user->setName($name)
-    //              ->setRole('ROLE_USER')
-    //              ->setCreatedAt(new \DateTime())
-    //              ->setAccountStatus('active')
-    //              ->setOtpEnabled(false);
-    //         $em->persist($user);
-    //         $em->flush();
-
-    //         $auth = new Auth();
-    //         $auth->setUser($user)
-    //              ->setEmail($email)
-    //              ->setPassword($passwordHasher->hashPassword($auth, $password));
-    //         $em->persist($auth);
-    //         $em->flush();
-
-    //         $this->addFlash('success', 'Registration successful.');
-    //         return $this->redirectToRoute('auth_login_form');
-    //     }
-
-    //     return $this->render('auth/register.html.twig');
-    // }
     #[Route('/register', name: 'register', methods: ['GET', 'POST'])]
     public function register(
         Request $request,
@@ -131,8 +84,8 @@ final class AuthController extends AbstractController
             $em->flush();
 
             // now normal registration logic
-            $name            = $request->request->get('username');
-            $email           = $request->request->get('email');
+            $name = trim(strip_tags($request->request->get('username')));
+            $email = trim(filter_var($request->request->get('email'), FILTER_SANITIZE_EMAIL));
             $password        = $request->request->get('password');
             $confirmPassword = $request->request->get('confirm_password');
 
@@ -264,11 +217,11 @@ public function login(
     $em->flush();
 
     // 5) Now validate credentials
-    $email    = $request->request->get('email', '');
+    $email = trim(filter_var($request->request->get('email'), FILTER_SANITIZE_EMAIL));
     $password = $request->request->get('password', '');
     $auth     = $authRepository->findOneBy(['email' => $email]);
 
-       if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
+    if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
         $this->addFlash('error', 'Account is locked. Please contact support.');
         return $this->redirectToRoute('auth_login_form');
     }
@@ -346,149 +299,6 @@ public function login(
     return $response;
 }
 
-
-    // #[Route('/login', name: 'login_form', methods: ['GET'])]
-    // public function loginForm(
-    //     Request $request,
-    //     AuthRepository $authRepository
-    // ): Response {
-    //     // get last email from session (or null)
-    //     $email = $request->getSession()->get('last_login_email');
-
-    //     $showCaptcha = false;
-    //     if ($email) {
-    //         $auth = $authRepository->findOneBy(['email' => $email]);
-    //         if ($auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3) {
-    //             $showCaptcha = true;
-    //         }
-    //     }
-
-    //     return $this->render('auth/login.html.twig', [
-    //         'show_captcha'      => $showCaptcha,
-    //         'recaptcha_site_key'=> $_ENV['RECAPTCHA_SITE_KEY'],
-    //         'last_email'        => $email,
-    //     ]);
-    // }
-
-    // #[Route('/login', name: 'login', methods: ['POST'])]
-    // public function login(
-    //     Request $request,
-    //     AuthRepository $authRepository,
-    //     UserPasswordHasherInterface $passwordHasher,
-    //     JwtService $jwtService,
-    //     EmailService $emailService,
-    //     EntityManagerInterface $em,
-    // HttpClientInterface $httpClient   
-    // ): Response {
-    //     $email = $request->request->get('email');
-    //     $password = $request->request->get('password');
-
-    //     // Step 1: Validate credentials
-    //     $auth = $authRepository->findOneBy(['email' => $email]);
-    //     $needsCaptcha  = $auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3;
-
-    //     if ($needsCaptcha) {
-    //         $recaptchaResponse = $request->request->get('g-recaptcha-response', '');
-    //         $resp = $httpClient->request('POST', 'https://www.google.com/recaptcha/api/siteverify', [
-    //             'body' => [
-    //                 'secret'   => $_ENV['RECAPTCHA_SECRET_KEY'],
-    //                 'response' => $recaptchaResponse,
-    //                 'remoteip' => $request->server->get('REMOTE_ADDR'),
-    //             ],
-    //         ]);
-    //         $data = $resp->toArray();
-    //         if (empty($data['success'])) {
-    //             $this->addFlash('error', 'Please complete the CAPTCHA.');
-    //             // store the last email in session
-    //             $request->getSession()->set('last_login_email', $email);
-
-    //             return $this->redirectToRoute('auth_login_form');            
-    //         }
-    //     }
-    
-    //     // Check if account is locked
-    //     if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
-    //         $this->addFlash('error', 'Account is locked. Please contact support.');
-    //         return $this->redirectToRoute('auth_login_form'); // Or your login form route name
-    //     }
-        
-    //     if (!$auth || !$passwordHasher->isPasswordValid($auth, $password)) {
-    //         // Increment failed_login_count if user exists
-    //         if ($auth) {
-    //             $user = $auth->getUser();
-    //             $current = $user->getFailedLoginCount() ?? 0;
-    //             $user->setFailedLoginCount($current + 1);
-
-    //             // Lock the account if attempts exceed 10
-    //             if ($current + 1 >= 1000) {
-    //                 $user->setAccountStatus('locked');
-    //                 $user->setLockedAt(new \DateTime());
-    //             }
-    //             $em->persist($user);
-    //             $em->flush();
-    //         }
-    //         $this->addFlash('error','Invalid credentials');
-    //         $request->getSession()->set('last_login_email', $email);
-    //         return $this->redirectToRoute('auth_login_form');
-    //     }
-
-    //     # If credentials are valid, reset failed_login_count
-    //     $user = $auth->getUser();
-    //     $user->setFailedLoginCount(0);
-    //     $user->setLastLoginAt(new \DateTime());
-    //     $user->setAccountStatus('active');
-
-    //     // If 2FA is enabled, delay JWT until OTP is verified
-    //     if ($user->isOtpEnabled()) {
-    //         $otp = random_int(100000, 999999);
-    //         $user->setOtpCode((string) $otp);
-    //         $user->setOtpExpiresAt(new \DateTimeImmutable('+5 minutes'));
-
-    //         $em->persist($user);
-    //         $em->flush();
-
-    //         // Send OTP email using sendOtp in EmailService
-    //         $emailService->sendOtp($auth->getEmail(), $user->getName(), $otp);
-
-    //         // Store user in session for later OTP verification
-    //         $request->getSession()->set('pending_2fa_user_id', $user->getId());
-
-    //         return $this->redirectToRoute('auth_verify_otp_form');
-    //     }
-
-    //     // If 2FA is not enabled, issue JWT immediately
-    //     // Step 2: Generate JWT
-    //     $token = $jwtService->createToken([
-    //         'id' => $auth->getUser()->getId(),
-    //         'email' => $auth->getEmail()
-    //     ]);
-    //     $decodedPayload = $jwtService->verifyToken($token); // decode to get iat
-    //     $issuedAt = (new \DateTime())->setTimestamp($decodedPayload['iat']);
-    //     $expiresAt = (new \DateTime())->setTimestamp($decodedPayload['exp']);
-
-    //     // Step 3: Track JWT in database
-    //     $jwtEntity = new JWTSession();
-    //     $jwtEntity->setUser($auth->getUser());
-    //     $jwtEntity->setExpiresAt($expiresAt);
-    //     $jwtEntity->setIssuedAt($issuedAt);  // New Field added
-
-    //     $em->persist($jwtEntity);
-    //     $em->flush();
-
-    //     // Step 4: Set JWT as HttpOnly cookie
-    //     $cookie = Cookie::create('JWT')
-    //         ->withValue($token)
-    //         ->withExpires($expiresAt)
-    //         ->withHttpOnly(true)
-    //         ->withSecure(false)
-    //         ->withPath('/')
-    //         ->withSameSite('Lax');
-
-    //     $response = new RedirectResponse($this->generateUrl('auth_login_success')); // or another route
-    //     $response->headers->setCookie($cookie);
-    //     return $response;
-    // }
-
     # For testing purposes, this endpoint will return the user information from the JWT cookie
     #[Route('/verify-redirect', name: 'login_success')]
     public function verifyJwtAndRedirect(
@@ -516,7 +326,6 @@ public function login(
             }
             $auth = $authRepository->findOneBy(['user' => $userId]);
             // 3. Check roles from DB and redirect accordingly
-            #$user = $request->attributes->get('jwt_user');
             
             if (!$auth) {
                 $this->addFlash('error', 'Authentication record not found.');
@@ -538,57 +347,9 @@ public function login(
         
         catch (\Exception $e) {
             $this->addFlash('error', 'Invalid or expired token');
-            #echo 'Message: ' .$e->getMessage();
             return $this->redirectToRoute('auth_login_form');
         }
     }
-    
-    // #[Route('/forgot_pwd', name: 'forgot_password_form', methods: ['GET'])]
-    // public function showForgotPasswordForm(Request $request): Response
-    // {
-    //     $user = $request->attributes->get('jwt_user');
-
-    //     if ($user) {
-    //         // Redirect authenticated users to their user profile page
-    //         return $this->redirectToRoute('user_profile');
-    //     }
-    //     $user = $request->attributes->get('jwt_user');
-
-    //     if ($user) {
-    //         // Redirect authenticated users to their user profile page
-    //         return $this->redirectToRoute('user_profile');
-    //     }
-    //     return $this->render('auth/forgot_pwd.html.twig');
-    // }
-    
-    // #[Route('/forgot_pwd', name: 'forgot_password', methods: ['POST'])]
-    // public function forgotPassword(
-    //     Request $request,
-    //     AuthRepository $authRepository,
-    //     EntityManagerInterface $em,
-    //     EmailService $emailService
-    // ): Response {
-    //     $email = $request->request->get('email');
-    //     $auth = $authRepository->findOneBy(['email' => $email]);
-    //     $user = $auth?->getUser();
-
-    //     if ($user) {
-    //         $token = Uuid::v4()->toRfc4122(); // Generate secure unique token
-    //         $expiresAt = new \DateTimeImmutable('+15 minutes');
-
-    //         $user->setResetToken($token);
-    //         $user->setResetTokenExpiresAt($expiresAt);
-    //         $em->flush();
-
-    //         // Send email with token link
-    //         $emailService->sendResetPasswordLink($auth->getEmail(), $user->getName(), $token);
-    //     }
-
-    //     // Flash message (same response for both cases to protect privacy)
-    //     $this->addFlash('success', 'If this email is registered, a reset link has been sent.');
-
-    //     return $this->redirectToRoute('auth_forgot_password_form');
-    // }
 
        #[Route('/forgot_pwd', name: 'forgot_password_form', methods: ['GET'])]
     public function showForgotPasswordForm(
@@ -714,7 +475,11 @@ public function login(
         JwtService $jwtService
     ): Response {
         $session = $request->getSession();
-        $submittedOtp = $request->request->get('otp');
+        $submittedOtp = trim($request->request->get('otp', ''));
+        if (!preg_match('/^\d{6}$/', $submittedOtp)) {
+            $this->addFlash('error', 'Invalid OTP format.');
+            return $this->redirectToRoute('auth_verify_otp_form');
+        }
 
         // 1. Handle 2FA toggle confirmation
         $pendingToggle = $session->get('pending_2fa_toggle_state');
