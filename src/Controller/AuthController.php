@@ -28,6 +28,28 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 #[Route('/auth', name: 'auth_')]
 final class AuthController extends AbstractController
 {
+
+        /**
+     * Resolve the real client IP from headers only, never from getClientIp()
+     */
+    private function resolveRealIp(Request $request): string
+    {
+        // 1) Try X-Forwarded-For (may be comma-separated list)
+        $xff = $request->headers->get('X-Forwarded-For');
+        if ($xff) {
+            $parts = explode(',', $xff);
+            return trim($parts[0]);
+        }
+
+        // 2) Fallback to X-Real-IP if your proxy sets it
+        $xri = $request->headers->get('X-Real-IP');
+        if ($xri) {
+            return trim($xri);
+        }
+
+        // 3) Last resort: REMOTE_ADDR
+        return $request->server->get('REMOTE_ADDR', '0.0.0.0');
+    }
     // #[Route('/register', name: 'register', methods: ['GET', 'POST'])]
     // public function register(
     //     Request $request,
@@ -84,7 +106,7 @@ final class AuthController extends AbstractController
         CaptchaRepository $captchaRepo,
         HttpClientInterface $httpClient
     ): Response {
-        $ip          = $request->getClientIp();
+        $ip = $this->resolveRealIp($request);
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         // 1) fetch-or-create our tracker
@@ -185,7 +207,7 @@ public function loginForm(
     Request $request,
     CaptchaRepository $captchaRepo
 ): Response {
-    $ip          = $request->getClientIp();
+    $ip = $this->resolveRealIp($request);
     $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
     // 1) fetch-or-create tracker
@@ -347,148 +369,7 @@ public function login(
 }
 
 
-    // #[Route('/login', name: 'login_form', methods: ['GET'])]
-    // public function loginForm(
-    //     Request $request,
-    //     AuthRepository $authRepository
-    // ): Response {
-    //     // get last email from session (or null)
-    //     $email = $request->getSession()->get('last_login_email');
-
-    //     $showCaptcha = false;
-    //     if ($email) {
-    //         $auth = $authRepository->findOneBy(['email' => $email]);
-    //         if ($auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3) {
-    //             $showCaptcha = true;
-    //         }
-    //     }
-
-    //     return $this->render('auth/login.html.twig', [
-    //         'show_captcha'      => $showCaptcha,
-    //         'recaptcha_site_key'=> $_ENV['RECAPTCHA_SITE_KEY'],
-    //         'last_email'        => $email,
-    //     ]);
-    // }
-
-    // #[Route('/login', name: 'login', methods: ['POST'])]
-    // public function login(
-    //     Request $request,
-    //     AuthRepository $authRepository,
-    //     UserPasswordHasherInterface $passwordHasher,
-    //     JwtService $jwtService,
-    //     EmailService $emailService,
-    //     EntityManagerInterface $em,
-    // HttpClientInterface $httpClient   
-    // ): Response {
-    //     $email = $request->request->get('email');
-    //     $password = $request->request->get('password');
-
-    //     // Step 1: Validate credentials
-    //     $auth = $authRepository->findOneBy(['email' => $email]);
-    //     $needsCaptcha  = $auth && ($auth->getUser()->getFailedLoginCount() ?? 0) >= 3;
-
-    //     if ($needsCaptcha) {
-    //         $recaptchaResponse = $request->request->get('g-recaptcha-response', '');
-    //         $resp = $httpClient->request('POST', 'https://www.google.com/recaptcha/api/siteverify', [
-    //             'body' => [
-    //                 'secret'   => $_ENV['RECAPTCHA_SECRET_KEY'],
-    //                 'response' => $recaptchaResponse,
-    //                 'remoteip' => $request->server->get('REMOTE_ADDR'),
-    //             ],
-    //         ]);
-    //         $data = $resp->toArray();
-    //         if (empty($data['success'])) {
-    //             $this->addFlash('error', 'Please complete the CAPTCHA.');
-    //             // store the last email in session
-    //             $request->getSession()->set('last_login_email', $email);
-
-    //             return $this->redirectToRoute('auth_login_form');            
-    //         }
-    //     }
-    
-    //     // Check if account is locked
-    //     if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
-    //         $this->addFlash('error', 'Account is locked. Please contact support.');
-    //         return $this->redirectToRoute('auth_login_form'); // Or your login form route name
-    //     }
-        
-    //     if (!$auth || !$passwordHasher->isPasswordValid($auth, $password)) {
-    //         // Increment failed_login_count if user exists
-    //         if ($auth) {
-    //             $user = $auth->getUser();
-    //             $current = $user->getFailedLoginCount() ?? 0;
-    //             $user->setFailedLoginCount($current + 1);
-
-    //             // Lock the account if attempts exceed 10
-    //             if ($current + 1 >= 1000) {
-    //                 $user->setAccountStatus('locked');
-    //                 $user->setLockedAt(new \DateTime());
-    //             }
-    //             $em->persist($user);
-    //             $em->flush();
-    //         }
-    //         $this->addFlash('error','Invalid credentials');
-    //         $request->getSession()->set('last_login_email', $email);
-    //         return $this->redirectToRoute('auth_login_form');
-    //     }
-
-    //     # If credentials are valid, reset failed_login_count
-    //     $user = $auth->getUser();
-    //     $user->setFailedLoginCount(0);
-    //     $user->setLastLoginAt(new \DateTime());
-    //     $user->setAccountStatus('active');
-
-    //     // If 2FA is enabled, delay JWT until OTP is verified
-    //     if ($user->isOtpEnabled()) {
-    //         $otp = random_int(100000, 999999);
-    //         $user->setOtpCode((string) $otp);
-    //         $user->setOtpExpiresAt(new \DateTimeImmutable('+5 minutes'));
-
-    //         $em->persist($user);
-    //         $em->flush();
-
-    //         // Send OTP email using sendOtp in EmailService
-    //         $emailService->sendOtp($auth->getEmail(), $user->getName(), $otp);
-
-    //         // Store user in session for later OTP verification
-    //         $request->getSession()->set('pending_2fa_user_id', $user->getId());
-
-    //         return $this->redirectToRoute('auth_verify_otp_form');
-    //     }
-
-    //     // If 2FA is not enabled, issue JWT immediately
-    //     // Step 2: Generate JWT
-    //     $token = $jwtService->createToken([
-    //         'id' => $auth->getUser()->getId(),
-    //         'email' => $auth->getEmail()
-    //     ]);
-    //     $decodedPayload = $jwtService->verifyToken($token); // decode to get iat
-    //     $issuedAt = (new \DateTime())->setTimestamp($decodedPayload['iat']);
-    //     $expiresAt = (new \DateTime())->setTimestamp($decodedPayload['exp']);
-
-    //     // Step 3: Track JWT in database
-    //     $jwtEntity = new JWTSession();
-    //     $jwtEntity->setUser($auth->getUser());
-    //     $jwtEntity->setExpiresAt($expiresAt);
-    //     $jwtEntity->setIssuedAt($issuedAt);  // New Field added
-
-    //     $em->persist($jwtEntity);
-    //     $em->flush();
-
-    //     // Step 4: Set JWT as HttpOnly cookie
-    //     $cookie = Cookie::create('JWT')
-    //         ->withValue($token)
-    //         ->withExpires($expiresAt)
-    //         ->withHttpOnly(true)
-    //         ->withSecure(false)
-    //         ->withPath('/')
-    //         ->withSameSite('Lax');
-
-    //     $response = new RedirectResponse($this->generateUrl('auth_login_success')); // or another route
-    //     $response->headers->setCookie($cookie);
-    //     return $response;
-    // }
-
+   
     # For testing purposes, this endpoint will return the user information from the JWT cookie
     #[Route('/verify-redirect', name: 'login_success')]
     public function verifyJwtAndRedirect(
@@ -600,7 +481,7 @@ public function login(
             return $this->redirectToRoute('user_profile');
         }
 
-        $ip          = $request->getClientIp();
+        $ip = $this->resolveRealIp($request);
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         $attempt = $captchaRepo->findOneBy([
