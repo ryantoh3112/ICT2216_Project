@@ -22,6 +22,9 @@ use App\Repository\AuthRepository;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\UploadedFile;
 
+# for input validation
+use Symfony\Component\Validator\Validator\ValidatorInterface;
+
 #[Route('/admin', name: 'admin_')]
 final class AdminController extends AbstractController
 {
@@ -360,7 +363,8 @@ final class AdminController extends AbstractController
         Request $request,
         EntityManagerInterface $em,
         VenueRepository $venueRepo,
-        EventCategoryRepository $categoryRepo
+        EventCategoryRepository $categoryRepo,
+        ValidatorInterface $validator
     ): Response {
         // 1) CSRF
         if (!$this->isCsrfTokenValid('add_event', $request->request->get('_token'))) {
@@ -419,6 +423,14 @@ final class AdminController extends AbstractController
             ->setCapacity($capacity)
             ->setPurchaseStartDate($purchaseStart)
             ->setPurchaseEndDate($purchaseEnd);
+        
+        $violations = $validator->validate($event);
+        if (count($violations) > 0) {
+            foreach ($violations as $violation) {
+                $this->addFlash('error', $violation->getMessage());
+            }
+            return $this->redirectToRoute('admin_manage_events');
+        }
 
         // 4) Handle optional image upload
         $imagefile = $request->files->get('imagefile');
