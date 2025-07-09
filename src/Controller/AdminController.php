@@ -20,6 +20,10 @@ use App\Repository\EventCategoryRepository;
 use App\Repository\TicketTypeRepository;
 use App\Repository\AuthRepository;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\UploadedFile;
+
+# for input validation
+// use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/admin', name: 'admin_')]
 final class AdminController extends AbstractController
@@ -77,7 +81,7 @@ final class AdminController extends AbstractController
     }
 
     // Functionality for edit event button
-    #[Route('/admin/manage_event/update/{id}', name: 'update_event', methods: ['POST'])]
+    #[Route('/manage_event/update/{id}', name: 'update_event', methods: ['POST'])]
     public function updateEvent(
         int $id,
         Request $request,
@@ -202,19 +206,32 @@ final class AdminController extends AbstractController
 
         // 4) Image handling: reuse addEvent logic + preserve existing if none uploaded
         $uploaded = $request->files->get('imagefile');
-        if ($uploaded instanceof UploadedFile && $uploaded->isValid()) {
+        // dump($uploaded); die;
+        // dump($_FILES, $uploaded); die;
+        // if ($uploaded instanceof UploadedFile && $uploaded->isValid()) {
+        if ($uploaded && $uploaded->isValid()){
+            // dump($uploaded->getSize()); die;
             $allowed = ['image/jpg','image/jpeg','image/png'];
-            if (!in_array($uploaded->getMimeType(), $allowed) || !@getimagesize($uploaded->getPathname())) {
-                $this->addFlash('error','Invalid image upload.');
+            if (!in_array($uploaded->getMimeType(), $allowed)){
+                $this->addFlash('error', 'Invalid image file type. Only JPG, JPEG, and PNG are allowed.');
+                return $this->redirectToRoute('admin_manage_events');
+            }
+
+            if(!@getimagesize($uploaded->getPathname())){
+                $this->addFlash('error', 'Nice try, but valid image only.');
                 return $this->redirectToRoute('admin_manage_events');
             }
 
             // generate unique filename
             $filename = uniqid().'.'.$uploaded->guessExtension();
-            $uploaded->move(
-                $this->getParameter('event_images_directory'),  // e.g. %kernel.project_dir%/public/images/events
-                $filename
-            );
+            try {
+                $uploaded->move(
+                    $this->getParameter('event_images_directory'),
+                    $filename
+                );
+            } catch (\Exception $e) {
+                dump($e->getMessage()); die;
+            }
             // store relative path
             $event->setImagePath('images/events/'.$filename);
         }
@@ -341,12 +358,13 @@ final class AdminController extends AbstractController
     }
 
     // Functionality for add event button 
-    #[Route('/admin/manage_event/add', name: 'add_event', methods: ['POST'])]
+    #[Route('/manage_event/add', name: 'add_event', methods: ['POST'])]
     public function addEvent(
         Request $request,
         EntityManagerInterface $em,
         VenueRepository $venueRepo,
-        EventCategoryRepository $categoryRepo
+        EventCategoryRepository $categoryRepo,
+        // ValidatorInterface $validator
     ): Response {
         // 1) CSRF
         if (!$this->isCsrfTokenValid('add_event', $request->request->get('_token'))) {
@@ -394,6 +412,19 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('admin_manage_events');
         }
 
+        if(empty($organiser)){
+            $this->addFlash('error', 'Organiser name is required.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+        if(strlen($organiser) > 50){
+            $this->addFlash('error', 'Organiser name cannot exceed 50 characters.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+        if(!preg_match('/^[a-zA-Z0-9\s]+$/', $organiser)){
+            $this->addFlash('error', 'Organiser name can only contain letters, numbers and spaces.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
         // 3) Build and persist the Event
         $event = (new Event())
             ->setName($name)
@@ -405,6 +436,14 @@ final class AdminController extends AbstractController
             ->setCapacity($capacity)
             ->setPurchaseStartDate($purchaseStart)
             ->setPurchaseEndDate($purchaseEnd);
+        
+        // $violations = $validator->validate($event);
+        // if (count($violations) > 0) {
+        //     foreach ($violations as $violation) {
+        //         $this->addFlash('error', $violation->getMessage());
+        //     }
+        //     return $this->redirectToRoute('admin_manage_events');
+        // }
 
         // 4) Handle optional image upload
         $imagefile = $request->files->get('imagefile');
@@ -498,7 +537,7 @@ final class AdminController extends AbstractController
     }
 
     // Functionality for delete event button
-    #[Route('/admin/manage_event/delete/{id}', name: 'delete_event', methods: ['POST'])]
+    #[Route('/manage_event/delete/{id}', name: 'delete_event', methods: ['POST'])]
     public function deleteEvent(
         int $id,
         Request $request,
@@ -571,7 +610,7 @@ final class AdminController extends AbstractController
     }
 
     // Functionality for Edit User button 
-    #[Route('/admin/manage_user/update/{id}', name: 'update_user', methods: ['POST'])]
+    #[Route('/manage_user/update/{id}', name: 'update_user', methods: ['POST'])]
     public function updateUser(
         int $id,
         Request $request,
@@ -636,7 +675,7 @@ final class AdminController extends AbstractController
     }
 
     // Functionality for delete user buttion 
-    #[Route('/admin/user/delete/{id}', name: 'delete_user', methods: ['POST'])]
+    #[Route('/user/delete/{id}', name: 'delete_user', methods: ['POST'])]
     public function deleteUser(
         int $id,
         Request $request,
