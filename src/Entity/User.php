@@ -11,6 +11,7 @@ use App\Entity\Payment;
 use App\Entity\History;
 use App\Entity\JWTSession;
 use App\Entity\Auth;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 class User
@@ -20,7 +21,9 @@ class User
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(length: 255)]
+    #[Assert\NotBlank]
+    #[Assert\Length(min: 3, max: 50)]
+    #[ORM\Column(length: 50)]
     private ?string $name = null;
 
     #[ORM\OneToOne(mappedBy: 'user', cascade: ['persist', 'remove'])]
@@ -80,7 +83,7 @@ class User
     #[ORM\Column(nullable: true)]
     private ?bool $otpEnabled = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[Assert\Uuid]
     private ?string $resetToken = null;
 
     #[ORM\Column(nullable: true)]

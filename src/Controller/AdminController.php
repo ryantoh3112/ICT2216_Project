@@ -22,6 +22,9 @@ use App\Repository\AuthRepository;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\UploadedFile;
 
+# for input validation
+// use Symfony\Component\Validator\Validator\ValidatorInterface;
+
 #[Route('/admin', name: 'admin_')]
 final class AdminController extends AbstractController
 {
@@ -221,10 +224,6 @@ final class AdminController extends AbstractController
 
             // generate unique filename
             $filename = uniqid().'.'.$uploaded->guessExtension();
-            // $uploaded->move(
-            //     $this->getParameter('event_images_directory'),  // e.g. %kernel.project_dir%/public/images/events
-            //     $filename
-            // );
             try {
                 $uploaded->move(
                     $this->getParameter('event_images_directory'),
@@ -364,7 +363,8 @@ final class AdminController extends AbstractController
         Request $request,
         EntityManagerInterface $em,
         VenueRepository $venueRepo,
-        EventCategoryRepository $categoryRepo
+        EventCategoryRepository $categoryRepo,
+        // ValidatorInterface $validator
     ): Response {
         // 1) CSRF
         if (!$this->isCsrfTokenValid('add_event', $request->request->get('_token'))) {
@@ -412,6 +412,19 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('admin_manage_events');
         }
 
+        if(empty($organiser)){
+            $this->addFlash('error', 'Organiser name is required.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+        if(strlen($organiser) > 50){
+            $this->addFlash('error', 'Organiser name cannot exceed 50 characters.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+        if(!preg_match('/^[a-zA-Z0-9\s]+$/', $organiser)){
+            $this->addFlash('error', 'Organiser name can only contain letters, numbers and spaces.');
+            return $this->redirectToRoute('admin_manage_events');
+        }
+
         // 3) Build and persist the Event
         $event = (new Event())
             ->setName($name)
@@ -423,6 +436,14 @@ final class AdminController extends AbstractController
             ->setCapacity($capacity)
             ->setPurchaseStartDate($purchaseStart)
             ->setPurchaseEndDate($purchaseEnd);
+        
+        // $violations = $validator->validate($event);
+        // if (count($violations) > 0) {
+        //     foreach ($violations as $violation) {
+        //         $this->addFlash('error', $violation->getMessage());
+        //     }
+        //     return $this->redirectToRoute('admin_manage_events');
+        // }
 
         // 4) Handle optional image upload
         $imagefile = $request->files->get('imagefile');

@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: EventRepository::class)]
 class Event
@@ -16,7 +17,9 @@ class Event
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(length: 100)]
+    #[Assert\NotBlank]
+    #[Assert\Length(min: 4, max: 100)]
     private ?string $name = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
@@ -45,6 +48,14 @@ class Event
     private ?Venue $venue = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    // input validation for organiser input field
+    // #[Assert\NotBlank(message: "Organiser name cannot be blank.")]
+    // #[Assert\Length(min: 1, max: 50, maxMessage: "Organiser name cannot exceed {{ limit }} characters.")]
+    // # not allowing special characters in organiser name
+    // #[Assert\Regex(
+    //     pattern: '/^[a-zA-Z0-9\s]+$/',
+    //     message: 'Organiser name can only contain letters, numbers and spaces.'
+    // )]
     private ?string $organiser = null;
 
     #[ORM\Column(length: 255, nullable: true)]

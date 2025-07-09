@@ -22,6 +22,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Uid\Uuid; 
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Psr\Log\LoggerInterface; // For splunk logs
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 #Conroller-level prefix for all routes in this controller
 #Everything below is part of /auth/...
@@ -29,74 +31,34 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 final class AuthController extends AbstractController
 {
 
-        /**
-     * Resolve the real client IP from headers only, never from getClientIp()
-     */
     private function resolveRealIp(Request $request): string
-    {
-        // 1) Try X-Forwarded-For (may be comma-separated list)
-        $xff = $request->headers->get('X-Forwarded-For');
-        if ($xff) {
-            $parts = explode(',', $xff);
-            return trim($parts[0]);
-        }
-
-        // 2) Fallback to X-Real-IP if your proxy sets it
-        $xri = $request->headers->get('X-Real-IP');
-        if ($xri) {
-            return trim($xri);
-        }
-
-        // 3) Last resort: REMOTE_ADDR
-        return $request->server->get('REMOTE_ADDR', '0.0.0.0');
+{
+    // 1) Try X-Forwarded-For (may be comma-separated list)
+    $xff = $request->headers->get('X-Forwarded-For');
+    if ($xff) {
+        // first entry is the original client
+        $parts = explode(',', $xff);
+        return trim($parts[0]);
     }
-    // #[Route('/register', name: 'register', methods: ['GET', 'POST'])]
-    // public function register(
-    //     Request $request,
-    //     EntityManagerInterface $em,
-    //     UserPasswordHasherInterface $passwordHasher,
-    //     AuthRepository $authRepository
-    // ): Response {
-    //     if ($request->isMethod('POST')) {
-    //         $name            = $request->request->get('username');
-    //         $email           = $request->request->get('email');
-    //         $password        = $request->request->get('password');
-    //         $confirmPassword = $request->request->get('confirm_password');
 
-    //         // existing email?
-    //         if ($authRepository->findOneBy(['email' => $email])) {
-    //             $this->addFlash('error', 'Email already registered.');
-    //             return $this->redirectToRoute('auth_register');
-    //         }
-    //         // password match?
-    //         if ($password !== $confirmPassword) {
-    //             $this->addFlash('error', 'Passwords do not match.');
-    //             return $this->redirectToRoute('auth_register');
-    //         }
+    // 2) Fallback to X-Real-IP if your proxy sets it
+    $xri = $request->headers->get('X-Real-IP');
+    if ($xri) {
+        return trim($xri);
+    }
 
-    //         // create User + Auth...
-    //         $user = new \App\Entity\User();
-    //         $user->setName($name)
-    //              ->setRole('ROLE_USER')
-    //              ->setCreatedAt(new \DateTime())
-    //              ->setAccountStatus('active')
-    //              ->setOtpEnabled(false);
-    //         $em->persist($user);
-    //         $em->flush();
+    // 3) As a last resort, REMOTE_ADDR (will be your proxy)
+    return $request->server->get('REMOTE_ADDR', '0.0.0.0');
+}
 
-    //         $auth = new Auth();
-    //         $auth->setUser($user)
-    //              ->setEmail($email)
-    //              ->setPassword($passwordHasher->hashPassword($auth, $password));
-    //         $em->persist($auth);
-    //         $em->flush();
-
-    //         $this->addFlash('success', 'Registration successful.');
-    //         return $this->redirectToRoute('auth_login_form');
-    //     }
-
-    //     return $this->render('auth/register.html.twig');
-    // }
+    private LoggerInterface $splunkLogger;  
+    public function __construct(
+        #[Autowire(service: 'monolog.logger.splunk')]
+        LoggerInterface $splunkLogger
+    ) {
+        $this->splunkLogger = $splunkLogger;
+    }
+    
     #[Route('/register', name: 'register', methods: ['GET', 'POST'])]
     public function register(
         Request $request,
@@ -153,8 +115,8 @@ final class AuthController extends AbstractController
             $em->flush();
 
             // now normal registration logic
-            $name            = $request->request->get('username');
-            $email           = $request->request->get('email');
+            $name = trim(strip_tags($request->request->get('username')));
+            $email = trim(filter_var($request->request->get('email'), FILTER_SANITIZE_EMAIL));
             $password        = $request->request->get('password');
             $confirmPassword = $request->request->get('confirm_password');
 
@@ -241,12 +203,13 @@ public function login(
     EmailService $emailService,
     EntityManagerInterface $em,
     CaptchaRepository $captchaRepo,
-    HttpClientInterface $httpClient
+    HttpClientInterface $httpClient,
 ): Response {
-    $ip          = $request->getClientIp();
+    $ip = $this->resolveRealIp($request);
     $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
     // 1) Fetch-or-create the Captcha tracker
+    // Needed for Logging
     $attempt = $captchaRepo->findOneBy([
         'ipAddress'         => $ip,
         'deviceFingerprint' => $fingerprint,
@@ -286,11 +249,11 @@ public function login(
     $em->flush();
 
     // 5) Now validate credentials
-    $email    = $request->request->get('email', '');
+    $email = trim(filter_var($request->request->get('email'), FILTER_SANITIZE_EMAIL));
     $password = $request->request->get('password', '');
     $auth     = $authRepository->findOneBy(['email' => $email]);
 
-       if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
+    if ($auth && $auth->getUser()->getAccountStatus() === 'locked') {
         $this->addFlash('error', 'Account is locked. Please contact support.');
         return $this->redirectToRoute('auth_login_form');
     }
@@ -310,8 +273,20 @@ public function login(
         }
         $em->flush();
 
+
+        $fails = $user->getFailedLoginCount() ?? 0;
+        if ($fails >= 3) {
+            $this->splunkLogger->info('Login Failed: To be Logged to Splunk', [
+                'ip_address'         => $ip,
+                'account_status'     => $auth?->getUser()?->getAccountStatus(),
+                'failed_login_count' => $auth?->getUser()?->getFailedLoginCount(),
+                'last_attempt_at'    => $attempt->getLastAttemptAt()?->format('Y-m-d H:i:s'),
+            ]);
+        }
+
         $this->addFlash('error', 'Invalid credentials.');
         return $this->redirectToRoute('auth_login_form');
+
     }
 
     // 6) Successful login → reset **User** failedLoginCount, but **do not** reset Captcha
@@ -368,8 +343,6 @@ public function login(
     return $response;
 }
 
-
-   
     # For testing purposes, this endpoint will return the user information from the JWT cookie
     #[Route('/verify-redirect', name: 'login_success')]
     public function verifyJwtAndRedirect(
@@ -397,7 +370,6 @@ public function login(
             }
             $auth = $authRepository->findOneBy(['user' => $userId]);
             // 3. Check roles from DB and redirect accordingly
-            #$user = $request->attributes->get('jwt_user');
             
             if (!$auth) {
                 $this->addFlash('error', 'Authentication record not found.');
@@ -419,57 +391,9 @@ public function login(
         
         catch (\Exception $e) {
             $this->addFlash('error', 'Invalid or expired token');
-            #echo 'Message: ' .$e->getMessage();
             return $this->redirectToRoute('auth_login_form');
         }
     }
-    
-    // #[Route('/forgot_pwd', name: 'forgot_password_form', methods: ['GET'])]
-    // public function showForgotPasswordForm(Request $request): Response
-    // {
-    //     $user = $request->attributes->get('jwt_user');
-
-    //     if ($user) {
-    //         // Redirect authenticated users to their user profile page
-    //         return $this->redirectToRoute('user_profile');
-    //     }
-    //     $user = $request->attributes->get('jwt_user');
-
-    //     if ($user) {
-    //         // Redirect authenticated users to their user profile page
-    //         return $this->redirectToRoute('user_profile');
-    //     }
-    //     return $this->render('auth/forgot_pwd.html.twig');
-    // }
-    
-    // #[Route('/forgot_pwd', name: 'forgot_password', methods: ['POST'])]
-    // public function forgotPassword(
-    //     Request $request,
-    //     AuthRepository $authRepository,
-    //     EntityManagerInterface $em,
-    //     EmailService $emailService
-    // ): Response {
-    //     $email = $request->request->get('email');
-    //     $auth = $authRepository->findOneBy(['email' => $email]);
-    //     $user = $auth?->getUser();
-
-    //     if ($user) {
-    //         $token = Uuid::v4()->toRfc4122(); // Generate secure unique token
-    //         $expiresAt = new \DateTimeImmutable('+15 minutes');
-
-    //         $user->setResetToken($token);
-    //         $user->setResetTokenExpiresAt($expiresAt);
-    //         $em->flush();
-
-    //         // Send email with token link
-    //         $emailService->sendResetPasswordLink($auth->getEmail(), $user->getName(), $token);
-    //     }
-
-    //     // Flash message (same response for both cases to protect privacy)
-    //     $this->addFlash('success', 'If this email is registered, a reset link has been sent.');
-
-    //     return $this->redirectToRoute('auth_forgot_password_form');
-    // }
 
        #[Route('/forgot_pwd', name: 'forgot_password_form', methods: ['GET'])]
     public function showForgotPasswordForm(
@@ -595,7 +519,11 @@ public function login(
         JwtService $jwtService
     ): Response {
         $session = $request->getSession();
-        $submittedOtp = $request->request->get('otp');
+        $submittedOtp = trim($request->request->get('otp', ''));
+        if (!preg_match('/^\d{6}$/', $submittedOtp)) {
+            $this->addFlash('error', 'Invalid OTP format.');
+            return $this->redirectToRoute('auth_verify_otp_form');
+        }
 
         // 1. Handle 2FA toggle confirmation
         $pendingToggle = $session->get('pending_2fa_toggle_state');
@@ -731,7 +659,8 @@ public function login(
         EntityManagerInterface $em,
         UserPasswordHasherInterface $hasher
     ): Response {
-        $token = $request->query->get('token') ?? $request->request->get('token');
+       $token = trim($request->query->get('token') ?? $request->request->get('token', ''));
+
 
         if (!$token) {
             $this->addFlash('error', 'Missing reset token.');
