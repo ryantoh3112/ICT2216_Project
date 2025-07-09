@@ -23,7 +23,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\UploadedFile;
 
 # for input validation
-use Symfony\Component\Validator\Validator\ValidatorInterface;
+// use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/admin', name: 'admin_')]
 final class AdminController extends AbstractController
@@ -364,7 +364,7 @@ final class AdminController extends AbstractController
         EntityManagerInterface $em,
         VenueRepository $venueRepo,
         EventCategoryRepository $categoryRepo,
-        ValidatorInterface $validator
+        // ValidatorInterface $validator
     ): Response {
         // 1) CSRF
         if (!$this->isCsrfTokenValid('add_event', $request->request->get('_token'))) {
