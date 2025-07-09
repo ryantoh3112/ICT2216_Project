@@ -6,6 +6,7 @@ use App\Repository\AuthRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: AuthRepository::class)]
 class Auth implements UserInterface, PasswordAuthenticatedUserInterface
@@ -16,9 +17,17 @@ class Auth implements UserInterface, PasswordAuthenticatedUserInterface
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank]
+    #[Assert\Email]
+    #[Assert\Length(max: 255)]
     private ?string $email = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\Length(min: 8)]
+    #[Assert\Regex(
+        pattern: '/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W])/',
+        message: 'Password must include lowercase, uppercase, number, and special character.'
+    )]
     private ?string $password = null;
 
     #[ORM\OneToOne(inversedBy: 'auth', cascade: ['persist', 'remove'])]
