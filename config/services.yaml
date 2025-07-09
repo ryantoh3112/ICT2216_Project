@@ -56,6 +56,11 @@ services:
             $token: '%env(SPLUNK_HEC_TOKEN)%'
             $index: '%env(SPLUNK_INDEX)%'
         tags: ['monolog.handler']  # ← ADD THIS LINE
+        
+    monolog.logger.splunk:
+        class: Monolog\Logger
+        arguments: ['splunk']
+        tags: ['monolog.logger']
 
     App\Controller\:
         resource: '../src/Controller'
