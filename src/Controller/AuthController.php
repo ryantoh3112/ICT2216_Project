@@ -756,8 +756,7 @@ public function login(
         $response->headers->setCookie($expiredCookie);
 
         $this->addFlash('success', 'You have been logged out.');
-        
+
         return $response;
     }
-
 }
