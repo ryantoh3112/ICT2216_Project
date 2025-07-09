@@ -25,6 +25,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Psr\Log\LoggerInterface; // For splunk logs
 use Symfony\Component\DependencyInjection\Attribute\Autowire; // For splunk logs
 
+// guodong
 #Conroller-level prefix for all routes in this controller
 #Everything below is part of /auth/...
 #[Route('/auth', name: 'auth_')]
