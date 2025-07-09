@@ -55,6 +55,10 @@ services:
             $url: '%env(SPLUNK_HEC_URL)%'
             $token: '%env(SPLUNK_HEC_TOKEN)%'
             $index: '%env(SPLUNK_INDEX)%'
+            
+        monolog.logger.splunk:
+            alias: monolog.logger.splunk
+
 # twig:
 #     globals:
 #         recaptcha_site_key: '%env(RECAPTCHA_SITE_KEY)%'
