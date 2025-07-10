@@ -409,26 +409,26 @@ final class AdminController extends AbstractController
         }
 
         // server-side input validation for input field - event, organiser, description
-        $fields = [
-            ['value' => $event, 'name' => 'Event name'],
-            ['value' => $organiser, 'name' => 'Organiser name'],
-            ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[\w\s.,!?\'"-]+$/'],
-        ];
+        // $fields = [
+        //     ['value' => $event, 'name' => 'Event name'],
+        //     ['value' => $organiser, 'name' => 'Organiser name'],
+        //     ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[\w\s.,!?\'"-]+$/'],
+        // ];
 
-        foreach ($fields as $field) {
-            $error = $this->validateInputField(
-                $field['value'], 
-                $field['name'],
-                // setting default maxlength to 40
-                // only description has special 100 maxlength
-                $field['maxLength'] ?? 40
-            );
+        // foreach ($fields as $field) {
+        //     $error = $this->validateInputField(
+        //         $field['value'], 
+        //         $field['name'],
+        //         // setting default maxlength to 40
+        //         // only description has special 100 maxlength
+        //         $field['maxLength'] ?? 40
+        //     );
 
-            if ($error) {
-                $this->addFlash('error', $error);
-                return $this->redirectToRoute('admin_manage_events');
-            }
-        }
+        //     if ($error) {
+        //         $this->addFlash('error', $error);
+        //         return $this->redirectToRoute('admin_manage_events');
+        //     }
+        // }
 
         try {
             $eventDate     = new \DateTime($rawDate);
