@@ -23,6 +23,7 @@ jobs:
         project: 'gotix-app'
         format: 'HTML'
         out: 'dependency-check-report'
+        scan: '.'
       continue-on-error: true # prevent build from failing due to vulnerabilities
 
     - name: Upload Dependency-Check Report
