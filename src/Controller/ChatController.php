@@ -20,11 +20,31 @@ class ChatController extends AbstractController
         private readonly ValidatorInterface    $validator
     ) {}
 
+        private function resolveForwardedIp(Request $request): ?string
+    {
+        // 1) Try X-Forwarded-For (comma-separated list)
+        if ($xff = $request->headers->get('X-Forwarded-For')) {
+            $parts = explode(',', $xff);
+            return trim($parts[0]);
+        }
+        // 2) Fallback to X-Real-IP
+        if ($xri = $request->headers->get('X-Real-IP')) {
+            return trim($xri);
+        }
+        // 3) No header present → null
+        return null;
+    }
+
     #[Route('/api/chat', name: 'api_chat', methods: ['POST'])]
     public function chat(Request $request): JsonResponse
     {
-        // 1) Enforce 5 requests per 10s sliding window, stored in cache.app
-        $limiter = $this->chatApiLimiter->create($request->getClientIp());
+        // 1) Resolve client IP from headers or fallback
+        $ip = $this->resolveForwardedIp($request)
+            ?? $request->getClientIp()
+            ?? 'unknown';
+
+        // 2) Enforce 5 requests per 10s sliding window, stored in cache.app
+        $limiter = $this->chatApiLimiter->create($ip);
         $limit   = $limiter->consume(1);
 
         if (!$limit->isAccepted()) {

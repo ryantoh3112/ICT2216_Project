@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Event;      // ← make sure to import your Event entity
 use App\Entity\PurchaseHistory;
 use App\Entity\CartItem;
 use App\Entity\History;
@@ -28,7 +29,7 @@ final class PaymentController extends AbstractController
 {
  
 
-        #[Route('/checkout', name: 'checkout_page')]
+       #[Route('/checkout', name: 'checkout_page')]
     public function checkout(
         Request $request,
         CartItemRepository $cartRepo,
@@ -41,15 +42,21 @@ final class PaymentController extends AbstractController
             return $this->redirectToRoute('auth_login_form');
         }
 
-        // 2) Fetch all CartItem entities for this user
+        // 2) Pull event_id out of session & load the Event (or null)
+        $eventId = $request->getSession()->get('event_id');
+        $event   = $eventId
+            ? $em->getRepository(Event::class)->find($eventId)
+            : null;
+
+        // 3) Fetch all CartItem entities for this user
         /** @var CartItem[] $rawItems */
         $rawItems = $cartRepo->findBy(['user' => $user]);
 
-        // 3) Group items by ticketType ID and sum quantities
+        // 4) Group items by ticketType ID and sum quantities
         $grouped = [];
         foreach ($rawItems as $item) {
-            $tt   = $item->getTicketType();
-            $tid  = $tt->getId();
+            $tt  = $item->getTicketType();
+            $tid = $tt->getId();
             if (!isset($grouped[$tid])) {
                 $grouped[$tid] = [
                     'ticketType' => $tt,
@@ -61,21 +68,22 @@ final class PaymentController extends AbstractController
             $grouped[$tid]['quantity'] += $item->getQuantity();
         }
 
-        // 4) Compute availability per ticket type
+        // 5) Compute availability per ticket type *for this event only*
         $availability = [];
         foreach ($grouped as $tid => $info) {
-            /** @var \App\Entity\TicketType $tt */
+            /** @var TicketType $tt */
             $tt = $info['ticketType'];
 
             $availability[$tid] = $em
                 ->getRepository(Ticket::class)
                 ->count([
+                    'event'      => $event,   // ← filter by this event
                     'ticketType' => $tt,
                     'payment'    => null,
                 ]);
         }
 
-        // 5) Prepare flat list for Twig
+        // 6) Prepare flat list for Twig
         $items = [];
         foreach ($grouped as $tid => $info) {
             $qty  = $info['quantity'];
@@ -91,12 +99,12 @@ final class PaymentController extends AbstractController
             ];
         }
 
-        // 6) Compute totals
+        // 7) Compute totals
         $subtotal   = array_sum(array_column($items, 'line'));
         $bookingFee = 3 * count($items);
         $total      = $subtotal + $bookingFee;
 
-        // 7) Render the grouped-cart template
+        // 8) Render the grouped-cart template
         return $this->render('payment/checkout.html.twig', [
             'items'             => $items,
             'subtotal'          => $subtotal,

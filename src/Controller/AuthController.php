@@ -67,7 +67,11 @@ final class AuthController extends AbstractController
         CaptchaRepository $captchaRepo,
         HttpClientInterface $httpClient
     ): Response {
-        $ip          = $this->resolveForwardedIp($request);
+        $ip = $this->resolveForwardedIp($request)
+        // if there was no X-Forwarded header, try Symfony’s client-IP logic
+        ?? $request->getClientIp()
+        // worst-case fallback so it’s never null
+        ?? '0.0.0.0';
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         // 1) fetch-or-create our tracker
@@ -177,7 +181,11 @@ public function loginForm(
     Request $request,
     CaptchaRepository $captchaRepo
 ): Response {
-    $ip          = $this->resolveForwardedIp($request);
+         $ip = $this->resolveForwardedIp($request)
+        // if there was no X-Forwarded header, try Symfony’s client-IP logic
+        ?? $request->getClientIp()
+        // worst-case fallback so it’s never null
+        ?? '0.0.0.0';
     $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
     // 1) fetch-or-create tracker
@@ -213,7 +221,11 @@ public function login(
     CaptchaRepository $captchaRepo,
     HttpClientInterface $httpClient,
 ): Response {
-    $ip          = $this->resolveForwardedIp($request);
+         $ip = $this->resolveForwardedIp($request)
+        // if there was no X-Forwarded header, try Symfony’s client-IP logic
+        ?? $request->getClientIp()
+        // worst-case fallback so it’s never null
+        ?? '0.0.0.0';
     $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
     // 1) Fetch-or-create the Captcha tracker
@@ -413,7 +425,11 @@ public function login(
             return $this->redirectToRoute('user_profile');
         }
 
-        $ip          = $this->resolveForwardedIp($request);
+             $ip = $this->resolveForwardedIp($request)
+        // if there was no X-Forwarded header, try Symfony’s client-IP logic
+        ?? $request->getClientIp()
+        // worst-case fallback so it’s never null
+        ?? '0.0.0.0';
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         $attempt = $captchaRepo->findOneBy([
@@ -439,7 +455,11 @@ public function login(
         CaptchaRepository $captchaRepo
     ): Response {
         // step 1: fetch or create our CAPTCHA tracker
-        $ip          = $this->resolveForwardedIp($request);
+             $ip = $this->resolveForwardedIp($request)
+        // if there was no X-Forwarded header, try Symfony’s client-IP logic
+        ?? $request->getClientIp()
+        // worst-case fallback so it’s never null
+        ?? '0.0.0.0';
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         $attempt = $captchaRepo->findOneBy([

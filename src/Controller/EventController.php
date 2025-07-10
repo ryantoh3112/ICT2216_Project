@@ -253,22 +253,36 @@ final class EventController extends AbstractController
             return $this->redirectToRoute('auth_login');
         }
 
-        // 2) Load the event (and ticket types)
+        // 2) Load the event
         $event = $eventRepository->find($id);
         if (!$event) {
             throw $this->createNotFoundException('Event not found.');
         }
-        // make a unique list of TicketType objects
+
+        // ── NEW: if they already had a different event in session, clear their cart ──
+        $session   = $request->getSession();
+        $oldEvent  = $session->get('event_id');
+        if ($oldEvent && $oldEvent !== $id) {
+            $oldItems = $cartRepo->findBy(['user' => $user]);
+            foreach ($oldItems as $ci) {
+                $em->remove($ci);
+            }
+            $em->flush();
+        }
+
+        // ── bind the session to THIS event ──
+        $session->set('event_id', $id);
+
+        // 3) Build unique list of TicketType
         $ticketTypes = [];
         foreach ($event->getTicket() as $t) {
             $ticketTypes[$t->getTicketType()->getId()] = $t->getTicketType();
         }
 
-        // 3) Compute raw availability for each type
+        // 4) Compute raw availability for each type
         $rawAvailability = [];
-        foreach ($ticketTypes as $typeId => $tt) {
-            $rawAvailability[$typeId] = $em
-                ->getRepository(Ticket::class)
+        foreach ($ticketTypes as $tid => $tt) {
+            $rawAvailability[$tid] = $em->getRepository(Ticket::class)
                 ->count([
                     'event'      => $event,
                     'ticketType' => $tt,
@@ -276,65 +290,61 @@ final class EventController extends AbstractController
                 ]);
         }
 
-        // 4) Count how many of each type the user already has in their cart
+        // 5) Count how many of each type the user already has in their cart
         $inCartCounts = [];
         $inCart = $cartRepo->findBy(['user' => $user]);
-        foreach ($inCart as $cartItem) {
-            // assume CartItem has getTicketType() relation
-            $tid = $cartItem->getTicketType()->getId();
-            $inCartCounts[$tid] = ($inCartCounts[$tid] ?? 0) + $cartItem->getQuantity();
+        foreach ($inCart as $ci) {
+            $tid = $ci->getTicketType()->getId();
+            $inCartCounts[$tid] = ($inCartCounts[$tid] ?? 0) + $ci->getQuantity();
         }
 
-        // 5) Final availability = raw − in-cart, clamped ≥ 0
+        // 6) Final availability = raw − in-cart, clamped ≥ 0
         $availability = [];
         foreach ($rawAvailability as $tid => $avail) {
-            $left = $avail - ($inCartCounts[$tid] ?? 0);
-            $availability[$tid] = max(0, $left);
+            $availability[$tid] = max(0, $avail - ($inCartCounts[$tid] ?? 0));
         }
 
-        // 6) If POST, process the submitted quantities
-        if ($request->isMethod('POST')) {
-            // CSRF
-            if (! $this->isCsrfTokenValid('select_tickets', $request->request->get('_csrf_token'))) {
-                throw new AccessDeniedException('Invalid CSRF token.');
-            }
-
-            // $quantities = $request->request->get('quantities', []);
-            // retrieve raw, allow null, then normalize to array
-            // Fetch the full POST payload, then extract quantities if present
-            $postData    = $request->request->all();
-            $quantities  = [];
-            if (isset($postData['quantities']) && \is_array($postData['quantities'])) {
-                $quantities = $postData['quantities'];
-            }
-            
-            foreach ($ticketTypes as $tt) {
-                $tid = $tt->getId();
-                $q   = (int)($quantities[$tid] ?? 0);
-                if ($q < 1) {
-                    continue;
-                }
-                // clamp to what’s really left
-                $toAdd = min($q, $availability[$tid] ?? 0);
-                if ($toAdd < 1) {
-                    continue;
-                }
-                // persist a new CartItem
-                $item = new CartItem();
-                $item->setName($tt->getName());
-                $item->setPrice($tt->getPrice());
-                $item->setQuantity($toAdd);
-                $item->setUser($user);
-                $item->setTicketType($tt);
-
-                $em->persist($item);
-            }
-            $em->flush();
-
-            return new RedirectResponse($this->generateUrl('checkout_page'));
+        // 7) If POST, process form
+  if ($request->isMethod('POST')) {
+        // 1) CSRF
+        if (! $this->isCsrfTokenValid('select_tickets', $request->request->get('_csrf_token'))) {
+            throw new AccessDeniedException('Invalid CSRF token.');
         }
 
-        // 7) Render the form, passing in our adjusted availability map
+        // 2) Instead of $request->request->get('quantities', []), do:
+        $post = $request->request->all();                // grab all POST data
+        $quantities = [];
+        if (isset($post['quantities']) && is_array($post['quantities'])) {
+            $quantities = $post['quantities'];
+        }
+
+        // 3) Now loop just like before:
+        foreach ($ticketTypes as $tt) {
+            $tid = $tt->getId();
+            $q   = (int) ($quantities[$tid] ?? 0);
+            if ($q < 1) {
+                continue;
+            }
+            $toAdd = min($q, $availability[$tid] ?? 0);
+            if ($toAdd < 1) {
+                continue;
+            }
+
+            $item = new CartItem();
+            $item->setUser($user);
+            $item->setTicketType($tt);
+            $item->setName($tt->getName());
+            $item->setPrice($tt->getPrice());
+            $item->setQuantity($toAdd);
+
+            $em->persist($item);
+        }
+
+        $em->flush();
+        return new RedirectResponse($this->generateUrl('checkout_page'));
+        }
+
+        // 8) Render
         return $this->render('event/select_ticket.html.twig', [
             'event'        => $event,
             'ticketTypes'  => array_values($ticketTypes),
