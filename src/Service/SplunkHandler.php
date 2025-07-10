@@ -64,7 +64,7 @@ class SplunkHandler extends AbstractProcessingHandler
     {
         $data = $record->toArray();
 
-        $payload = json_encode([
+        $payload = [
             'event' => 'Login monitoring',
             'fields' => [
                 'ip_address'         => $data['context']['ip_address'] ?? null,
@@ -75,7 +75,7 @@ class SplunkHandler extends AbstractProcessingHandler
             'sourcetype' => '_json',
             'index'      => $this->index,
             'time'       => $data['datetime']->getTimestamp(),
-        ]);
+        ];
 
         // ✅ Debug the payload sent to Splunk
         file_put_contents('/tmp/splunk_debug.log', json_encode($payload, JSON_PRETTY_PRINT));
@@ -86,8 +86,14 @@ class SplunkHandler extends AbstractProcessingHandler
                 'Authorization' => 'Splunk ' . $this->token,
                 'Content-Type'  => 'application/json',
             ],
-            'body' => $payload,
+            'json' => $payload,
         ]);
+        $content = $response->getContent(false); // Get response body even if not 200
+        $status  = $response->getStatusCode();
+        file_put_contents('/tmp/splunk_response.log', json_encode([
+            'status' => $status,
+            'body'   => $content,
+        ], JSON_PRETTY_PRINT));
 
         if (200 !== $response->getStatusCode()) {
             error_log('Splunk HEC request failed: ' . $response->getContent(false));
