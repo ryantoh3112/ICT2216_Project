@@ -11,13 +11,16 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Component\Validator\Constraints as C;
+use Psr\Log\LoggerInterface;
 
 class ChatController extends AbstractController
 {
     public function __construct(
         private readonly RateLimiterFactory $chatApiLimiter,
         private readonly HttpClientInterface   $client,
-        private readonly ValidatorInterface    $validator
+        private readonly ValidatorInterface    $validator,
+        private readonly LoggerInterface $logger        // ← add this
+
     ) {}
 
         private function resolveForwardedIp(Request $request): ?string
@@ -42,6 +45,9 @@ class ChatController extends AbstractController
         $ip = $this->resolveForwardedIp($request)
             ?? $request->getClientIp()
             ?? 'unknown';
+        
+        $this->logger->debug('Resolved client IP for rate-limit', ['ip' => $ip]);
+
 
         // 2) Enforce 5 requests per 10s sliding window, stored in cache.app
         $limiter = $this->chatApiLimiter->create($ip);
