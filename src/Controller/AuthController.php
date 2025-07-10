@@ -778,7 +778,7 @@ public function login(
             ->withExpires(new \DateTime('-1 day'))
             ->withPath('/')
             ->withHttpOnly(true)
-            ->withSecure(false)
+            ->withSecure(true)
             ->withSameSite('Lax');
 
         // Redirect and attach the expired cookie
