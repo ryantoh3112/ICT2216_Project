@@ -521,24 +521,24 @@ final class AdminController extends AbstractController
             $tQuantity = intval($typeData['quantity'] ?? 0);
             
             // server-side validation for ticket type fields
-            $ticketFields = [
-                ['value' => $tName, 'name' => 'Ticket name'],
-                // allowing description to have letters, digits, underscores, whitespace, common punctuation . , ! ? ' " -
-                ['value' => $tDesc, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[\w\s.,!?\'"-]+$/'],
-            ];
+            // $ticketFields = [
+            //     ['value' => $tName, 'name' => 'Ticket name'],
+            //     // allowing description to have letters, digits, underscores, whitespace, common punctuation . , ! ? ' " -
+            //     ['value' => $tDesc, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[\w\s.,!?\'"-]+$/'],
+            // ];
 
-            foreach ($ticketFields as $field) {
-                $error = $this->validateInputField(
-                    $field['value'],
-                    $field['name'],
-                    $field['maxLength'] ?? 40,
-                    $field['pattern'] ?? '/^[a-zA-Z0-9\s]+$/'
-                );
-                if ($error) {
-                    $this->addFlash('error', "Ticket " . ($idx + 1) . ": " . $error);
-                    return $this->redirectToRoute('admin_manage_events');
-                }
-            }
+            // foreach ($ticketFields as $field) {
+            //     $error = $this->validateInputField(
+            //         $field['value'],
+            //         $field['name'],
+            //         $field['maxLength'] ?? 40,
+            //         $field['pattern'] ?? '/^[a-zA-Z0-9\s]+$/'
+            //     );
+            //     if ($error) {
+            //         $this->addFlash('error', "Ticket " . ($idx + 1) . ": " . $error);
+            //         return $this->redirectToRoute('admin_manage_events');
+            //     }
+            // }
 
             if (!$tName || $tPrice <= 0 || $tQuantity <= 0) {
                 // skip any incomplete/invalid entries
