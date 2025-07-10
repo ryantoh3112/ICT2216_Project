@@ -28,11 +28,12 @@ class SplunkHandler extends AbstractProcessingHandler
         $this->token = $token;
         $this->index = $index;
     }
-
+    /*
     protected function write(LogRecord $record): void
     {
         $data = $record->toArray();
-
+           // ✅ Debug the payload sent to Splunk
+        file_put_contents('/tmp/splunk_debug.log', json_encode($payload, JSON_PRETTY_PRINT));
         $response = $this->client->request('POST', $this->url, [
             'headers' => [
                 'Authorization' => 'Splunk ' . $this->token,
@@ -51,11 +52,48 @@ class SplunkHandler extends AbstractProcessingHandler
                 'time'       => $data['datetime']->getTimestamp(),
             ],
         ]);
+
+
         if (200 !== $response->getStatusCode()) {
         // Optionally throw or log error - you can write to PHP error_log or another logger
             error_log('Splunk HEC request failed: ' . $response->getContent(false));
         }
     }
+    */
+    protected function write(LogRecord $record): void
+    {
+        $data = $record->toArray();
+
+        $payload = [
+            'event' => 'Login monitoring',
+            'fields' => [
+                'ip_address'         => $data['context']['ip_address'] ?? null,
+                'last_attempt_at'    => $data['context']['last_attempt_at'] ?? null,
+                'account_status'     => $data['context']['account_status'] ?? null,
+                'failed_login_count' => $data['context']['failed_login_count'] ?? null,
+            ],
+            'sourcetype' => '_json',
+            'index'      => $this->index,
+            'time'       => $data['datetime']->getTimestamp(),
+        ];
+
+        // ✅ Debug the payload sent to Splunk
+        file_put_contents('/tmp/splunk_debug.log', json_encode($payload, JSON_PRETTY_PRINT));
+
+        // Proceed with sending to Splunk
+        $response = $this->client->request('POST', $this->url, [
+            'headers' => [
+                'Authorization' => 'Splunk ' . $this->token,
+                'Content-Type'  => 'application/json',
+            ],
+            'json' => $payload,
+        ]);
+
+        if (200 !== $response->getStatusCode()) {
+            error_log('Splunk HEC request failed: ' . $response->getContent(false));
+        }
+    }
+
 
 }
 ?>
