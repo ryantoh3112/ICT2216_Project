@@ -131,6 +131,32 @@ final class AdminController extends AbstractController
         $venue = $venueRepo->find((int) $request->request->get('venue'));
         $category = $categoryRepo->find((int) $request->request->get('category'));
         $capacity = (int) $request->request->get('capacity');
+        
+        // server-side input validation for input field - event, organiser, description
+        $fields = [
+            ['value' => $name, 'name' => 'Event name'],
+            ['value' => $organiser, 'name' => 'Organiser name'],
+            ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s"?,\$\.\/]+$/'],
+        ];
+
+        // standard pattern except from description
+        $defaultPattern = '/^[a-zA-Z0-9\s]+$/';
+
+        foreach ($fields as $field) {
+            $error = $this->validateInputField(
+                $field['value'], 
+                $field['name'],
+                // setting default maxlength to 40
+                // only description has special 100 maxlength
+                $field['maxLength'] ?? 40,
+                $field['pattern'] ?? $defaultPattern
+            );
+
+            if ($error) {
+                $this->addFlash('error', $error);
+                return $this->redirectToRoute('admin_manage_events');
+            }
+        }
 
         if (!$name) {
             $this->addFlash('error', 'Event name is required.');
