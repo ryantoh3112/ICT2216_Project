@@ -215,45 +215,45 @@ final class AdminController extends AbstractController
         }
 
         // 3) Update fields
-        $event->setName($name);
-        $event->setDescription($description);
-        $event->setOrganiser($organiser);
-        $event->setEventDate($eventDateTime);
-        $event->setVenue($venue);
-        $event->setCategory($category);
-        $event->setCapacity($capacity);
-        $event->setPurchaseStartDate($startDate);
-        $event->setPurchaseEndDate($endDate);
+        // $event->setName($name);
+        // $event->setDescription($description);
+        // $event->setOrganiser($organiser);
+        // $event->setEventDate($eventDateTime);
+        // $event->setVenue($venue);
+        // $event->setCategory($category);
+        // $event->setCapacity($capacity);
+        // $event->setPurchaseStartDate($startDate);
+        // $event->setPurchaseEndDate($endDate);
 
-        // 4) Image handling: reuse addEvent logic + preserve existing if none uploaded
-        $uploaded = $request->files->get('imagefile');
+        // // 4) Image handling: reuse addEvent logic + preserve existing if none uploaded
+        // $uploaded = $request->files->get('imagefile');
         
-        if ($uploaded && $uploaded->isValid()){
-            // dump($uploaded->getSize()); die;
-            $allowed = ['image/jpg','image/jpeg','image/png'];
-            if (!in_array($uploaded->getMimeType(), $allowed)){
-                $this->addFlash('error', 'Invalid image file type. Only JPG, JPEG, and PNG are allowed.');
-                return $this->redirectToRoute('admin_manage_events');
-            }
+        // if ($uploaded && $uploaded->isValid()){
+        //     // dump($uploaded->getSize()); die;
+        //     $allowed = ['image/jpg','image/jpeg','image/png'];
+        //     if (!in_array($uploaded->getMimeType(), $allowed)){
+        //         $this->addFlash('error', 'Invalid image file type. Only JPG, JPEG, and PNG are allowed.');
+        //         return $this->redirectToRoute('admin_manage_events');
+        //     }
 
-            if(!@getimagesize($uploaded->getPathname())){
-                $this->addFlash('error', 'Nice try, but valid image only.');
-                return $this->redirectToRoute('admin_manage_events');
-            }
+        //     if(!@getimagesize($uploaded->getPathname())){
+        //         $this->addFlash('error', 'Nice try, but valid image only.');
+        //         return $this->redirectToRoute('admin_manage_events');
+        //     }
 
-            // generate unique filename
-            $filename = uniqid().'.'.$uploaded->guessExtension();
-            try {
-                $uploaded->move(
-                    $this->getParameter('event_images_directory'),
-                    $filename
-                );
-            } catch (\Exception $e) {
-                dump($e->getMessage()); die;
-            }
-            // store relative path
-            $event->setImagePath('images/events/'.$filename);
-        }
+        //     // generate unique filename
+        //     $filename = uniqid().'.'.$uploaded->guessExtension();
+        //     try {
+        //         $uploaded->move(
+        //             $this->getParameter('event_images_directory'),
+        //             $filename
+        //         );
+        //     } catch (\Exception $e) {
+        //         dump($e->getMessage()); die;
+        //     }
+        //     // store relative path
+        //     $event->setImagePath('images/events/'.$filename);
+        // }
 
         // 5) adding tickets 
         // Get existing tickets for the event
@@ -387,6 +387,44 @@ final class AdminController extends AbstractController
                     $em->persist($ticket);
                 }
             }
+        }
+
+        // 3) Update fields
+        $event->setName($name);
+        $event->setDescription($description);
+        $event->setOrganiser($organiser);
+        $event->setEventDate($eventDateTime);
+        $event->setVenue($venue);
+        $event->setCategory($category);
+        $event->setCapacity($capacity);
+        $event->setPurchaseStartDate($startDate);
+        $event->setPurchaseEndDate($endDate);
+
+        // 4) Image handling: reuse addEvent logic + preserve existing if none uploaded
+        $uploaded = $request->files->get('imagefile');
+        if ($uploaded && $uploaded->isValid()){
+            // dump($uploaded->getSize()); die;
+            $allowed = ['image/jpg','image/jpeg','image/png'];
+            if (!in_array($uploaded->getMimeType(), $allowed)){
+                $this->addFlash('error', 'Invalid image file type. Only JPG, JPEG, and PNG are allowed.');
+                return $this->redirectToRoute('admin_manage_events');
+            }
+            if(!@getimagesize($uploaded->getPathname())){
+                $this->addFlash('error', 'Nice try, but valid image only.');
+                return $this->redirectToRoute('admin_manage_events');
+            }
+            // generate unique filename
+            $filename = uniqid().'.'.$uploaded->guessExtension();
+            try {
+                $uploaded->move(
+                    $this->getParameter('event_images_directory'),
+                    $filename
+                );
+            } catch (\Exception $e) {
+                dump($e->getMessage()); die;
+            }
+            // store relative path
+            $event->setImagePath('images/events/'.$filename);
         }
 
         $em->flush();
