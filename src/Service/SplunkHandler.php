@@ -64,14 +64,16 @@ class SplunkHandler extends AbstractProcessingHandler
     {
         $data = $record->toArray();
 
+            // Actual event payload to be stringified
+        $eventBody = [
+            'ip_address'         => $data['context']['ip_address'] ?? null,
+            'last_attempt_at'    => $data['context']['last_attempt_at'] ?? null,
+            'account_status'     => $data['context']['account_status'] ?? null,
+            'failed_login_count' => $data['context']['failed_login_count'] ?? null,
+        ];
         $payload = [
-            'event' => 'Login monitoring',
-            'fields' => [
-                'ip_address'         => $data['context']['ip_address'] ?? null,
-                'last_attempt_at'    => $data['context']['last_attempt_at'] ?? null,
-                'account_status'     => $data['context']['account_status'] ?? null,
-                'failed_login_count' => $data['context']['failed_login_count'] ?? null,
-            ],
+            'event'      => json_encode($eventBody),  // 👈 Wrap as string
+            'fields'     => [ 'event_type' => 'Login monitoring' ],
             'sourcetype' => '_json',
             'index'      => $this->index,
             'time'       => $data['datetime']->getTimestamp(),
@@ -90,6 +92,7 @@ class SplunkHandler extends AbstractProcessingHandler
         ]);
         $content = $response->getContent(false); // Get response body even if not 200
         $status  = $response->getStatusCode();
+        
         file_put_contents('/tmp/splunk_response.log', json_encode([
             'status' => $status,
             'body'   => $content,
