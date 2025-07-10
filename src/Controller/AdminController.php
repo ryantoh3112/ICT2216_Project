@@ -413,9 +413,10 @@ final class AdminController extends AbstractController
         $fields = [
             ['value' => $name, 'name' => 'Event name'],
             ['value' => $organiser, 'name' => 'Organiser name'],
-            ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[\w\s.,!?\'"-]+$/'],
+            ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s"?,\$\.\/]+$/'],
         ];
 
+        // standard pattern except from description
         $defaultPattern = '/^[a-zA-Z0-9\s]+$/';
 
         foreach ($fields as $field) {
@@ -521,28 +522,30 @@ final class AdminController extends AbstractController
         foreach ($ticketTypesData as $idx => $typeData) {
             $tName     = strip_tags(trim($typeData['name'] ?? ''));
             $tDesc     = strip_tags(trim($typeData['description'] ?? ''));
-            $tPrice    = floatval($typeData['price'] ?? 0);
-            $tQuantity = intval($typeData['quantity'] ?? 0);
+            
             
             // server-side validation for ticket type fields
-            // $ticketFields = [
-            //     ['value' => $tName, 'name' => 'Ticket name'],
-            //     // allowing description to have letters, digits, underscores, whitespace, common punctuation . , ! ? ' " -
-            //     ['value' => $tDesc, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[\w\s.,!?\'"-]+$/'],
-            // ];
+            $ticketFields = [
+                ['value' => $tName, 'name' => 'Ticket name'],
+                // allowing description to have letters, digits, underscores, whitespace, common punctuation . , ! ? ' " -
+                ['value' => $tDesc, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s"?,\$\.\/]+$/'],
+            ];
 
-            // foreach ($ticketFields as $field) {
-            //     $error = $this->validateInputField(
-            //         $field['value'],
-            //         $field['name'],
-            //         $field['maxLength'] ?? 40,
-            //         $field['pattern'] ?? '/^[a-zA-Z0-9\s]+$/'
-            //     );
-            //     if ($error) {
-            //         $this->addFlash('error', "Ticket " . ($idx + 1) . ": " . $error);
-            //         return $this->redirectToRoute('admin_manage_events');
-            //     }
-            // }
+            foreach ($ticketFields as $field) {
+                $error = $this->validateInputField(
+                    $field['value'],
+                    $field['name'],
+                    $field['maxLength'] ?? 40,
+                    $field['pattern'] ?? '/^[a-zA-Z0-9\s]+$/'
+                );
+                if ($error) {
+                    $this->addFlash('error', "Ticket " . ($idx + 1) . ": " . $error);
+                    return $this->redirectToRoute('admin_manage_events');
+                }
+            }
+
+            $tPrice    = floatval($typeData['price'] ?? 0);
+            $tQuantity = intval($typeData['quantity'] ?? 0);
 
             if (!$tName || $tPrice <= 0 || $tQuantity <= 0) {
                 // skip any incomplete/invalid entries
