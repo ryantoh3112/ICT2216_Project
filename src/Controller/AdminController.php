@@ -415,6 +415,8 @@ final class AdminController extends AbstractController
             ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[\w\s.,!?\'"-]+$/'],
         ];
 
+        $defaultPattern = '/^[a-zA-Z0-9\s]+$/';
+
         foreach ($fields as $field) {
             $error = $this->validateInputField(
                 $field['value'], 
@@ -422,7 +424,7 @@ final class AdminController extends AbstractController
                 // setting default maxlength to 40
                 // only description has special 100 maxlength
                 $field['maxLength'] ?? 40,
-                $field['pattern'] ?? null
+                $field['pattern'] ?? $defaultPattern
             );
 
             if ($error) {
