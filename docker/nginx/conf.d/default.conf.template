@@ -21,7 +21,7 @@ server {
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
     }
 
-    # block script execution in /uploads/
+    # block script execution in /events/
     location ~* /events/.*\.(php|phtml|phar|cgi|pl|py|sh|exe|jsp|bat)$ {
         deny all;
     }
