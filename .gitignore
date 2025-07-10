@@ -44,5 +44,3 @@ node_modules
 captcha_log.json
 debug_result.json
 debug_token.txt
-
-public/uploads

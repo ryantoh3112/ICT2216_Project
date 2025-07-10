@@ -25,6 +25,10 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
             cd /home/student25/ICT2216_Project
+
+            # CLEAN UP uploads folder to prevent git pull error
+            rm -rf public/uploads
+
             git fetch origin
             git checkout -B ${{ github.ref_name }} origin/${{ github.ref_name }}
             git pull origin ${{ github.ref_name }}
