@@ -64,7 +64,7 @@ class SplunkHandler extends AbstractProcessingHandler
     {
         $data = $record->toArray();
 
-        $payload = [
+        $payload = json_encode([
             'event' => 'Login monitoring',
             'fields' => [
                 'ip_address'         => $data['context']['ip_address'] ?? null,
@@ -75,7 +75,7 @@ class SplunkHandler extends AbstractProcessingHandler
             'sourcetype' => '_json',
             'index'      => $this->index,
             'time'       => $data['datetime']->getTimestamp(),
-        ];
+        ]);
 
         // ✅ Debug the payload sent to Splunk
         file_put_contents('/tmp/splunk_debug.log', json_encode($payload, JSON_PRETTY_PRINT));
@@ -86,7 +86,7 @@ class SplunkHandler extends AbstractProcessingHandler
                 'Authorization' => 'Splunk ' . $this->token,
                 'Content-Type'  => 'application/json',
             ],
-            'json' => $payload,
+            'body' => $payload,
         ]);
 
         if (200 !== $response->getStatusCode()) {
