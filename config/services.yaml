@@ -28,6 +28,10 @@ services:
     # wire the controller’s $createCheckoutSessionLimiter argument
     Symfony\Component\RateLimiter\RateLimiterFactory $createCheckoutSessionLimiter:
         alias: 'limiter.create_checkout_session'
+
+    App\Controller\ChatController:
+        autowire: true      # make sure autowiring is on
+        public: true        # or leave default for controllers
     
 
     # makes classes in src/ available to be used as services
