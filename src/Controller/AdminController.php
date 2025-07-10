@@ -199,32 +199,9 @@ final class AdminController extends AbstractController
         $event->setPurchaseStartDate($startDate);
         $event->setPurchaseEndDate($endDate);
 
-        // // Handle image file upload
-        // $imagefile = $request->files->get('imagefile');
-        // if ($imagefile && $imagefile->isValid()) {
-        //     $allowedImgTypes = ['image/jpg', 'image/jpeg', 'image/png'];
-        //     // if user uploads invalid file type for img, redirect them back to manage events page with error message
-        //     if(!in_array($imagefile->getMimeType(), $allowedImgTypes)) {
-        //         $this->addFlash('error', 'Invalid image file type. Only JPG, JPEG, and PNG are allowed.');
-        //         return $this->redirectToRoute('admin_manage_events');
-        //     }
-        //     // ensure real img file is uploaded
-        //     if(!@getimagesize($imagefile->getPathname())) {
-        //         $this->addFlash('error', 'Nice try, but valid image only.');
-        //         return $this->redirectToRoute('admin_manage_events');
-        //     }
-            // // Generate a unique filename
-            // $filename = uniqid() . '.' . $imagefile->guessExtension();
-            // // Move the file to the uploads directory
-            // $imagefile->move($this->getParameter(name: 'event_images_directory'), $filename);
-            // // Set the image path in the event entity
-            // $event->setImagePath($filename);
-
         // 4) Image handling: reuse addEvent logic + preserve existing if none uploaded
         $uploaded = $request->files->get('imagefile');
-        // dump($uploaded); die;
-        // dump($_FILES, $uploaded); die;
-        // if ($uploaded instanceof UploadedFile && $uploaded->isValid()) {
+        
         if ($uploaded && $uploaded->isValid()){
             // dump($uploaded->getSize()); die;
             $allowed = ['image/jpg','image/jpeg','image/png'];
@@ -338,6 +315,25 @@ final class AdminController extends AbstractController
             foreach ($newTicketTypes as $typeData) {
                 $name = strip_tags(trim($typeData['name']));
                 $description = strip_tags(trim($typeData['description']));
+                
+                //server side validation for new ticket type fields - name, description
+                $ticketFields = [
+                    ['value' => $name, 'name' => 'Ticket name'],
+                    ['value' => $description, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s"?,\$\.\/]+$/'],
+                ];
+                foreach ($ticketFields as $field) {
+                    $error = $this->validateInputField(
+                        $field['value'],
+                        $field['name'],
+                        $field['maxLength'] ?? 40,
+                        $field['pattern'] ?? '/^[a-zA-Z0-9\s]+$/'
+                    );
+                    if ($error) {
+                        $this->addFlash('error', "New Ticket Type: " . $error);
+                        return $this->redirectToRoute('admin_manage_events');
+                    }
+                }
+
                 $price = (float) $typeData['price'];
                 $quantity = (int) $typeData['quantity'];
 
@@ -545,8 +541,16 @@ final class AdminController extends AbstractController
             }
 
             $tPrice    = floatval($typeData['price'] ?? 0);
-            $tQuantity = intval($typeData['quantity'] ?? 0);
-
+            
+            //enable stricter validation for price
+            $rawQuantity = trim($typeData['quantity'] ?? '');
+            if(!ctyle_digit($rawQuantity)){
+                //if quantity not pure integer string, skip/handle error
+                $this->addFlash('error', "Ticket quantity for '{$tName}' must be a whole number only.");
+                return $this->redirectToRoute('admin_manage_events');
+            }            
+            // $tQuantity = intval($typeData['quantity'] ?? 0);
+            $tQuantity = (int)$rawQuantity;
             if (!$tName || $tPrice <= 0 || $tQuantity <= 0) {
                 // skip any incomplete/invalid entries
                 continue;
