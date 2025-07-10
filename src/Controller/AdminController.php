@@ -506,7 +506,7 @@ final class AdminController extends AbstractController
         }
 
         $em->persist($event);
-        $em->flush(); // so $event->getId() exists
+        // $em->flush(); // so $event->getId() exists
 
         // 5) Basic field validation for tickets
         $ticketTypes = $request->request->all('ticket_types'); // gets array from form
@@ -579,7 +579,9 @@ final class AdminController extends AbstractController
             // $tQuantity = (int)$rawQuantity;
             if (!$tName || $tPrice <= 0 || $tQuantity <= 0) {
                 // skip any incomplete/invalid entries
-                continue;
+                // continue;
+                $this->addFlash('error', "Ticket " . ($idx + 1) . ": Name, price, and quantity must all be valid.");
+                return $this->redirectToRoute('admin_manage_events');
             }
 
             // a) create TicketType
@@ -589,7 +591,7 @@ final class AdminController extends AbstractController
                 ->setPrice($tPrice);
 
             $em->persist($tt);
-            $em->flush(); // so $tt->getId() exists
+            // $em->flush(); // so $tt->getId() exists
 
             // b) create that many Ticket rows
             for ($i = 0; $i < $tQuantity; $i++) {
