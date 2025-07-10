@@ -40,6 +40,9 @@ jobs:
         script: |
             cd /home/student25/ICT2216_Project
 
+            # CLEAN UP testing file to prevent git pull error
+            sudo rm public/testing.html
+
             git fetch origin
             git checkout -B ${{ github.ref_name }} origin/${{ github.ref_name }}
             git pull origin ${{ github.ref_name }}
