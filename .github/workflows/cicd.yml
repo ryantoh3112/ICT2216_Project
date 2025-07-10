@@ -4,11 +4,9 @@ on:
   push:
     branches:
       - master
-      # - deon-2
   pull_request:
     branches:
       - master
-      # - deon-2
 
 jobs:
   build-and-deploy:
