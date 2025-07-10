@@ -27,7 +27,22 @@ use Symfony\Component\HttpFoundation\UploadedFile;
 
 #[Route('/admin', name: 'admin_')]
 final class AdminController extends AbstractController
-{
+{   
+    // function to validate input fields
+    private function validateInputField(string $value, string $fieldName, int $maxLength = 50, string $pattern = '/^[a-zA-Z0-9\s]+$/'): ?string
+    {
+        if (empty($value)) {
+            return "$fieldName is required.";
+        }
+        if (strlen($value) > $maxLength) {
+            return "$fieldName cannot exceed $maxLength characters.";
+        }
+        if (!preg_match($pattern, $value)) {
+            return "$fieldName can only contain letters, numbers and spaces.";
+        }
+        return null; // No error
+    }
+
     // Function to check if user Logged in AND Admin
     private function getAuthenticatedAdmin(Request $request, AuthRepository $authRepository): Response|User
     {
@@ -393,6 +408,28 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('admin_manage_events');
         }
 
+        // server-side input validation for input field - event, organiser, description
+        $fields = [
+            ['value' => $event, 'name' => 'Event name'],
+            ['value' => $organiser, 'name' => 'Organiser name'],
+            ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[\w\s.,!?\'"-]+$/'],
+        ];
+
+        foreach ($fields as $field) {
+            $error = $this->validateInputField(
+                $field['value'], 
+                $field['name'],
+                // setting default maxlength to 40
+                // only description has special 100 maxlength
+                $field['maxLength'] ?? 40
+            );
+
+            if ($error) {
+                $this->addFlash('error', $error);
+                return $this->redirectToRoute('admin_manage_events');
+            }
+        }
+
         try {
             $eventDate     = new \DateTime($rawDate);
             $purchaseStart = new \DateTime($rawStart);
@@ -411,20 +448,7 @@ final class AdminController extends AbstractController
             $this->addFlash('error', 'Purchase end cannot be after event date');
             return $this->redirectToRoute('admin_manage_events');
         }
-
-        if(empty($organiser)){
-            $this->addFlash('error', 'Organiser name is required.');
-            return $this->redirectToRoute('admin_manage_events');
-        }
-        if(strlen($organiser) > 50){
-            $this->addFlash('error', 'Organiser name cannot exceed 50 characters.');
-            return $this->redirectToRoute('admin_manage_events');
-        }
-        if(!preg_match('/^[a-zA-Z0-9\s]+$/', $organiser)){
-            $this->addFlash('error', 'Organiser name can only contain letters, numbers and spaces.');
-            return $this->redirectToRoute('admin_manage_events');
-        }
-
+    
         // 3) Build and persist the Event
         $event = (new Event())
             ->setName($name)
@@ -437,14 +461,6 @@ final class AdminController extends AbstractController
             ->setPurchaseStartDate($purchaseStart)
             ->setPurchaseEndDate($purchaseEnd);
         
-        // $violations = $validator->validate($event);
-        // if (count($violations) > 0) {
-        //     foreach ($violations as $violation) {
-        //         $this->addFlash('error', $violation->getMessage());
-        //     }
-        //     return $this->redirectToRoute('admin_manage_events');
-        // }
-
         // 4) Handle optional image upload
         $imagefile = $request->files->get('imagefile');
         if ($imagefile && $imagefile->isValid()) {
@@ -503,6 +519,26 @@ final class AdminController extends AbstractController
             $tDesc     = strip_tags(trim($typeData['description'] ?? ''));
             $tPrice    = floatval($typeData['price'] ?? 0);
             $tQuantity = intval($typeData['quantity'] ?? 0);
+            
+            // server-side validation for ticket type fields
+            $ticketFields = [
+                ['value' => $tName, 'name' => 'Ticket name'],
+                // allowing description to have letters, digits, underscores, whitespace, common punctuation . , ! ? ' " -
+                ['value' => $tDesc, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[\w\s.,!?\'"-]+$/'],
+            ];
+
+            foreach ($ticketFields as $field) {
+                $error = $this->validateInputField(
+                    $field['value'],
+                    $field['name'],
+                    $field['maxLength'] ?? 40,
+                    $field['pattern'] ?? '/^[a-zA-Z0-9\s]+$/'
+                );
+                if ($error) {
+                    $this->addFlash('error', "Ticket " . ($idx + 1) . ": " . $error);
+                    return $this->redirectToRoute('admin_manage_events');
+                }
+            }
 
             if (!$tName || $tPrice <= 0 || $tQuantity <= 0) {
                 // skip any incomplete/invalid entries
