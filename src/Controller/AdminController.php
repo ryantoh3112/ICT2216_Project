@@ -411,7 +411,7 @@ final class AdminController extends AbstractController
 
         // server-side input validation for input field - event, organiser, description
         $fields = [
-            ['value' => $event, 'name' => 'Event name'],
+            ['value' => $name, 'name' => 'Event name'],
             ['value' => $organiser, 'name' => 'Organiser name'],
             ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[\w\s.,!?\'"-]+$/'],
         ];
