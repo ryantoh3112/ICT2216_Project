@@ -1,7 +1,5 @@
 monolog:
-    channels:
-        - deprecation # Deprecations are logged in the dedicated "deprecation" channel when it exists
-        - splunk
+    channels: ['splunk'] 
 
 when@dev:
     monolog:
@@ -45,3 +43,8 @@ when@prod:
                 type: service
                 id: App\Service\SplunkHandler
                 channels: ['splunk']
+            
+            main:
+                type: stream
+                path: "%kernel.logs_dir%/prod.log"
+                level: error

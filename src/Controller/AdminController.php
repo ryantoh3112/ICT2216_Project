@@ -24,10 +24,26 @@ use Symfony\Component\HttpFoundation\UploadedFile;
 
 # for input validation
 // use Symfony\Component\Validator\Validator\ValidatorInterface;
+//test cicd
 
 #[Route('/admin', name: 'admin_')]
 final class AdminController extends AbstractController
-{
+{   
+    // function to validate input fields
+    private function validateInputField(string $value, string $fieldName, int $maxLength = 50, string $pattern = '/^[a-zA-Z0-9\s]+$/'): ?string
+    {
+        if (empty($value)) {
+            return "$fieldName is required.";
+        }
+        if (strlen($value) > $maxLength) {
+            return "$fieldName cannot exceed $maxLength characters.";
+        }
+        if (!preg_match($pattern, $value)) {
+            return "$fieldName can only contain letters, numbers and spaces.";
+        }
+        return null; // No error
+    }
+
     // Function to check if user Logged in AND Admin
     private function getAuthenticatedAdmin(Request $request, AuthRepository $authRepository): Response|User
     {
@@ -115,6 +131,32 @@ final class AdminController extends AbstractController
         $venue = $venueRepo->find((int) $request->request->get('venue'));
         $category = $categoryRepo->find((int) $request->request->get('category'));
         $capacity = (int) $request->request->get('capacity');
+        
+        // server-side input validation for input field - event, organiser, description
+        $fields = [
+            ['value' => $name, 'name' => 'Event name'],
+            ['value' => $organiser, 'name' => 'Organiser name'],
+            ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s"?,\$\.\/]+$/'],
+        ];
+
+        // standard pattern except from description
+        $defaultPattern = '/^[a-zA-Z0-9\s]+$/';
+
+        foreach ($fields as $field) {
+            $error = $this->validateInputField(
+                $field['value'], 
+                $field['name'],
+                // setting default maxlength to 40
+                // only description has special 100 maxlength
+                $field['maxLength'] ?? 40,
+                $field['pattern'] ?? $defaultPattern
+            );
+
+            if ($error) {
+                $this->addFlash('error', $error);
+                return $this->redirectToRoute('admin_manage_events');
+            }
+        }
 
         if (!$name) {
             $this->addFlash('error', 'Event name is required.');
@@ -183,32 +225,9 @@ final class AdminController extends AbstractController
         $event->setPurchaseStartDate($startDate);
         $event->setPurchaseEndDate($endDate);
 
-        // // Handle image file upload
-        // $imagefile = $request->files->get('imagefile');
-        // if ($imagefile && $imagefile->isValid()) {
-        //     $allowedImgTypes = ['image/jpg', 'image/jpeg', 'image/png'];
-        //     // if user uploads invalid file type for img, redirect them back to manage events page with error message
-        //     if(!in_array($imagefile->getMimeType(), $allowedImgTypes)) {
-        //         $this->addFlash('error', 'Invalid image file type. Only JPG, JPEG, and PNG are allowed.');
-        //         return $this->redirectToRoute('admin_manage_events');
-        //     }
-        //     // ensure real img file is uploaded
-        //     if(!@getimagesize($imagefile->getPathname())) {
-        //         $this->addFlash('error', 'Nice try, but valid image only.');
-        //         return $this->redirectToRoute('admin_manage_events');
-        //     }
-            // // Generate a unique filename
-            // $filename = uniqid() . '.' . $imagefile->guessExtension();
-            // // Move the file to the uploads directory
-            // $imagefile->move($this->getParameter(name: 'event_images_directory'), $filename);
-            // // Set the image path in the event entity
-            // $event->setImagePath($filename);
-
         // 4) Image handling: reuse addEvent logic + preserve existing if none uploaded
         $uploaded = $request->files->get('imagefile');
-        // dump($uploaded); die;
-        // dump($_FILES, $uploaded); die;
-        // if ($uploaded instanceof UploadedFile && $uploaded->isValid()) {
+        
         if ($uploaded && $uploaded->isValid()){
             // dump($uploaded->getSize()); die;
             $allowed = ['image/jpg','image/jpeg','image/png'];
@@ -322,6 +341,25 @@ final class AdminController extends AbstractController
             foreach ($newTicketTypes as $typeData) {
                 $name = strip_tags(trim($typeData['name']));
                 $description = strip_tags(trim($typeData['description']));
+                
+                //server side validation for new ticket type fields - name, description
+                $ticketFields = [
+                    ['value' => $name, 'name' => 'Ticket name'],
+                    ['value' => $description, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s"?,\$\.\/]+$/'],
+                ];
+                foreach ($ticketFields as $field) {
+                    $error = $this->validateInputField(
+                        $field['value'],
+                        $field['name'],
+                        $field['maxLength'] ?? 40,
+                        $field['pattern'] ?? '/^[a-zA-Z0-9\s]+$/'
+                    );
+                    if ($error) {
+                        $this->addFlash('error', "New Ticket Type: " . $error);
+                        return $this->redirectToRoute('admin_manage_events');
+                    }
+                }
+
                 $price = (float) $typeData['price'];
                 $quantity = (int) $typeData['quantity'];
 
@@ -393,6 +431,32 @@ final class AdminController extends AbstractController
             return $this->redirectToRoute('admin_manage_events');
         }
 
+        // server-side input validation for input field - event, organiser, description
+        $fields = [
+            ['value' => $name, 'name' => 'Event name'],
+            ['value' => $organiser, 'name' => 'Organiser name'],
+            ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s"?,\$\.\/]+$/'],
+        ];
+
+        // standard pattern except from description
+        $defaultPattern = '/^[a-zA-Z0-9\s]+$/';
+
+        foreach ($fields as $field) {
+            $error = $this->validateInputField(
+                $field['value'], 
+                $field['name'],
+                // setting default maxlength to 40
+                // only description has special 100 maxlength
+                $field['maxLength'] ?? 40,
+                $field['pattern'] ?? $defaultPattern
+            );
+
+            if ($error) {
+                $this->addFlash('error', $error);
+                return $this->redirectToRoute('admin_manage_events');
+            }
+        }
+
         try {
             $eventDate     = new \DateTime($rawDate);
             $purchaseStart = new \DateTime($rawStart);
@@ -411,20 +475,7 @@ final class AdminController extends AbstractController
             $this->addFlash('error', 'Purchase end cannot be after event date');
             return $this->redirectToRoute('admin_manage_events');
         }
-
-        if(empty($organiser)){
-            $this->addFlash('error', 'Organiser name is required.');
-            return $this->redirectToRoute('admin_manage_events');
-        }
-        if(strlen($organiser) > 50){
-            $this->addFlash('error', 'Organiser name cannot exceed 50 characters.');
-            return $this->redirectToRoute('admin_manage_events');
-        }
-        if(!preg_match('/^[a-zA-Z0-9\s]+$/', $organiser)){
-            $this->addFlash('error', 'Organiser name can only contain letters, numbers and spaces.');
-            return $this->redirectToRoute('admin_manage_events');
-        }
-
+    
         // 3) Build and persist the Event
         $event = (new Event())
             ->setName($name)
@@ -437,14 +488,6 @@ final class AdminController extends AbstractController
             ->setPurchaseStartDate($purchaseStart)
             ->setPurchaseEndDate($purchaseEnd);
         
-        // $violations = $validator->validate($event);
-        // if (count($violations) > 0) {
-        //     foreach ($violations as $violation) {
-        //         $this->addFlash('error', $violation->getMessage());
-        //     }
-        //     return $this->redirectToRoute('admin_manage_events');
-        // }
-
         // 4) Handle optional image upload
         $imagefile = $request->files->get('imagefile');
         if ($imagefile && $imagefile->isValid()) {
@@ -501,9 +544,39 @@ final class AdminController extends AbstractController
         foreach ($ticketTypesData as $idx => $typeData) {
             $tName     = strip_tags(trim($typeData['name'] ?? ''));
             $tDesc     = strip_tags(trim($typeData['description'] ?? ''));
-            $tPrice    = floatval($typeData['price'] ?? 0);
-            $tQuantity = intval($typeData['quantity'] ?? 0);
+            
+            
+            // server-side validation for ticket type fields
+            $ticketFields = [
+                ['value' => $tName, 'name' => 'Ticket name'],
+                // allowing description to have letters, digits, underscores, whitespace, common punctuation . , ! ? ' " -
+                ['value' => $tDesc, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s"?,\$\.\/]+$/'],
+            ];
 
+            foreach ($ticketFields as $field) {
+                $error = $this->validateInputField(
+                    $field['value'],
+                    $field['name'],
+                    $field['maxLength'] ?? 40,
+                    $field['pattern'] ?? '/^[a-zA-Z0-9\s]+$/'
+                );
+                if ($error) {
+                    $this->addFlash('error', "Ticket " . ($idx + 1) . ": " . $error);
+                    return $this->redirectToRoute('admin_manage_events');
+                }
+            }
+
+            $tPrice    = floatval($typeData['price'] ?? 0);
+            
+            //enable stricter validation for price
+            $rawQuantity = trim($typeData['quantity'] ?? '');
+            if(!ctyle_digit($rawQuantity)){
+                //if quantity not pure integer string, skip/handle error
+                $this->addFlash('error', "Ticket quantity for '{$tName}' must be a whole number only.");
+                return $this->redirectToRoute('admin_manage_events');
+            }            
+            // $tQuantity = intval($typeData['quantity'] ?? 0);
+            $tQuantity = (int)$rawQuantity;
             if (!$tName || $tPrice <= 0 || $tQuantity <= 0) {
                 // skip any incomplete/invalid entries
                 continue;
