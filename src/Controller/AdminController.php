@@ -345,7 +345,9 @@ final class AdminController extends AbstractController
                 //server side validation for new ticket type fields - name, description
                 $ticketFields = [
                     ['value' => $name, 'name' => 'Ticket name'],
-                    ['value' => $description, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s.,!?\'"@#$%&*()\/\-:;]+$/u'],
+                    // ticket description can only have letters, digits, whitespace, comma and fullstop.
+                    // ticket description more strict than event description
+                    ['value' => $description, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s.,]+$/'],
                 ];
                 foreach ($ticketFields as $field) {
                     $error = $this->validateInputField(
