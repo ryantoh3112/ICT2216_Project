@@ -136,7 +136,7 @@ final class AdminController extends AbstractController
         $fields = [
             ['value' => $name, 'name' => 'Event name'],
             ['value' => $organiser, 'name' => 'Organiser name'],
-            ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s"?,\$\.\/]+$/'],
+            ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s.,!?\'"@#$%&*()\/\-:;]+$/u'],
         ];
 
         // standard pattern except from description
@@ -335,7 +335,7 @@ final class AdminController extends AbstractController
             }
         }
 
-        // Handle NEW ticket types being added
+        // Handle NEW ticket types being added (update functn)
         $newTicketTypes = $request->request->all('new_ticket_types');
         if ($newTicketTypes) {
             foreach ($newTicketTypes as $typeData) {
@@ -345,7 +345,7 @@ final class AdminController extends AbstractController
                 //server side validation for new ticket type fields - name, description
                 $ticketFields = [
                     ['value' => $name, 'name' => 'Ticket name'],
-                    ['value' => $description, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s"?,\$\.\/]+$/'],
+                    ['value' => $description, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s.,!?\'"@#$%&*()\/\-:;]+$/u'],
                 ];
                 foreach ($ticketFields as $field) {
                     $error = $this->validateInputField(
@@ -435,7 +435,7 @@ final class AdminController extends AbstractController
         $fields = [
             ['value' => $name, 'name' => 'Event name'],
             ['value' => $organiser, 'name' => 'Organiser name'],
-            ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s"?,\$\.\/]+$/'],
+            ['value' => $description, 'name' => 'Description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s.,!?\'"@#$%&*()\/\-:;]+$/u'],
         ];
 
         // standard pattern except from description
@@ -546,7 +546,7 @@ final class AdminController extends AbstractController
             $tDesc     = strip_tags(trim($typeData['description'] ?? ''));
             
             
-            // server-side validation for ticket type fields
+            // server-side validation for ticket type fields (add event functn)
             $ticketFields = [
                 ['value' => $tName, 'name' => 'Ticket name'],
                 // allowing description to have letters, digits, underscores, whitespace, common punctuation . , ! ? ' " -
