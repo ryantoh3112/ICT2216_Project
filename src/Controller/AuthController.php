@@ -38,6 +38,26 @@ final class AuthController extends AbstractController
     ) {
         $this->logger = $logger;
     }
+
+       /**
+     * Always use only the forwarded header.
+     * Never return REMOTE_ADDR.
+     */
+    private function resolveForwardedIp(Request $request): ?string
+    {
+        // 1) Try X-Forwarded-For (comma-separated list)
+        if ($xff = $request->headers->get('X-Forwarded-For')) {
+            $parts = explode(',', $xff);
+            return trim($parts[0]);
+        }
+        // 2) Fallback to X-Real-IP
+        if ($xri = $request->headers->get('X-Real-IP')) {
+            return trim($xri);
+        }
+        // 3) No header present → null
+        return null;
+    }
+
     #[Route('/register', name: 'register', methods: ['GET', 'POST'])]
     public function register(
         Request $request,
@@ -47,7 +67,7 @@ final class AuthController extends AbstractController
         CaptchaRepository $captchaRepo,
         HttpClientInterface $httpClient
     ): Response {
-        $ip          = $request->getClientIp();
+        $ip          = $this->resolveForwardedIp($request);
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         // 1) fetch-or-create our tracker
@@ -157,7 +177,7 @@ public function loginForm(
     Request $request,
     CaptchaRepository $captchaRepo
 ): Response {
-    $ip          = $request->getClientIp();
+    $ip          = $this->resolveForwardedIp($request);
     $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
     // 1) fetch-or-create tracker
@@ -193,7 +213,7 @@ public function login(
     CaptchaRepository $captchaRepo,
     HttpClientInterface $httpClient,
 ): Response {
-    $ip          = $request->getClientIp();
+    $ip          = $this->resolveForwardedIp($request);
     $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
     // 1) Fetch-or-create the Captcha tracker
@@ -393,7 +413,7 @@ public function login(
             return $this->redirectToRoute('user_profile');
         }
 
-        $ip          = $request->getClientIp();
+        $ip          = $this->resolveForwardedIp($request);
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         $attempt = $captchaRepo->findOneBy([
@@ -419,7 +439,7 @@ public function login(
         CaptchaRepository $captchaRepo
     ): Response {
         // step 1: fetch or create our CAPTCHA tracker
-        $ip          = $request->getClientIp();
+        $ip          = $this->resolveForwardedIp($request);
         $fingerprint = substr(sha1((string)$request->headers->get('User-Agent')), 0, 32);
 
         $attempt = $captchaRepo->findOneBy([
