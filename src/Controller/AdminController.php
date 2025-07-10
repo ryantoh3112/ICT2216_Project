@@ -569,14 +569,14 @@ final class AdminController extends AbstractController
             $tPrice    = floatval($typeData['price'] ?? 0);
             
             //enable stricter validation for price
-            $rawQuantity = trim($typeData['quantity'] ?? '');
-            if(!ctype_digit($rawQuantity)){
-                //if quantity not pure integer string, skip/handle error
-                $this->addFlash('error', "Ticket quantity for '{$tName}' must be a whole number only.");
-                return $this->redirectToRoute('admin_manage_events');
-            }            
-            // $tQuantity = intval($typeData['quantity'] ?? 0);
-            $tQuantity = (int)$rawQuantity;
+            // $rawQuantity = trim($typeData['quantity'] ?? '');
+            // if(!ctype_digit($rawQuantity)){
+            //     //if quantity not pure integer string, skip/handle error
+            //     $this->addFlash('error', "Ticket quantity for '{$tName}' must be a whole number only.");
+            //     return $this->redirectToRoute('admin_manage_events');
+            // }            
+            $tQuantity = intval($typeData['quantity'] ?? 0);
+            // $tQuantity = (int)$rawQuantity;
             if (!$tName || $tPrice <= 0 || $tQuantity <= 0) {
                 // skip any incomplete/invalid entries
                 continue;
