@@ -550,7 +550,7 @@ final class AdminController extends AbstractController
             $ticketFields = [
                 ['value' => $tName, 'name' => 'Ticket name'],
                 // allowing description to have letters, digits, underscores, whitespace, common punctuation . , ! ? ' " -
-                ['value' => $tDesc, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s"?,\$\.\/]+$/'],
+                ['value' => $tDesc, 'name' => 'Ticket description', 'maxLength' => 100, 'pattern' => '/^[a-zA-Z0-9\s]+$/'],
             ];
 
             foreach ($ticketFields as $field) {
